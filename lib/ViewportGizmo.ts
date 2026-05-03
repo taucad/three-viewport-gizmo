@@ -1,6 +1,5 @@
 import {
   Camera,
-  Clock,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
@@ -103,7 +102,8 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
   private _domRect!: DOMRect;
   private _dragging: boolean = false;
   private _distance: number = 0;
-  private _clock: Clock = new Clock();
+  /** Seconds; `null` until first `_animate` tick after `_setOrientation` (first frame uses delta 0). */
+  private _lastAnimateTimeSeconds: number | null = null;
   private _targetQuaternion = new Quaternion();
   private _quaternionStart = new Quaternion();
   private _quaternionEnd = new Quaternion();
@@ -468,6 +468,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
       this._updateOrientation();
 
       this.animating = false;
+      this._lastAnimateTimeSeconds = null;
       this.dispatchEvent({ type: "change" });
       this.dispatchEvent({ type: "end" });
       return;
@@ -475,7 +476,12 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
     if (this._controls) this._controls.enabled = false;
 
-    const delta = this._clock.getDelta();
+    const nowSeconds = performance.now() / 1000;
+    const delta =
+      this._lastAnimateTimeSeconds === null
+        ? 0
+        : nowSeconds - this._lastAnimateTimeSeconds;
+    this._lastAnimateTimeSeconds = nowSeconds;
 
     const step = delta * GIZMO_TURN_RATE * this.speed;
 
@@ -513,6 +519,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
       }
 
       this.animating = false;
+      this._lastAnimateTimeSeconds = null;
       this.dispatchEvent({ type: "end" });
     }
   }
@@ -537,10 +544,12 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
     _matrix.lookAt(_vec3, focusPoint, this.up);
     this._quaternionEnd.setFromRotationMatrix(_matrix);
 
-    _matrix
-      .setPosition(camera.position)
-      .lookAt(camera.position, focusPoint, this.up);
-    this._quaternionStart.setFromRotationMatrix(_matrix);
+    // Use the camera's actual quaternion instead of recomputing it via Matrix4.lookAt.
+    // At the world up axis (camera.position parallel to this.up), Three.js lookAt perturbs
+    // the eye→target vector in a direction that can disagree with the quaternion OrbitControls
+    // settled on for the same position. That makes _quaternionStart and _quaternionEnd differ
+    // by ~90° around up even when the camera is already on the requested face (e.g. Z-up Bottom).
+    this._quaternionStart.copy(camera.quaternion);
 
     // For Z-up and X-up systems, when rotating to the top or bottom, we need to apply
     // a final rotational twist to correctly align the gizmo's "Top" or "Bottom" face.
@@ -555,7 +564,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
     }
 
     this.animating = true;
-    this._clock.start();
+    this._lastAnimateTimeSeconds = null;
     this.dispatchEvent({ type: "start" });
   }
 
@@ -685,9 +694,16 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
     if (!this.enabled || this._dragging) return;
 
     if (this._background) updateBackground(this._background, false);
-    if (this._focus) axisHover(this._focus, false);
+
+    const hadFocus = this._focus !== null;
+    if (this._focus) {
+      axisHover(this._focus, false);
+      this._focus = null;
+    }
 
     this._domElement.style.cursor = "";
+
+    if (hadFocus) this.dispatchEvent({ type: "hoverchange", object: null });
   }
 
   /**
@@ -740,5 +756,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
     if ((this._focus = object)) axisHover(object, true);
     else updateAxis(this._options, this._intersections, this.camera);
+
+    this.dispatchEvent({ type: "hoverchange", object });
   }
 }

@@ -55,10 +55,10 @@ export const axesFaces = (
       if (zUp || xUp) {
         // z-up and x-up systems: Special rotation handling for Top and Bottom faces to rotate text for readability.
         if ((axis === "z" && zUp) || (axis === "x" && xUp)) {
-          // Top face: rotate 90 degrees counter-clockwise around positive-Z-axis to make "top" text readable left-to-right (from front)
+          // Top face: rotate 90 degrees clockwise (negative right-hand-rule around +Z) so "top" text reads left-to-right from the front.
           face.rotateZ(-Math.PI / 2);
         } else if ((axis === "nz" && zUp) || (axis === "nx" && xUp)) {
-          // Bottom face: rotate 90 degrees clockwise around positive-Z-axis to make "bottom" text readable left-to-right (from front)
+          // Bottom face: rotate 90 degrees counter-clockwise (positive right-hand-rule around +Z) so "bottom" text reads left-to-right from the front.
           face.rotateZ(Math.PI / 2);
         }
       }

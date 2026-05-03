@@ -1,13 +1,20 @@
+import { BufferGeometry } from 'three';
 import { ColorRepresentation } from 'three';
 import { DeepRequired } from 'utility-types';
+import { Mesh } from 'three';
+import { MeshBasicMaterial } from 'three';
 import { Object3D } from 'three';
 import { Object3DEventMap } from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { OrthographicCamera } from 'three';
 import { PerspectiveCamera } from 'three';
+import { Sprite } from 'three';
 import { Vector3 } from 'three';
 import { WebGLRenderer } from 'three';
 import { WebGPURenderer } from 'three/webgpu';
+
+/** Axes Object */
+declare type GizmoAxisObject = Mesh<BufferGeometry, MeshBasicMaterial> | Sprite;
 
 /**
  * Configuration options for individual gizmo axes.
@@ -313,7 +320,8 @@ export declare class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
     private _domRect;
     private _dragging;
     private _distance;
-    private _clock;
+    /** Seconds; `null` until first `_animate` tick after `_setOrientation` (first frame uses delta 0). */
+    private _lastAnimateTimeSeconds;
     private _targetQuaternion;
     private _quaternionStart;
     private _quaternionEnd;
@@ -565,6 +573,13 @@ export declare interface ViewportGizmoEventMap extends Object3DEventMap {
      * - Any other camera orientation updates
      */
     change: {};
+    /**
+     * Fired when hovered axis/face/edge/corner changes.
+     * Payload `object` is the newly hovered mesh/sprite, or `null` after pointer leaves.
+     */
+    hoverchange: {
+        object: GizmoAxisObject | null;
+    };
 }
 
 export { }

@@ -332,6 +332,14 @@ export type GizmoAxisOptions = {
   };
 };
 
+/** Optional userData fields on gizmo axis meshes/sprites; see {@link import("./utils/intersectedObjects.js").intersectedObjects} for `intersectionOrder`. */
+export interface GizmoAxisObjectUserData extends Record<string, unknown> {
+  intersectionOrder?: number;
+}
+
+/** Axes Object */
+export type GizmoAxisObject = Mesh<BufferGeometry, MeshBasicMaterial> | Sprite;
+
 /**
  * Map of custom events emitted by the ViewportGizmo.
  * Extends Three.js Object3D events with gizmo-specific interaction events.
@@ -362,15 +370,18 @@ export interface ViewportGizmoEventMap extends Object3DEventMap {
    * - Any other camera orientation updates
    */
   change: {};
+
+  /**
+   * Fired when hovered axis/face/edge/corner changes.
+   * Payload `object` is the newly hovered mesh/sprite, or `null` after pointer leaves.
+   */
+  hoverchange: { object: GizmoAxisObject | null };
 }
 
 /** The {@link GizmoOptions } with all options set with their respective default and fallback */
 export type GizmoOptionsFallback = DeepRequired<GizmoOptions> & {
   isSphere: boolean;
 };
-
-/** Axes Object */
-export type GizmoAxisObject = Mesh<BufferGeometry, MeshBasicMaterial> | Sprite;
 
 /** Object containing the viewport bounding box  */
 export type GizmoViewportArray = [
