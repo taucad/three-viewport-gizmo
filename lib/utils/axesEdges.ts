@@ -1,4 +1,4 @@
-import { GizmoOptionsFallback } from "@lib/types";
+import type { GizmoAxisName, GizmoOptionsFallback } from "@lib/types";
 import {
   CanvasTexture,
   Mesh,
@@ -11,6 +11,12 @@ import {
 } from "three";
 import { roundedRectangleGeometry } from "./roundedRectangleGeometry";
 import { setMapColumnOffset } from "./axesMap";
+
+const signToAxis = (
+  value: number,
+  positive: GizmoAxisName,
+  negative: GizmoAxisName
+): GizmoAxisName | null => (value === 0 ? null : value > 0 ? positive : negative);
 
 export const axesEdges = (
   options: GizmoOptionsFallback,
@@ -76,11 +82,18 @@ export const axesEdges = (
 
       edge.renderOrder = 1;
 
+      const a = signToAxis(edge.position.x, "x", "nx");
+      const b = signToAxis(edge.position.y, "y", "ny");
+      const c = signToAxis(edge.position.z, "z", "nz");
+      const axes = [a, b, c].filter((x): x is GizmoAxisName => x !== null);
+
       edge.userData = {
         color,
         opacity,
         scale,
         hover,
+        kind: "edge",
+        axes,
       };
 
       return edge;

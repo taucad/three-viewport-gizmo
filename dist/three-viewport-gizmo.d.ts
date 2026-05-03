@@ -13,6 +13,15 @@ import { Vector3 } from 'three';
 import { WebGLRenderer } from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 
+declare const GIZMO_AXES: readonly ["x", "y", "z", "nx", "ny", "nz"];
+
+/** Lowercase option keys — literal tuple (do not derive via `.map`; TS widens that to `string[]`). */
+declare const GIZMO_FACES: readonly ["right", "top", "front", "left", "bottom", "back"];
+
+declare type GizmoAxisKind = "face" | "edge" | "corner";
+
+declare type GizmoAxisName = (typeof GIZMO_AXES)[number];
+
 /** Axes Object */
 declare type GizmoAxisObject = Mesh<BufferGeometry, MeshBasicMaterial> | Sprite;
 
@@ -61,6 +70,8 @@ export declare type GizmoAxisOptions = {
         };
     };
 };
+
+declare type GizmoFaceName = (typeof GIZMO_FACES)[number];
 
 /**
  * Configuration options for the ViewportGizmo.
@@ -571,14 +582,26 @@ export declare interface ViewportGizmoEventMap extends Object3DEventMap {
      * - Active drag operations updating the view
      * - View transition animations in progress
      * - Any other camera orientation updates
+     *
+     * On click-to-orient, `kind` / `axes` / `face` / `direction` identify the hit target.
+     * On drag or animation frames they are `null`.
      */
-    change: {};
+    change: {
+        kind: GizmoAxisKind | null;
+        axes: readonly GizmoAxisName[] | null;
+        face: GizmoFaceName | null;
+        direction: Vector3 | null;
+    };
     /**
      * Fired when hovered axis/face/edge/corner changes.
      * Payload `object` is the newly hovered mesh/sprite, or `null` after pointer leaves.
      */
     hoverchange: {
         object: GizmoAxisObject | null;
+        kind: GizmoAxisKind | null;
+        axes: readonly GizmoAxisName[] | null;
+        face: GizmoFaceName | null;
+        direction: Vector3 | null;
     };
 }
 

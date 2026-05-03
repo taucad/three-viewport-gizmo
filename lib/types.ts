@@ -6,7 +6,15 @@ import {
   MeshBasicMaterial,
   Object3DEventMap,
   Sprite,
+  Vector3,
 } from "three";
+import { GIZMO_AXES, GIZMO_FACES } from "./utils/constants.js";
+
+export type GizmoAxisKind = "face" | "edge" | "corner";
+
+export type GizmoAxisName = (typeof GIZMO_AXES)[number];
+
+export type GizmoFaceName = (typeof GIZMO_FACES)[number];
 
 /**
  * Configuration options for the ViewportGizmo.
@@ -335,6 +343,9 @@ export type GizmoAxisOptions = {
 /** Optional userData fields on gizmo axis meshes/sprites; see {@link import("./utils/intersectedObjects.js").intersectedObjects} for `intersectionOrder`. */
 export interface GizmoAxisObjectUserData extends Record<string, unknown> {
   intersectionOrder?: number;
+  kind?: GizmoAxisKind;
+  axes?: readonly GizmoAxisName[];
+  face?: GizmoFaceName;
 }
 
 /** Axes Object */
@@ -368,14 +379,28 @@ export interface ViewportGizmoEventMap extends Object3DEventMap {
    * - Active drag operations updating the view
    * - View transition animations in progress
    * - Any other camera orientation updates
+   *
+   * On click-to-orient, `kind` / `axes` / `face` / `direction` identify the hit target.
+   * On drag or animation frames they are `null`.
    */
-  change: {};
+  change: {
+    kind: GizmoAxisKind | null;
+    axes: readonly GizmoAxisName[] | null;
+    face: GizmoFaceName | null;
+    direction: Vector3 | null;
+  };
 
   /**
    * Fired when hovered axis/face/edge/corner changes.
    * Payload `object` is the newly hovered mesh/sprite, or `null` after pointer leaves.
    */
-  hoverchange: { object: GizmoAxisObject | null };
+  hoverchange: {
+    object: GizmoAxisObject | null;
+    kind: GizmoAxisKind | null;
+    axes: readonly GizmoAxisName[] | null;
+    face: GizmoFaceName | null;
+    direction: Vector3 | null;
+  };
 }
 
 /** The {@link GizmoOptions } with all options set with their respective default and fallback */

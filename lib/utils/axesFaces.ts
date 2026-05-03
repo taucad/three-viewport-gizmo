@@ -10,7 +10,7 @@ import {
   SpriteMaterial,
   Vector3,
 } from "three";
-import { GIZMO_AXES, GIZMO_SPHERE_AXES_DISTANCE } from "./constants";
+import { GIZMO_AXES, GIZMO_FACES, GIZMO_SPHERE_AXES_DISTANCE } from "./constants";
 
 import { setMapColumnOffset } from "./axesMap";
 
@@ -71,6 +71,9 @@ export const axesFaces = (
       scale,
       opacity,
       hover,
+      kind: "face",
+      axes: [GIZMO_AXES[i]],
+      face: GIZMO_FACES[i],
     };
 
     return face;

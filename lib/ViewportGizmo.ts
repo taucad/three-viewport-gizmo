@@ -28,6 +28,10 @@ import {
   GizmoOptionsFallback,
   GizmoAxisObject,
   GizmoViewportArray,
+  GizmoAxisKind,
+  GizmoAxisName,
+  GizmoFaceName,
+  GizmoAxisObjectUserData,
 } from "./types";
 import { GIZMO_EPSILON, GIZMO_TURN_RATE } from "./utils/constants";
 import { updateBackground } from "./utils/updateBackground";
@@ -39,6 +43,26 @@ import { axisHover } from "./utils/axisHover";
 import type { WebGPURenderer } from "three/webgpu";
 
 export type { GizmoOptions, ViewportGizmoEventMap, GizmoAxisOptions };
+
+const _identityVec = /*@__PURE__*/ new Vector3();
+
+function objectIdentity(object: GizmoAxisObject | null): {
+  kind: GizmoAxisKind | null;
+  axes: readonly GizmoAxisName[] | null;
+  face: GizmoFaceName | null;
+  direction: Vector3 | null;
+} {
+  if (!object) return { kind: null, axes: null, face: null, direction: null };
+
+  const userData: GizmoAxisObjectUserData = object.userData;
+
+  return {
+    kind: userData.kind ?? null,
+    axes: userData.axes ?? null,
+    face: userData.face ?? null,
+    direction: _identityVec.copy(object.position).normalize().clone(),
+  };
+}
 
 const _matrix = /*@__PURE__*/ new Matrix4();
 const _spherical = /*@__PURE__*/ new Spherical();
@@ -469,7 +493,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
       this.animating = false;
       this._lastAnimateTimeSeconds = null;
-      this.dispatchEvent({ type: "change" });
+      this.dispatchEvent({ type: "change", ...objectIdentity(null) });
       this.dispatchEvent({ type: "end" });
       return;
     }
@@ -496,7 +520,9 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
     this._updateOrientation();
     // FIXME - Need fix?
-    requestAnimationFrame(() => this.dispatchEvent({ type: "change" }));
+    requestAnimationFrame(() =>
+      this.dispatchEvent({ type: "change", ...objectIdentity(null) })
+    );
 
     if (this._quaternionStart.angleTo(this._quaternionEnd) < GIZMO_EPSILON) {
       if (this._controls) {
@@ -611,7 +637,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
       this.quaternion.copy(this.camera.quaternion).invert();
 
       this._updateOrientation(false);
-      this.dispatchEvent({ type: "change" });
+      this.dispatchEvent({ type: "change", ...objectIdentity(null) });
     };
 
     const endDrag = () => {
@@ -703,7 +729,12 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
     this._domElement.style.cursor = "";
 
-    if (hadFocus) this.dispatchEvent({ type: "hoverchange", object: null });
+    if (hadFocus)
+      this.dispatchEvent({
+        type: "hoverchange",
+        object: null,
+        ...objectIdentity(null),
+      });
   }
 
   /**
@@ -729,7 +760,10 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
     this._setOrientation(intersection.object.position);
 
-    this.dispatchEvent({ type: "change" });
+    this.dispatchEvent({
+      type: "change",
+      ...objectIdentity(intersection.object),
+    });
   }
 
   /**
@@ -757,6 +791,6 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
     if ((this._focus = object)) axisHover(object, true);
     else updateAxis(this._options, this._intersections, this.camera);
 
-    this.dispatchEvent({ type: "hoverchange", object });
+    this.dispatchEvent({ type: "hoverchange", object, ...objectIdentity(object) });
   }
 }

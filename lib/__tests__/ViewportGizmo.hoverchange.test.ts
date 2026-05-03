@@ -32,7 +32,15 @@ describe("hoverchange", () => {
     } as Intersection<GizmoAxisObject>);
     internals._handleHover({} as PointerEvent);
     expect(onHover).toHaveBeenCalledTimes(1);
-    expect(onHover.mock.calls[0]?.[0].object).toBe(a);
+    const first = onHover.mock.calls[0]![0];
+    expect(first.object).toBe(a);
+    expect(first.kind).toBe("face");
+    expect(first.axes).toEqual(["x"]);
+    expect(first.face).toBe("right");
+    expect(first.direction).not.toBeNull();
+    expect(first.direction!.x).toBeCloseTo(a.position.clone().normalize().x);
+    expect(first.direction!.y).toBeCloseTo(a.position.clone().normalize().y);
+    expect(first.direction!.z).toBeCloseTo(a.position.clone().normalize().z);
 
     intersectedObjects.mockReturnValueOnce({
       object: a,
@@ -47,12 +55,21 @@ describe("hoverchange", () => {
     } as Intersection<GizmoAxisObject>);
     internals._handleHover({} as PointerEvent);
     expect(onHover).toHaveBeenCalledTimes(2);
-    expect(onHover.mock.calls[1]?.[0].object).toBe(b);
+    const second = onHover.mock.calls[1]![0];
+    expect(second.object).toBe(b);
+    expect(second.kind).toBe("face");
+    expect(second.axes).toEqual(["y"]);
+    expect(second.face).toBe("top");
 
     intersectedObjects.mockReturnValueOnce(null);
     internals._handleHover({} as PointerEvent);
     expect(onHover).toHaveBeenCalledTimes(3);
-    expect(onHover.mock.calls[2]?.[0].object).toBeNull();
+    const cleared = onHover.mock.calls[2]![0];
+    expect(cleared.object).toBeNull();
+    expect(cleared.kind).toBeNull();
+    expect(cleared.axes).toBeNull();
+    expect(cleared.face).toBeNull();
+    expect(cleared.direction).toBeNull();
 
     intersectedObjects.mockReturnValueOnce(null);
     internals._handleHover({} as PointerEvent);
@@ -75,9 +92,40 @@ describe("hoverchange", () => {
 
     internals._onPointerLeave();
     expect(onHover).toHaveBeenCalledTimes(2);
-    expect(onHover.mock.calls[1]?.[0].object).toBeNull();
+    const leave = onHover.mock.calls[1]![0];
+    expect(leave.object).toBeNull();
+    expect(leave.kind).toBeNull();
+    expect(leave.axes).toBeNull();
+    expect(leave.face).toBeNull();
+    expect(leave.direction).toBeNull();
 
     internals._onPointerLeave();
     expect(onHover).toHaveBeenCalledTimes(2);
+  });
+
+  it("includes corner identity on hover (face null)", () => {
+    const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5) });
+    const internals = getInternals(gizmo);
+    internals._distance = gizmo.camera.position.length();
+
+    const corner = internals._intersections[6]!;
+    expect(corner.userData.kind).toBe("corner");
+
+    const onHover = vi.fn();
+    gizmo.addEventListener("hoverchange", onHover);
+
+    intersectedObjects.mockReturnValueOnce({
+      object: corner,
+      distance: 1,
+    } as Intersection<GizmoAxisObject>);
+    internals._handleHover({} as PointerEvent);
+
+    expect(onHover).toHaveBeenCalledTimes(1);
+    const evt = onHover.mock.calls[0]![0];
+    expect(evt.object).toBe(corner);
+    expect(evt.kind).toBe("corner");
+    expect(evt.axes).toEqual(["x", "y", "z"]);
+    expect(evt.face).toBeNull();
+    expect(evt.direction).not.toBeNull();
   });
 });

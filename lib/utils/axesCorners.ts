@@ -65,12 +65,20 @@ export const axesCorners = (
       corner.lookAt(target.copy(corner.position).multiplyScalar(2));
       corner.renderOrder = 1;
 
+      const axes = [
+        corner.position.x > 0 ? "x" : "nx",
+        corner.position.y > 0 ? "y" : "ny",
+        corner.position.z > 0 ? "z" : "nz",
+      ];
+
       corner.userData = {
         color,
         opacity,
         scale,
         hover,
         intersectionOrder: 1,
+        kind: "corner",
+        axes,
       };
 
       return corner;
