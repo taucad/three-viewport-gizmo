@@ -6,6 +6,10 @@ const examples = (type: "sphere" | "cube" | "rounded-cube") => [
     link: `examples/orbit-controls?type=${type}`,
   },
   {
+    text: "Hover Events",
+    link: `examples/hover-events?type=${type}`,
+  },
+  {
     text: "OrbitControls Events",
     link: `examples/orbit-controls-events?type=${type}`,
   },
