@@ -1,5 +1,6 @@
 import {
   Camera,
+  MathUtils,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
@@ -14,6 +15,8 @@ import {
   Vector4,
   type WebGLRenderer,
 } from "three";
+
+const { clamp } = MathUtils;
 
 import { gizmoDomElement, setDomPlacement } from "./utils/gizmoDomElement";
 import { getDomElement } from "./utils/getDomElement";
@@ -35,9 +38,8 @@ import {
 } from "./types";
 import { GIZMO_EPSILON, GIZMO_TURN_RATE } from "./utils/constants";
 import { updateBackground } from "./utils/updateBackground";
-import type { OrbitControls } from "three/examples/jsm/Addons.js";
+import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { optionsFallback } from "./utils/optionsFallback";
-import { clamp } from "three/src/math/MathUtils.js";
 import { axesObjects } from "./utils/axesObjects";
 import { axisHover } from "./utils/axisHover";
 import type { WebGPURenderer } from "three/webgpu";
@@ -281,7 +283,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
     this._camera.position.set(0, 0, 7);
 
-    const [axes, background, lines] = axesObjects(this._options);
+    const [axes, background, lines] = axesObjects(this._options, this.renderer);
 
     if (background) this.add(background);
     if (lines) this.add(lines);
@@ -356,12 +358,22 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
     const domRect = this._domRect;
     const containerRect = renderer.domElement.getBoundingClientRect();
 
+    // `WebGPURenderer` (and the WebGPU-fallback `WebGLBackend`) interpret
+    // `setViewport` y as top-left origin (native WebGPU). Legacy `WebGLRenderer`
+    // uses bottom-left (passed through to `gl.viewport`). See issue #48.
+    const isTopLeftOrigin =
+      (renderer as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
+    const yFromCanvasTop = domRect.top - containerRect.top;
+    const y = isTopLeftOrigin
+      ? yFromCanvasTop
+      : renderer.domElement.clientHeight -
+        (yFromCanvasTop + domRect.height);
+
     this._viewport.splice(
       0,
       4,
       domRect.left - containerRect.left,
-      renderer.domElement.clientHeight -
-        (domRect.top - containerRect.top + domRect.height),
+      y,
       domRect.width,
       domRect.height
     );
@@ -447,10 +459,38 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
     this.children.forEach((child) => {
       this.remove(child);
-      const mesh = child as Mesh<any, MeshBasicMaterial>;
-      mesh.material?.dispose();
-      mesh.material?.map?.dispose();
-      mesh.geometry?.dispose();
+      const ud = child.userData as Partial<GizmoAxisObjectUserData>;
+
+      if (ud.idleMaterial && ud.hoverMaterial) {
+        ud.idleMaterial.map?.dispose();
+        ud.idleMaterial.dispose();
+
+        if (ud.hoverMaterial !== ud.idleMaterial) {
+          ud.hoverMaterial.map?.dispose();
+          ud.hoverMaterial.dispose();
+        }
+      } else {
+        const meshlike = child as Mesh & {
+          material?: MeshBasicMaterial | MeshBasicMaterial[] | unknown;
+          geometry?: { dispose: () => void };
+        };
+
+        const { material } = meshlike;
+        if (Array.isArray(material)) {
+          for (const mat of material) {
+            const m = mat as MeshBasicMaterial;
+            m.map?.dispose();
+            m.dispose();
+          }
+        } else if (material && typeof material === "object" && "dispose" in material) {
+          const mb = material as MeshBasicMaterial;
+          mb.map?.dispose();
+          mb.dispose();
+        }
+      }
+
+      const meshlike = child as Mesh & { geometry?: { dispose: () => void } };
+      meshlike.geometry?.dispose();
     });
 
     this._domElement?.remove();

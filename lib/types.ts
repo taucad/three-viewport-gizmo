@@ -6,6 +6,7 @@ import {
   MeshBasicMaterial,
   Object3DEventMap,
   Sprite,
+  SpriteMaterial,
   Vector3,
 } from "three";
 import { GIZMO_AXES, GIZMO_FACES } from "./utils/constants.js";
@@ -346,6 +347,10 @@ export interface GizmoAxisObjectUserData extends Record<string, unknown> {
   kind?: GizmoAxisKind;
   axes?: readonly GizmoAxisName[];
   face?: GizmoFaceName;
+  /** Present on hoverable axis meshes/sprites from axesFaces/axesCorners/axesEdges */
+  idleMaterial?: MeshBasicMaterial | SpriteMaterial;
+  /** Paired hover material — selected at runtime instead of mutating atlas UV offsets (WebGPU). */
+  hoverMaterial?: MeshBasicMaterial | SpriteMaterial;
 }
 
 /** Axes Object */

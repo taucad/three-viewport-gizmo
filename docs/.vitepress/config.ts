@@ -1,5 +1,11 @@
 import { defineConfig } from "vitepress";
+import { threeViewportGizmoLocalDistPlugin } from "./plugins/local-dist";
 
+/**
+ * Sidebar links for each sphere / cube / rounded-cube family.
+ *
+ * Appends the URL-toggle WebGPU sample (`examples/webgpu`) to every family.
+ */
 const examples = (type: "sphere" | "cube" | "rounded-cube") => [
   {
     text: "Orbit controls",
@@ -33,6 +39,7 @@ const examples = (type: "sphere" | "cube" | "rounded-cube") => [
     text: "X-up coordinate system",
     link: `examples/x-up?type=${type}`,
   },
+  { text: "WebGPU sample (header toggle)", link: "examples/webgpu" },
 ];
 
 // https://vitepress.dev/reference/site-config
@@ -47,12 +54,14 @@ export default defineConfig({
     logo: "./assets/three-viewport-gizmo.svg",
     nav: [
       { text: "API", link: "/api" },
+      { text: "WebGPU", link: "/webgpu" },
       {
         text: "Examples",
         items: [
           { text: "Sphere", link: "examples/orbit-controls?type=sphere" },
           { text: "Cube", link: "examples/orbit-controls?type=cube" },
           { text: "Rounded Cube", link: "examples/orbit-controls?type=rounded-cube" },
+          { text: "WebGPU toggle sample", link: "/examples/webgpu" },
         ],
       },
       {
@@ -64,6 +73,7 @@ export default defineConfig({
 
     sidebar: [
       { text: "Quickstart", link: "/quickstart" },
+      { text: "WebGPU", link: "/webgpu" },
       { text: "API", link: "/api" },
       {
         text: "Examples",
@@ -87,6 +97,7 @@ export default defineConfig({
     ],
   },
   vite: {
+    plugins: [threeViewportGizmoLocalDistPlugin()],
     build: {
       commonjsOptions: {
         include: [/oh-vue-icons/],

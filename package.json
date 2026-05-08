@@ -14,7 +14,7 @@
       "require": "./dist/three-viewport-gizmo.umd.cjs"
     }
   },
-  "version": "2.2.2-tau.0",
+  "version": "2.2.2-tau.1",
   "type": "module",
   "types": "./dist/three-viewport-gizmo.d.ts",
   "scripts": {
@@ -24,8 +24,8 @@
     "test:watch": "vitest",
     "build:live": "tsc && vite build --config=vite.live.config.js",
     "preview": "vite preview --config=vite.live.config.js",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
+    "docs:dev": "pnpm build && vitepress dev docs",
+    "docs:build": "pnpm build && vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {

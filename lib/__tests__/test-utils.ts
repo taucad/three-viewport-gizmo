@@ -27,12 +27,32 @@ export function getInternals(gizmo: ViewportGizmo): ViewportGizmoInternals {
   return gizmo as unknown as ViewportGizmoInternals;
 }
 
-export function createStubRenderer(): WebGLRenderer {
+export type StubRendererOptions = {
+  readonly isWebGPURenderer?: boolean;
+};
+
+/** Minimal renderer stub — never performs GL / WebGPU initialization. */
+export function createStubRenderer(
+  options: StubRendererOptions = {}
+): WebGLRenderer {
   const canvas = document.createElement("canvas");
   canvas.width = 800;
   canvas.height = 600;
-  return {
+
+  Object.defineProperty(canvas, "clientWidth", {
+    value: 800,
+    configurable: true,
+    enumerable: true,
+  });
+  Object.defineProperty(canvas, "clientHeight", {
+    value: 600,
+    configurable: true,
+    enumerable: true,
+  });
+
+  const stub = {
     domElement: canvas,
+    isWebGPURenderer: options.isWebGPURenderer === true,
     autoClear: true,
     getViewport: (target: Vector4): Vector4 => target.set(0, 0, 800, 600),
     getScissorTest: (): boolean => false,
@@ -49,7 +69,8 @@ export function createStubRenderer(): WebGLRenderer {
     render: (): void => {
       /* No-op. */
     },
-  } as unknown as WebGLRenderer;
+  };
+  return stub as unknown as WebGLRenderer;
 }
 
 export type CreateGizmoOptions = {

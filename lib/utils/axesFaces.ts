@@ -1,7 +1,7 @@
 import { GizmoAxisObject, GizmoOptionsFallback } from "@lib/types";
 import { roundedRectangleGeometry } from "./roundedRectangleGeometry";
+import type { CanvasTexture } from "three";
 import {
-  CanvasTexture,
   Mesh,
   MeshBasicMaterial,
   MeshBasicMaterialParameters,
@@ -11,8 +11,7 @@ import {
   Vector3,
 } from "three";
 import { GIZMO_AXES, GIZMO_FACES, GIZMO_SPHERE_AXES_DISTANCE } from "./constants";
-
-import { setMapColumnOffset } from "./axesMap";
+import { cloneAxisMap } from "./axesMap";
 
 export const axesFaces = (
   options: GizmoOptionsFallback,
@@ -28,21 +27,33 @@ export const axesFaces = (
     const isPositive = i < 3;
 
     const axis = GIZMO_AXES[i];
-    const map = i ? texture.clone() : texture;
 
-    setMapColumnOffset(map, i);
+    const idleMap = cloneAxisMap(texture, i, false);
+    const hoverMap = cloneAxisMap(texture, i, true);
 
     const { enabled, scale, opacity, hover } = options[axis];
 
-    const materialConfig: MeshBasicMaterialParameters = {
-      map,
+    const idleParams: MeshBasicMaterialParameters = {
+      map: idleMap,
       opacity,
       transparent: true,
     };
+    const hoverParams: MeshBasicMaterialParameters = {
+      map: hoverMap,
+      opacity: hover.opacity,
+      transparent: true,
+    };
+
+    const idleMaterial = isSphere
+      ? new SpriteMaterial(idleParams)
+      : new MeshBasicMaterial(idleParams);
+    const hoverMaterial = isSphere
+      ? new SpriteMaterial(hoverParams)
+      : new MeshBasicMaterial(hoverParams);
 
     const face = isSphere
-      ? new Sprite(new SpriteMaterial(materialConfig))
-      : new Mesh(geometry, new MeshBasicMaterial(materialConfig));
+      ? new Sprite(idleMaterial as SpriteMaterial)
+      : new Mesh(geometry, idleMaterial as MeshBasicMaterial);
 
     const direction = (isPositive ? axis : axis[1]) as "x" | "y" | "z";
     face.position[direction] =
@@ -74,6 +85,8 @@ export const axesFaces = (
       kind: "face",
       axes: [GIZMO_AXES[i]],
       face: GIZMO_FACES[i],
+      idleMaterial,
+      hoverMaterial,
     };
 
     return face;

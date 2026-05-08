@@ -5,7 +5,7 @@ import { Mesh } from 'three';
 import { MeshBasicMaterial } from 'three';
 import { Object3D } from 'three';
 import { Object3DEventMap } from 'three';
-import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OrthographicCamera } from 'three';
 import { PerspectiveCamera } from 'three';
 import { Sprite } from 'three';
