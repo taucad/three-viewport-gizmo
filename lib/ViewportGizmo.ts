@@ -329,18 +329,33 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
     const _prevScissorTest = renderer.getScissorTest();
     const _prevAutoClear = renderer.autoClear;
+    const _prevAutoClearColor = renderer.autoClearColor;
+    const _prevAutoClearDepth = renderer.autoClearDepth;
+    const _prevAutoClearStencil = renderer.autoClearStencil;
 
-    renderer.autoClear = false;
+    // Clear depth inline with the gizmo render pass instead of via renderer.clear().
+    // On the WebGPU common Renderer, renderer.clear() triggers an extra _renderOutput
+    // quad pass over the current sub-rect viewport (Renderer.js Renderer.clear), which
+    // rewrites the swap chain with a tone-mapped/linearToSRGB sample of the FB MSAA-
+    // resolved texture and produces a translucent halo. autoClear*-driven clearing
+    // happens inside the single subsequent render pass on both backends.
+    renderer.autoClear = true;
+    renderer.autoClearColor = false;
+    renderer.autoClearDepth = true;
+    renderer.autoClearStencil = false;
+
     renderer.setViewport(..._viewport);
     if (_prevScissorTest) renderer.setScissor(..._viewport);
 
-    renderer.clear(false, true, false);
     renderer.render(this._scene, this._camera);
 
     renderer.setViewport(...this._originalViewport);
     if (_prevScissorTest) renderer.setScissor(...this._originalScissor);
 
     renderer.autoClear = _prevAutoClear;
+    renderer.autoClearColor = _prevAutoClearColor;
+    renderer.autoClearDepth = _prevAutoClearDepth;
+    renderer.autoClearStencil = _prevAutoClearStencil;
 
     return this;
   }
