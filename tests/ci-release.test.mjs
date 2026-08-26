@@ -88,3 +88,18 @@ test('publishes the frozen tarball through an explicit local path', () => {
     'npm publish "./candidate/$filename" --access public --provenance --ignore-scripts',
   );
 });
+
+test('branches on a missing release tag without treating the 404 body as a SHA', () => {
+  assert.equal(
+    workflow.includes(
+      'if tag_object=$(gh api "repos/$REPOSITORY/git/ref/tags/$tag" --jq .object.sha 2>/dev/null); then',
+    ),
+    true,
+  );
+  assert.equal(
+    workflow.includes(
+      'tag_object=$(gh api "repos/$REPOSITORY/git/ref/tags/$tag" --jq .object.sha 2>/dev/null || true)',
+    ),
+    false,
+  );
+});
