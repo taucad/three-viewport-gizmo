@@ -37,6 +37,8 @@ const isFullScreen = ref(false)
 const rendererEpoch = ref(0)
 
 function buildSamplesUrl(): string {
+  if (typeof window === 'undefined') return ''
+
   const origin = window.location.origin
   const combined = `${origin}/three-viewport-gizmo/samples/${url}`
   if (!url.startsWith('webgpu.html')) {

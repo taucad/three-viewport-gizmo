@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 
-/** Built ESM bundle + source map emitted by root `pnpm build`. */
+/** Built ESM bundle + source map emitted by root `npm run build`. */
 const DIST_FILES = ['three-viewport-gizmo.js', 'three-viewport-gizmo.js.map'] as const;
 
 function getRepoRootFromPlugin(importMetaUrl: string): string {
@@ -32,7 +32,7 @@ function requestMatchesDistAsset(urlPath: string): (typeof DIST_FILES)[number] |
  * Serves the library's built `dist/` over the same URL the sample importmaps use,
  * without relying on a stale jsdelivr snapshot of the fork.
  *
- * - **Dev:** middleware reads from the repo-root `dist/` (must exist after `pnpm build`).
+ * - **Dev:** middleware reads from the repo-root `dist/` (must exist after `npm run build`).
  * - **Build:** copies each file into the Rollup output so VitePress ships them next to the site.
  */
 export const threeViewportGizmoLocalDistPlugin = (): Plugin => {

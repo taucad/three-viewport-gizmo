@@ -4,6 +4,8 @@ import { ref, onMounted, onUnmounted } from "vue";
 export type RendererChoice = "webgl" | "webgpu";
 
 function readRendererChoice(): RendererChoice {
+  if (typeof window === "undefined") return "webgl";
+
   const renderer = new URLSearchParams(window.location.search).get(
     "renderer"
   );

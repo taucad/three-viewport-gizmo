@@ -4,7 +4,7 @@ import { threeViewportGizmoLocalDistPlugin } from "./plugins/local-dist";
 /**
  * Sidebar links for each sphere / cube / rounded-cube family.
  *
- * Appends the URL-toggle WebGPU sample (`examples/webgpu`) to every family.
+ * Appends the URL-toggle WebGPU sample (`examples/webgpu?type=<family>`) to every family.
  */
 const examples = (type: "sphere" | "cube" | "rounded-cube") => [
   {
@@ -39,7 +39,10 @@ const examples = (type: "sphere" | "cube" | "rounded-cube") => [
     text: "X-up coordinate system",
     link: `examples/x-up?type=${type}`,
   },
-  { text: "WebGPU sample (header toggle)", link: "examples/webgpu" },
+  {
+    text: "WebGPU sample (header toggle)",
+    link: `examples/webgpu?type=${type}`,
+  },
 ];
 
 // https://vitepress.dev/reference/site-config
@@ -61,7 +64,18 @@ export default defineConfig({
           { text: "Sphere", link: "examples/orbit-controls?type=sphere" },
           { text: "Cube", link: "examples/orbit-controls?type=cube" },
           { text: "Rounded Cube", link: "examples/orbit-controls?type=rounded-cube" },
-          { text: "WebGPU toggle sample", link: "/examples/webgpu" },
+          {
+            text: "WebGPU (sphere)",
+            link: "/examples/webgpu?type=sphere",
+          },
+          {
+            text: "WebGPU (cube)",
+            link: "/examples/webgpu?type=cube",
+          },
+          {
+            text: "WebGPU (rounded-cube)",
+            link: "/examples/webgpu?type=rounded-cube",
+          },
         ],
       },
       {
