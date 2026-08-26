@@ -1,4 +1,5 @@
 export const GIZMO_EPSILON = 1e-6;
+export const GIZMO_POLE_EPSILON = 1e-4;
 export const GIZMO_TURN_RATE = 2 * Math.PI;
 export const GIZMO_MAIN_AXES = ["x", "y", "z"] as const;
 export const GIZMO_AXES = [...GIZMO_MAIN_AXES, "nx", "ny", "nz"] as const;

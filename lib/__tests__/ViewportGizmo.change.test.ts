@@ -41,4 +41,55 @@ describe("_handleClick change payload", () => {
     expect(detail.direction!.y).toBeCloseTo(face.position.clone().normalize().y);
     expect(detail.direction!.z).toBeCloseTo(face.position.clone().normalize().z);
   });
+
+  it("emits one balanced interaction with no change after end", () => {
+    const queuedFrames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      queuedFrames.push(callback);
+      return queuedFrames.length;
+    });
+
+    const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5) });
+    const internals = getInternals(gizmo);
+    const face = internals._intersections[0]!;
+    intersectedObjects.mockReturnValue({ object: face, distance: 1 } as Intersection<GizmoAxisObject>);
+
+    const events: string[] = [];
+    gizmo.addEventListener("start", () => events.push("start"));
+    gizmo.addEventListener("change", () => events.push("change"));
+    gizmo.addEventListener("end", () => events.push("end"));
+
+    internals._onPointerDown({
+      clientX: 20,
+      clientY: 20,
+      preventDefault: vi.fn(),
+    } as unknown as PointerEvent);
+    document.dispatchEvent(new MouseEvent("pointerup", { clientX: 20, clientY: 20 }));
+
+    internals._quaternionStart.copy(internals._quaternionEnd);
+    internals._animate();
+    queuedFrames.splice(0).forEach((callback) => callback(0));
+
+    expect(events.filter((event) => event === "start")).toHaveLength(1);
+    expect(events.filter((event) => event === "end")).toHaveLength(1);
+    expect(events.at(-1)).toBe("end");
+  });
+
+  it("balances pointer start with end when a click misses the gizmo", () => {
+    intersectedObjects.mockReturnValue(null);
+    const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5) });
+    const internals = getInternals(gizmo);
+    const events: string[] = [];
+    gizmo.addEventListener("start", () => events.push("start"));
+    gizmo.addEventListener("end", () => events.push("end"));
+
+    internals._onPointerDown({
+      clientX: 20,
+      clientY: 20,
+      preventDefault: vi.fn(),
+    } as unknown as PointerEvent);
+    document.dispatchEvent(new MouseEvent("pointerup", { clientX: 20, clientY: 20 }));
+
+    expect(events).toEqual(["start", "end"]);
+  });
 });
