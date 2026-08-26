@@ -42,6 +42,7 @@
     "release:prepare": "node scripts/prepare-release.mjs"
   },
   "devDependencies": {
+    "@nx/js": "23.1.1",
     "@rollup/plugin-commonjs": "28.0.6",
     "@types/node": "^20.11.28",
     "@types/three": "0.184.0",
