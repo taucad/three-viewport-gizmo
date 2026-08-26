@@ -54,7 +54,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['22.14.0', '26.7.0']
+        include:
+          - node: '22.14.0'
+            npm: '11.17.0'
+          - node: '26.7.0'
+            npm: '12.0.2'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -64,6 +68,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node }}
+          npm-version: ${{ matrix.npm }}
       - run: npm run quality
       - name: Require a Version Plan for release-affecting changes
         if: matrix.node == '26.7.0' && needs.preflight.outputs.kind != 'release-pull-request' && needs.preflight.outputs.kind != 'release'

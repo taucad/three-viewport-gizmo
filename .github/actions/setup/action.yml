@@ -4,6 +4,10 @@ inputs:
   node-version:
     description: Exact Node version.
     required: true
+  npm-version:
+    description: Exact npm version compatible with the selected Node lane.
+    required: false
+    default: '12.0.2'
 runs:
   using: composite
   steps:
@@ -12,6 +16,6 @@ runs:
         node-version: ${{ inputs.node-version }}
         cache: npm
     - shell: bash
-      run: npm install --global npm@12.0.2
+      run: npm install --global npm@${{ inputs.npm-version }}
     - shell: bash
       run: npm ci
