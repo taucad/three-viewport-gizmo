@@ -13,7 +13,9 @@
         "**/*.test.*",
         ".github/**",
         "docs/**",
+        "nx.json",
         "tests/**",
+        "scripts/**",
         "readme.md"
       ]
     },

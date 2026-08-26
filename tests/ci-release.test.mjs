@@ -22,6 +22,7 @@ const release = {
 };
 
 const workflow = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+const nxConfig = JSON.parse(readFileSync(new URL('../nx.json', import.meta.url), 'utf8'));
 
 test('ordinary pull requests can test a prerelease baseline without publishing', () => {
   assert.deepEqual(
@@ -102,4 +103,19 @@ test('branches on a missing release tag without treating the 404 body as a SHA',
     ),
     false,
   );
+});
+
+test('idempotent closeout tags the source commit from verified registry provenance', () => {
+  assert.equal(workflow.includes('existed: ${{ steps.publish.outputs.existed }}'), true);
+  assert.equal(
+    workflow.includes('SOURCE_COMMIT: ${{ needs.registry-verify.outputs.source-commit }}'),
+    true,
+  );
+});
+
+test('does not require package Version Plans for unpublished release infrastructure', () => {
+  const ignored = nxConfig.release.versionPlans.ignorePatternsForPlanCheck;
+
+  assert.equal(ignored.includes('scripts/**'), true);
+  assert.equal(ignored.includes('nx.json'), true);
 });

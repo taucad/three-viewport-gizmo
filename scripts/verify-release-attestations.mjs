@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const PROVENANCE_TYPE = 'https://slsa.dev/provenance/v1';
@@ -60,35 +60,41 @@ const verifyPackage = ({ audit, candidate, commit, runId }) => {
   const source = definition.resolvedDependencies?.find(
     ({ uri }) => uri === `git+${REPOSITORY}@refs/heads/main`,
   );
-  assert(source?.digest?.gitCommit === commit, `${candidate.name} has the wrong source commit`);
+  const sourceCommit = source?.digest?.gitCommit;
+  assert(typeof sourceCommit === 'string', `${candidate.name} has no source commit`);
+  if (commit) assert(sourceCommit === commit, `${candidate.name} has the wrong source commit`);
   assert(
     statement.predicate?.runDetails?.builder?.id === BUILDER_ID,
     `${candidate.name} used the wrong builder`,
   );
-  assert(
-    new RegExp(`^${REPOSITORY}/actions/runs/${runId}/attempts/[1-9]\\d*$`, 'u').test(
-      statement.predicate?.runDetails?.metadata?.invocationId ?? '',
-    ),
-    `${candidate.name} has the wrong workflow invocation`,
-  );
+  const invocation = statement.predicate?.runDetails?.metadata?.invocationId ?? '';
+  const match = new RegExp(`^${REPOSITORY}/actions/runs/(\\d+)/attempts/[1-9]\\d*$`, 'u').exec(invocation);
+  assert(match, `${candidate.name} has the wrong workflow invocation`);
+  const sourceRunId = match[1];
+  if (runId) assert(sourceRunId === runId, `${candidate.name} has the wrong workflow invocation`);
+  return { commit: sourceCommit, runId: sourceRunId };
 };
 
 export const verifyReleaseAttestations = ({ audit, manifest, commit, runId }) => {
   assert((audit.invalid ?? []).length === 0, 'npm reported invalid signatures');
   assert((audit.missing ?? []).length === 0, 'npm reported missing signatures');
-  verifyPackage({ audit, candidate: manifest, commit, runId });
+  return verifyPackage({ audit, candidate: manifest, commit, runId });
 };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     const [auditPath, manifestPath, commit, runId] = process.argv.slice(2);
-    assert(auditPath && manifestPath && commit && runId, 'expected audit, manifest, commit, run');
-    verifyReleaseAttestations({
+    assert(auditPath && manifestPath, 'expected audit and manifest');
+    assert(Boolean(commit) === Boolean(runId), 'expected commit and run together');
+    const source = verifyReleaseAttestations({
       audit: JSON.parse(readFileSync(auditPath, 'utf8')),
       manifest: JSON.parse(readFileSync(manifestPath, 'utf8')),
       commit,
       runId,
     });
+    if (process.env.GITHUB_OUTPUT) {
+      appendFileSync(process.env.GITHUB_OUTPUT, `source_commit=${source.commit}\nworkflow_run=${source.runId}\n`);
+    }
     process.stdout.write('release provenance matches taucad/three-viewport-gizmo ci.yml\n');
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
