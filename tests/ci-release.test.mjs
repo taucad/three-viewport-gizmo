@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { deriveRelease } from '../scripts/ci-release.mjs';
@@ -19,6 +20,8 @@ const release = {
   changedFiles: releaseFiles,
   changelog: '# Changelog\n\n## 2.2.2 (2026-08-26)\n',
 };
+
+const workflow = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
 
 test('ordinary pull requests can test a prerelease baseline without publishing', () => {
   assert.deepEqual(
@@ -72,5 +75,16 @@ test('rejects malformed release-looking main commits', () => {
   assert.throws(
     () => deriveRelease({ ...release, subject: 'chore(release): three-viewport-gizmo vnext' }),
     /invalid SemVer/u,
+  );
+});
+
+test('publishes the frozen tarball through an explicit local path', () => {
+  const publishCommand = workflow
+    .split('\n')
+    .find((line) => line.trimStart().startsWith('npm publish '));
+
+  assert.equal(
+    publishCommand?.trim(),
+    'npm publish "./candidate/$filename" --access public --provenance --ignore-scripts',
   );
 });

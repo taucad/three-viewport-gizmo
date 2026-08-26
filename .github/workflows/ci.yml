@@ -201,7 +201,7 @@ jobs:
             echo "$name@$version already has the candidate integrity"
             exit 0
           fi
-          npm publish "candidate/$filename" --access public --provenance --ignore-scripts
+          npm publish "./candidate/$filename" --access public --provenance --ignore-scripts
 
   registry-verify:
     if: always() && needs.preflight.outputs.npm-publish == 'true' && needs.publish.result == 'success'
