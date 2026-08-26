@@ -25,6 +25,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '26.7.0'
       - id: release
         env:
           BASE_REF: ${{ github.base_ref }}
