@@ -1,7 +1,16 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { validateRequestedVersion, versionFromPlans } from '../scripts/prepare-release.mjs';
+
+const packageJson = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+);
+
+test('installs the Nx JavaScript version action used by releaseVersion', () => {
+  assert.equal(packageJson.devDependencies['@nx/js'], packageJson.devDependencies.nx);
+});
 
 test('uses the version dictated by the pending plan', () => {
   assert.equal(versionFromPlans('2.2.2'), '2.2.2');
