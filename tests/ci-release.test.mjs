@@ -113,6 +113,12 @@ test('idempotent closeout tags the source commit from verified registry provenan
   );
 });
 
+test('tag closeout uses a current-repository-scoped release bot token', () => {
+  assert.equal(workflow.includes('id: release-bot'), true);
+  assert.equal(workflow.includes('repositories: ${{ github.event.repository.name }}'), true);
+  assert.equal(workflow.includes('GH_TOKEN: ${{ steps.release-bot.outputs.token }}'), true);
+});
+
 test('does not require package Version Plans for unpublished release infrastructure', () => {
   const ignored = nxConfig.release.versionPlans.ignorePatternsForPlanCheck;
 

@@ -268,12 +268,23 @@ jobs:
     if: always() && needs.registry-verify.result == 'success'
     needs: [preflight, registry-verify]
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
+    permissions: {}
+    environment:
+      name: release-pr
+      deployment: false
     steps:
+      - name: Mint repository-scoped tau-release-bot token
+        id: release-bot
+        uses: actions/create-github-app-token@064492a9a1762067169d50c792a7dc02bc3d1254 # v2.0.0
+        with:
+          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
       - name: Create the verified tag and GitHub Release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
           REPOSITORY: ${{ github.repository }}
           SOURCE_COMMIT: ${{ needs.registry-verify.outputs.source-commit }}
           VERSION: ${{ needs.preflight.outputs.version }}
