@@ -67,13 +67,21 @@ const audit = {
 };
 
 test('accepts provenance bound to the package, workflow, commit, and run', () => {
-  assert.doesNotThrow(() => verifyReleaseAttestations({ audit, manifest, commit, runId }));
+  assert.deepEqual(verifyReleaseAttestations({ audit, manifest, commit, runId }), { commit, runId });
+});
+
+test('returns the attested source when closing out an existing matching package', () => {
+  assert.deepEqual(verifyReleaseAttestations({ audit, manifest }), { commit, runId });
 });
 
 test('rejects a different source commit or candidate integrity', () => {
   assert.throws(
     () => verifyReleaseAttestations({ audit, manifest, commit: 'b'.repeat(40), runId }),
     /wrong source commit/u,
+  );
+  assert.throws(
+    () => verifyReleaseAttestations({ audit, manifest, commit, runId: '456' }),
+    /wrong workflow invocation/u,
   );
   assert.throws(
     () =>
