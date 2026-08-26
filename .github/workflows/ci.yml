@@ -115,7 +115,8 @@ jobs:
           npm pack --ignore-scripts --json --pack-destination candidate > /tmp/pack.json
           node <<'NODE'
           const { copyFileSync, readFileSync, writeFileSync } = require('node:fs');
-          const [pack] = JSON.parse(readFileSync('/tmp/pack.json', 'utf8'));
+          const result = JSON.parse(readFileSync('/tmp/pack.json', 'utf8'));
+          const pack = Array.isArray(result) ? result[0] : result.name ? result : Object.values(result)[0];
           const manifest = {
             name: pack.name,
             version: pack.version,
