@@ -267,8 +267,7 @@ jobs:
         run: |
           set -euo pipefail
           tag="v$VERSION"
-          tag_object=$(gh api "repos/$REPOSITORY/git/ref/tags/$tag" --jq .object.sha 2>/dev/null || true)
-          if [[ -n "$tag_object" ]]; then
+          if tag_object=$(gh api "repos/$REPOSITORY/git/ref/tags/$tag" --jq .object.sha 2>/dev/null); then
             target=$(gh api "repos/$REPOSITORY/git/tags/$tag_object" --jq .object.sha)
             [[ "$target" == "$SOURCE_COMMIT" ]] || {
               echo "::error::$tag points at $target, not $SOURCE_COMMIT"
