@@ -52,11 +52,11 @@ afterEach(() => {
 
 describe("cardinal orientation settle", () => {
   it.each([
-    ["Z-up Top", new Vector3(0, 0, 1), new Vector3(0, 0, 1)],
-    ["Z-up Bottom", new Vector3(0, 0, 1), new Vector3(0, 0, -1)],
-    ["X-up Right", new Vector3(1, 0, 0), new Vector3(1, 0, 0)],
-    ["X-up Left", new Vector3(1, 0, 0), new Vector3(-1, 0, 0)],
-  ])("keeps %s stable when CameraControls accepts the final position", (_, up, direction) => {
+    ["Z-up Top", new Vector3(0, 0, 1), new Vector3(0, 0, 1), new Vector3(1, 0, 0)],
+    ["Z-up Bottom", new Vector3(0, 0, 1), new Vector3(0, 0, -1), new Vector3(1, 0, 0)],
+    ["X-up Right", new Vector3(1, 0, 0), new Vector3(1, 0, 0), new Vector3(0, 0, 1)],
+    ["X-up Left", new Vector3(1, 0, 0), new Vector3(-1, 0, 0), new Vector3(0, 0, 1)],
+  ])("keeps %s stable when CameraControls accepts the final position", (_, up, direction, expectedRight) => {
     Object3D.DEFAULT_UP.copy(up);
     const cameraPosition = TARGET.clone().add(new Vector3(7, 8, 9));
     const gizmo = createGizmo({ defaultUp: up, cameraPosition });
@@ -81,6 +81,11 @@ describe("cardinal orientation settle", () => {
 
     expect(finalQuaternion.angleTo(gizmo.camera.quaternion)).toBeLessThan(1e-6);
     expect(gizmo.camera.position.distanceTo(TARGET)).toBeCloseTo(finalDistance, 10);
+    expect(
+      new Vector3(1, 0, 0)
+        .applyQuaternion(gizmo.camera.quaternion)
+        .dot(expectedRight)
+    ).toBeGreaterThan(0.999999);
 
     controls.dispose();
     gizmo.dispose();

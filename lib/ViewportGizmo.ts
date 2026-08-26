@@ -36,7 +36,11 @@ import {
   GizmoFaceName,
   GizmoAxisObjectUserData,
 } from "./types";
-import { GIZMO_EPSILON, GIZMO_TURN_RATE } from "./utils/constants";
+import {
+  GIZMO_EPSILON,
+  GIZMO_POLE_EPSILON,
+  GIZMO_TURN_RATE,
+} from "./utils/constants";
 import { updateBackground } from "./utils/updateBackground";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { optionsFallback } from "./utils/optionsFallback";
@@ -71,8 +75,6 @@ const _spherical = /*@__PURE__*/ new Spherical();
 const _vec2 = /*@__PURE__*/ new Vector2();
 const _vec3 = /*@__PURE__*/ new Vector3();
 const _vec4 = /*@__PURE__*/ new Vector4();
-const _positiveZQuaternion = /*@__PURE__*/ new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), Math.PI / 2);
-const _negativeZQuaternion = /*@__PURE__*/ new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), -Math.PI / 2);
 
 /**
  * ViewportGizmo is a 3D camera orientation controller that provides a visual interface
@@ -130,7 +132,6 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
   private _distance: number = 0;
   /** Seconds; `null` until first `_animate` tick after `_setOrientation` (first frame uses delta 0). */
   private _lastAnimateTimeSeconds: number | null = null;
-  private _targetQuaternion = new Quaternion();
   private _quaternionStart = new Quaternion();
   private _quaternionEnd = new Quaternion();
   private _pointerStart = new Vector2();
@@ -532,77 +533,41 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
    * @private
    */
   private _animate() {
-    const { position, quaternion } = this.camera;
+    let finished = !this.animated;
 
-    position.set(0, 0, 1);
+    if (this.animated) {
+      if (this._controls) this._controls.enabled = false;
 
-    if (!this.animated) {
-      position
-        .applyQuaternion(this._quaternionEnd)
-        .multiplyScalar(this._distance)
-        .add(this.target);
+      const nowSeconds = performance.now() / 1000;
+      const delta =
+        this._lastAnimateTimeSeconds === null
+          ? 0
+          : nowSeconds - this._lastAnimateTimeSeconds;
+      this._lastAnimateTimeSeconds = nowSeconds;
 
-      quaternion.copy(this._targetQuaternion);
-
-      this._updateOrientation();
-
-      this.animating = false;
-      this._lastAnimateTimeSeconds = null;
-      this.dispatchEvent({ type: "change", ...objectIdentity(null) });
-      this.dispatchEvent({ type: "end" });
-      return;
+      const step = delta * GIZMO_TURN_RATE * this.speed;
+      this._quaternionStart.rotateTowards(this._quaternionEnd, step);
+      finished =
+        this._quaternionStart.angleTo(this._quaternionEnd) < GIZMO_EPSILON;
     }
 
-    if (this._controls) this._controls.enabled = false;
+    if (finished) this._quaternionStart.copy(this._quaternionEnd);
 
-    const nowSeconds = performance.now() / 1000;
-    const delta =
-      this._lastAnimateTimeSeconds === null
-        ? 0
-        : nowSeconds - this._lastAnimateTimeSeconds;
-    this._lastAnimateTimeSeconds = nowSeconds;
-
-    const step = delta * GIZMO_TURN_RATE * this.speed;
-
-    this._quaternionStart.rotateTowards(this._quaternionEnd, step);
-
-    position
+    this.camera.position
+      .set(0, 0, 1)
       .applyQuaternion(this._quaternionStart)
       .multiplyScalar(this._distance)
       .add(this.target);
-
-    quaternion.rotateTowards(this._targetQuaternion, step);
-
+    this.camera.quaternion.copy(this._quaternionStart);
     this._updateOrientation();
-    // FIXME - Need fix?
-    requestAnimationFrame(() =>
-      this.dispatchEvent({ type: "change", ...objectIdentity(null) })
-    );
+    this.dispatchEvent({ type: "change", ...objectIdentity(null) });
 
-    if (this._quaternionStart.angleTo(this._quaternionEnd) < GIZMO_EPSILON) {
-      if (this._controls) {
-        // Normalize the camera position to a vector of magnitude 1.
-        const normalizedCameraPosition = this.camera.position.clone().sub(this.target).normalize();
-        // After concluding the animation, we need to manually set the camera position to
-        // prevent the camera from rotating around the Z-axis for Z-up and X-up systems.
-        // These explicit checks are necessary due to the JavaScript quirk of having both +0.0 and -0.0.
-        if (Object3D.DEFAULT_UP.z === 1 && Math.abs(normalizedCameraPosition.z) > 0.99) {
-          // With Z-up, the Y vector is -0.0 which causes the camera to rotate around the Z-axis by 90 degrees.
-          // We need to manually set the position vector with Y vector of a true negative epsilon to prevent this.
-          this.camera.position.set(0, -GIZMO_EPSILON, this.camera.position.z);
-        } else if (Object3D.DEFAULT_UP.x === 1 && Math.abs(normalizedCameraPosition.x) > 0.99) {
-          // With X-up, the Y vector is +0.0 which causes the camera to rotate around the X-axis by 90 degrees.
-          // We need to manually set the position vector with X vector of a true positive epsilon to prevent this.
-          this.camera.position.set(this.camera.position.x, GIZMO_EPSILON, 0);
-        }
-        this._controls.update();
-        this._controls.enabled = true;
-      }
+    if (!finished) return;
 
-      this.animating = false;
-      this._lastAnimateTimeSeconds = null;
-      this.dispatchEvent({ type: "end" });
-    }
+    this._controls?.update();
+    this.animating = false;
+    this._lastAnimateTimeSeconds = null;
+    this.dispatchEvent({ type: "end" });
   }
 
   /**
@@ -615,12 +580,18 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
     const camera = this.camera;
     const focusPoint = this.target;
 
-    _vec3.copy(position).multiplyScalar(this._distance);
+    _vec3.copy(position);
 
-    _matrix.setPosition(_vec3).lookAt(_vec3, this.position, this.up);
-    this._targetQuaternion.setFromRotationMatrix(_matrix);
+    if (Object3D.DEFAULT_UP.z === 1 && Math.abs(position.z) > 0.99) {
+      _vec3.y = -GIZMO_POLE_EPSILON;
+    } else if (
+      Object3D.DEFAULT_UP.x === 1 &&
+      Math.abs(position.x) > 0.99
+    ) {
+      _vec3.y = GIZMO_POLE_EPSILON;
+    }
 
-    _vec3.add(focusPoint);
+    _vec3.normalize().multiplyScalar(this._distance).add(focusPoint);
 
     _matrix.lookAt(_vec3, focusPoint, this.up);
     this._quaternionEnd.setFromRotationMatrix(_matrix);
@@ -632,21 +603,8 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
     // by ~90° around up even when the camera is already on the requested face (e.g. Z-up Bottom).
     this._quaternionStart.copy(camera.quaternion);
 
-    // For Z-up and X-up systems, when rotating to the top or bottom, we need to apply
-    // a final rotational twist to correctly align the gizmo's "Top" or "Bottom" face.
-    if (Object3D.DEFAULT_UP.z === 1 && Math.abs(position.z) > 0.99) {
-      const zSign = Math.sign(position.z);
-      this._targetQuaternion.multiply(zSign === 1 ? _negativeZQuaternion : _positiveZQuaternion);
-      this._quaternionEnd.multiply(zSign === 1 ? _negativeZQuaternion : _positiveZQuaternion);
-    } else if (Object3D.DEFAULT_UP.x === 1 && Math.abs(position.x) > 0.99) {
-      const xSign = Math.sign(position.x);
-      this._targetQuaternion.multiply(xSign === 1 ? _negativeZQuaternion : _positiveZQuaternion);
-      this._quaternionEnd.multiply(xSign === 1 ? _negativeZQuaternion : _positiveZQuaternion);
-    }
-
     this.animating = true;
     this._lastAnimateTimeSeconds = null;
-    this.dispatchEvent({ type: "start" });
   }
 
   /**
@@ -811,7 +769,10 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
       this._focus = null;
     }
 
-    if (!intersection) return;
+    if (!intersection) {
+      this.dispatchEvent({ type: "end" });
+      return;
+    }
 
     this._setOrientation(intersection.object.position);
 

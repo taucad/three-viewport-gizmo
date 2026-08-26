@@ -333,7 +333,6 @@ export declare class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
     private _distance;
     /** Seconds; `null` until first `_animate` tick after `_setOrientation` (first frame uses delta 0). */
     private _lastAnimateTimeSeconds;
-    private _targetQuaternion;
     private _quaternionStart;
     private _quaternionEnd;
     private _pointerStart;

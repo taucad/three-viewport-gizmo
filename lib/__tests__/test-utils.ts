@@ -11,7 +11,6 @@ import {
 export type ViewportGizmoInternals = {
   _quaternionStart: Quaternion;
   _quaternionEnd: Quaternion;
-  _targetQuaternion: Quaternion;
   _focus: GizmoAxisObject | null;
   _intersections: GizmoAxisObject[];
   _distance: number;
