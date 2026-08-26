@@ -19,6 +19,7 @@ export type ViewportGizmoInternals = {
   _setOrientation: (position: Vector3) => void;
   _handleHover: (e: PointerEvent) => void;
   _handleClick: (e: PointerEvent) => void;
+  _onPointerDown: (e: PointerEvent) => void;
   _onPointerLeave: () => void;
   _animate: () => void;
 };
