@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const type = new URLSearchParams(window.location.search).get("type") || "rounded-cube";
+const type = typeof window === "undefined" ? "rounded-cube" : new URLSearchParams(window.location.search).get("type") || "rounded-cube";
 </script>
 
 # Hover Events

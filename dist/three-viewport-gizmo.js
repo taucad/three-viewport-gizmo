@@ -1,14 +1,14 @@
-var kt = Object.defineProperty;
-var zt = (n, s, t) => s in n ? kt(n, s, { enumerable: !0, configurable: !0, writable: !0, value: t }) : n[s] = t;
-var y = (n, s, t) => zt(n, typeof s != "symbol" ? s + "" : s, t);
-import { MathUtils as Et, Vector3 as z, Vector2 as X, Raycaster as Ut, Object3D as I, Color as Mt, CanvasTexture as Ft, RepeatWrapping as ht, SRGBColorSpace as Rt, BufferGeometry as It, BufferAttribute as W, SpriteMaterial as B, MeshBasicMaterial as G, Sprite as it, Mesh as H, SphereGeometry as xt, CylinderGeometry as Gt, BackSide as qt, Quaternion as pt, Scene as Bt, OrthographicCamera as Zt, PerspectiveCamera as jt, Vector4 as $t, Matrix4 as Ht, Spherical as Vt } from "three";
-import { mergeGeometries as Xt } from "three/addons/utils/BufferGeometryUtils.js";
-import { Line2NodeMaterial as Wt } from "three/webgpu";
-import { Line2 as Nt } from "three/addons/lines/Line2.js";
-import { Line2 as Yt } from "three/addons/lines/webgpu/Line2.js";
-import { LineGeometry as Jt } from "three/addons/lines/LineGeometry.js";
-import { LineMaterial as Qt } from "three/addons/lines/LineMaterial.js";
-const Ct = (n, s) => {
+var zt = Object.defineProperty;
+var Ut = (n, s, t) => s in n ? zt(n, s, { enumerable: !0, configurable: !0, writable: !0, value: t }) : n[s] = t;
+var y = (n, s, t) => Ut(n, typeof s != "symbol" ? s + "" : s, t);
+import { MathUtils as Mt, Vector3 as z, Vector2 as X, Raycaster as Ft, Object3D as I, Color as xt, CanvasTexture as Rt, RepeatWrapping as ht, SRGBColorSpace as It, BufferGeometry as Gt, BufferAttribute as W, SpriteMaterial as B, MeshBasicMaterial as G, Sprite as it, Mesh as H, SphereGeometry as Ct, CylinderGeometry as qt, BackSide as Bt, Quaternion as pt, Scene as Zt, OrthographicCamera as jt, PerspectiveCamera as $t, Vector4 as Ht, Matrix4 as Vt, Spherical as Xt } from "three";
+import { mergeGeometries as Wt } from "three/addons/utils/BufferGeometryUtils.js";
+import { Line2NodeMaterial as Nt } from "three/webgpu";
+import { Line2 as Yt } from "three/addons/lines/Line2.js";
+import { Line2 as Jt } from "three/addons/lines/webgpu/Line2.js";
+import { LineGeometry as Qt } from "three/addons/lines/LineGeometry.js";
+import { LineMaterial as Kt } from "three/addons/lines/LineMaterial.js";
+const At = (n, s) => {
   const [t, e] = s.split("-");
   return Object.assign(n.style, {
     left: e === "left" ? "0" : e === "center" ? "50%" : "",
@@ -17,7 +17,7 @@ const Ct = (n, s) => {
     bottom: t === "bottom" ? "0" : "",
     transform: `${e === "center" ? "translateX(-50%)" : ""} ${t === "center" ? "translateY(-50%)" : ""}`
   }), s;
-}, Kt = ({
+}, te = ({
   placement: n,
   size: s,
   offset: t,
@@ -33,12 +33,12 @@ const Ct = (n, s) => {
     width: `${s}px`,
     margin: `${r}px ${p}px ${c}px ${l}px`,
     borderRadius: "100%"
-  }), Ct(i, n), e && (i.id = e), o && (i.className = o), i;
-}, te = (n) => {
+  }), At(i, n), e && (i.id = e), o && (i.className = o), i;
+}, ee = (n) => {
   const s = typeof n == "string" ? document.querySelector(n) : n;
   if (!s) throw Error("Invalid DOM element");
   return s;
-}, { clamp: ot } = Et, ee = [
+}, { clamp: ot } = Mt, ne = [
   ["x", 0, 3],
   ["y", 1, 4],
   ["z", 2, 5]
@@ -58,7 +58,7 @@ function ut(n, s) {
   e.opacity = l;
 }
 function ft({ isSphere: n }, s, t) {
-  n && (dt.set(0, 0, 1).applyQuaternion(t.quaternion), ee.forEach(([e, o, i]) => {
+  n && (dt.set(0, 0, 1).applyQuaternion(t.quaternion), ne.forEach(([e, o, i]) => {
     const r = dt[e];
     let l = s[o], p = l.userData.opacity;
     ut(
@@ -70,7 +70,7 @@ function ft({ isSphere: n }, s, t) {
     );
   }));
 }
-const ne = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY - s.y) < t, mt = /* @__PURE__ */ new Ut(), _t = /* @__PURE__ */ new X(), gt = (n, s, t, e) => {
+const oe = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY - s.y) < t, mt = /* @__PURE__ */ new Ft(), _t = /* @__PURE__ */ new X(), gt = (n, s, t, e) => {
   _t.set(
     (n.clientX - s.left) / s.width * 2 - 1,
     -((n.clientY - s.top) / s.height) * 2 + 1
@@ -91,14 +91,14 @@ const ne = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY
   }
   const i = o.length ? o[0] : null;
   return !i || !i.object.visible ? null : i;
-}, N = 1e-6, oe = 1e-4, se = 2 * Math.PI, At = ["x", "y", "z"], U = [...At, "nx", "ny", "nz"], ie = ["x", "z", "y", "nx", "nz", "ny"], re = ["z", "x", "y", "nz", "nx", "ny"], Y = "Right", J = "Top", Q = "Front", K = "Left", tt = "Bottom", et = "Back", Ot = [
+}, N = 1e-6, yt = 1e-4, se = 2 * Math.PI, Ot = ["x", "y", "z"], U = [...Ot, "nx", "ny", "nz"], ie = ["x", "z", "y", "nx", "nz", "ny"], re = ["z", "x", "y", "nz", "nx", "ny"], Y = "Right", J = "Top", Q = "Front", K = "Left", tt = "Bottom", et = "Back", Lt = [
   "right",
   "top",
   "front",
   "left",
   "bottom",
   "back"
-], Lt = 1.3, yt = (n, s = !0) => {
+], Tt = 1.3, vt = (n, s = !0) => {
   const { material: t, userData: e } = n, { color: o, opacity: i } = s ? e.hover : e;
   t.color.set(o), t.opacity = i;
 }, F = (n) => JSON.parse(JSON.stringify(n)), ae = {
@@ -130,7 +130,7 @@ const ne = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY
   const s = n.type || "sphere", t = s === "sphere", e = s === "rounded-cube", o = n.resolution || t ? 64 : 128, i = I.DEFAULT_UP, r = i.z === 1, l = i.x === 1, c = ae[r ? "zUp" : l ? "xUp" : "yUp"], { container: d } = n;
   n.container = void 0, n = JSON.parse(JSON.stringify(n)), n.container = d;
   const f = r ? ie : l ? re : U;
-  Ot.forEach((m, b) => {
+  Lt.forEach((m, b) => {
     n[m] && (n[f[b]] = n[m]);
   });
   const h = {
@@ -247,7 +247,7 @@ const ne = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY
       m[b].scale = 1, m[b].opacity = 1, m[b].hover.scale = 1, m[b].hover.opacity = 1;
     });
   }
-  return At.forEach(
+  return Ot.forEach(
     (m) => st(
       n[`n${m}`],
       F(n[m])
@@ -266,7 +266,7 @@ function st(n, ...s) {
   return n;
 }
 const le = (n, s = 2) => {
-  const t = new Mt(), e = s * 2, { isSphere: o, resolution: i, radius: r, font: l, corners: p, edges: c } = n, d = U.map((a) => ({ ...n[a], radius: r }));
+  const t = new xt(), e = s * 2, { isSphere: o, resolution: i, radius: r, font: l, corners: p, edges: c } = n, d = U.map((a) => ({ ...n[a], radius: r }));
   o && p.enabled && d.push(p), o && c.enabled && d.push(c);
   const f = document.createElement("canvas"), h = f.getContext("2d");
   f.width = i * 2 + e * 2, f.height = i * d.length + e * d.length;
@@ -308,9 +308,9 @@ const le = (n, s = 2) => {
       );
     }
   );
-  const m = d.length, b = s / (i * 2), C = s / (i * 6), M = 1 / m, A = new Ft(f);
+  const m = d.length, b = s / (i * 2), C = s / (i * 6), M = 1 / m, A = new Rt(f);
   return A.repeat.set(0.5 - 2 * b, M - 2 * C), A.offset.set(b, 1 - C), Object.assign(A, {
-    colorSpace: Rt,
+    colorSpace: It,
     wrapS: ht,
     wrapT: ht,
     userData: {
@@ -336,9 +336,9 @@ const le = (n, s = 2) => {
     }
   }
   function x(a, u, L) {
-    const g = [...a].sort((V, Pt) => {
+    const g = [...a].sort((V, kt) => {
       var ct, lt;
-      return (((ct = V.label) == null ? void 0 : ct.length) || 0) - (((lt = Pt.label) == null ? void 0 : lt.length) || 0);
+      return (((ct = V.label) == null ? void 0 : ct.length) || 0) - (((lt = kt.label) == null ? void 0 : lt.length) || 0);
     }).pop().label, { family: k, weight: O } = L, T = o ? Math.sqrt(Math.pow(u * 0.7, 2) / 2) : u;
     let D = T;
     n.font.size > 0 && (D = n.font.size);
@@ -348,8 +348,8 @@ const le = (n, s = 2) => {
       const V = h.measureText(g);
       P = V.width, q = V.fontBoundingBoxDescent, D--;
     } while (P > T && D > 0);
-    const at = T / q, Tt = Math.min(T / P, at), Dt = Math.floor(D * Tt);
-    return [`${O} ${Dt}px ${k}`, at];
+    const at = T / q, Dt = Math.min(T / P, at), Pt = Math.floor(D * Dt);
+    return [`${O} ${Pt}px ${k}`, at];
   }
   function w(a, u, L, _, g) {
     a.font = v, a.textAlign = "center", a.textBaseline = "middle", a.fillStyle = g, a.fillText(_, u, L + (o ? E : 0));
@@ -389,7 +389,7 @@ function rt(n, s, t = 2, e = 2) {
     for (let a = 0; a <= s; a++)
       E = Math.PI / 2 * (w + a / s), m = Math.cos(E), b = Math.sin(E), d.push(C + n * m, M + n * b, 0), f.push(A + r * m, S + p * b), a < s && (x = (s + 1) * w + a + 4, v.push(w, x, x + 1));
   }
-  return new It().setIndex(new W(new Uint32Array(v), 1)).setAttribute(
+  return new Gt().setIndex(new W(new Uint32Array(v), 1)).setAttribute(
     "position",
     new W(new Float32Array(d), 3)
   ).setAttribute("uv", new W(new Float32Array(f), 2));
@@ -406,7 +406,7 @@ const pe = (n, s) => {
       opacity: A.opacity,
       transparent: !0
     }, w = e ? new B(S) : new G(S), a = e ? new B(x) : new G(x), u = e ? new it(w) : new H(c, w), L = h ? v : v[1];
-    if (u.position[L] = (h ? 1 : -1) * (e ? Lt : 1), !e) {
+    if (u.position[L] = (h ? 1 : -1) * (e ? Tt : 1), !e) {
       u.lookAt(t.copy(u.position).multiplyScalar(1.7));
       const _ = I.DEFAULT_UP.z === 1, g = I.DEFAULT_UP.x === 1;
       (_ || g) && (v === "z" && _ || v === "x" && g ? u.rotateZ(-Math.PI / 2) : (v === "nz" && _ || v === "nx" && g) && u.rotateZ(Math.PI / 2));
@@ -417,15 +417,15 @@ const pe = (n, s) => {
       hover: A,
       kind: "face",
       axes: [U[f]],
-      face: Ot[f],
+      face: Lt[f],
       idleMaterial: w,
       hoverMaterial: a
     }, u;
   });
-}, vt = U.length, de = (n, s) => {
+}, bt = U.length, de = (n, s) => {
   const { isSphere: t, corners: e, type: o } = n, i = o === "rounded-cube";
   if (!e.enabled) return [];
-  const { color: r, opacity: l, scale: p, radius: c, smoothness: d, hover: f } = e, h = t ? null : i ? new xt(c, d * 2, d) : rt(c, d), v = i ? 1 - c : 0.85, E = [
+  const { color: r, opacity: l, scale: p, radius: c, smoothness: d, hover: f } = e, h = t ? null : i ? new Ct(c, d * 2, d) : rt(c, d), v = i ? 1 - c : 0.85, E = [
     1,
     1,
     1,
@@ -454,7 +454,7 @@ const pe = (n, s) => {
   return Array(E.length / 3).fill(0).map((b, C) => {
     let M, A;
     if (t) {
-      const a = Z(s, vt, !1), u = Z(s, vt, !0), L = {
+      const a = Z(s, bt, !1), u = Z(s, bt, !0), L = {
         map: a,
         opacity: l,
         transparent: !0
@@ -496,7 +496,7 @@ const pe = (n, s) => {
 }, nt = (n, s, t) => n === 0 ? null : n > 0 ? s : t, ue = (n, s, t) => {
   const { isSphere: e, edges: o, type: i } = n, r = i === "rounded-cube";
   if (!o.enabled) return [];
-  const { color: l, opacity: p, scale: c, hover: d, radius: f, smoothness: h } = o, v = r ? 2 - f * 2 : 1.2, E = e ? null : r ? new Gt(f, f, v, h * 4) : rt(f, h, v, 0.25), m = r ? 1 - f : 0.925, b = [
+  const { color: l, opacity: p, scale: c, hover: d, radius: f, smoothness: h } = o, v = r ? 2 - f * 2 : 1.2, E = e ? null : r ? new qt(f, f, v, h * 4) : rt(f, h, v, 0.25), m = r ? 1 - f : 0.925, b = [
     0,
     1,
     1,
@@ -579,7 +579,7 @@ const pe = (n, s) => {
   let l;
   const p = new G({
     color: o,
-    side: qt,
+    side: Bt,
     opacity: i,
     transparent: !0,
     depthWrite: !1
@@ -587,7 +587,7 @@ const pe = (n, s) => {
   if (!e) return null;
   if (t)
     l = new H(
-      new xt(1.8, 64, 64),
+      new Ct(1.8, 64, 64),
       p
     );
   else {
@@ -596,7 +596,7 @@ const pe = (n, s) => {
       const f = d.scale.x;
       d.scale.setScalar(0.9), d.updateMatrix();
       const h = d.geometry.clone();
-      h.applyMatrix4(d.matrix), c = c ? Xt([c, h]) : h, d.scale.setScalar(f);
+      h.applyMatrix4(d.matrix), c = c ? Wt([c, h]) : h, d.scale.setScalar(f);
     }), l = new H(c, p);
   }
   return l.userData = {
@@ -605,11 +605,11 @@ const pe = (n, s) => {
     hover: r
   }, l;
 }, me = (n, s) => {
-  const t = new Mt(), e = [], o = [], { isSphere: i } = n;
+  const t = new xt(), e = [], o = [], { isSphere: i } = n;
   if (U.forEach((c, d) => {
     const { enabled: f, line: h, scale: v, color: E } = n[c];
     if (!f || !h) return;
-    const m = d < 3 ? 1 : -1, C = (i ? Lt - v / 2 : 0.975) * m;
+    const m = d < 3 ? 1 : -1, C = (i ? Tt - v / 2 : 0.975) * m;
     e.push(
       c.includes("x") ? C : 0,
       c.includes("y") ? C : 0,
@@ -621,21 +621,21 @@ const pe = (n, s) => {
     const M = t.set(E).toArray();
     o.push(...M, ...M);
   }), !e.length) return null;
-  const r = new Jt().setPositions(e).setColors(o);
+  const r = new Qt().setPositions(e).setColors(o);
   if (s.isWebGPURenderer === !0) {
-    const c = new Wt({
+    const c = new Nt({
       linewidth: n.lineWidth,
       vertexColors: !0,
       worldUnits: !1
     });
-    return new Yt(r, c).computeLineDistances();
+    return new Jt(r, c).computeLineDistances();
   }
-  const p = new Qt({
+  const p = new Kt({
     linewidth: n.lineWidth,
     vertexColors: !0,
     resolution: new X(window.innerWidth, window.innerHeight)
   });
-  return new Nt(r, p).computeLineDistances();
+  return new Yt(r, p).computeLineDistances();
 }, _e = (n, s) => {
   const { corners: t, edges: e } = n, o = [], i = le(n), r = pe(n, i);
   o.push(...r), t.enabled && o.push(...de(n, i)), e.enabled && o.push(...ue(n, i, t.enabled ? 7 : 6));
@@ -644,7 +644,7 @@ const pe = (n, s) => {
 }, j = (n, s = !0) => {
   const { userData: t } = n, { idleMaterial: e, hoverMaterial: o } = t;
   n.scale.setScalar((s ? t.hover : t).scale), n.material = s ? o : e;
-}, { clamp: ge } = Et, ye = /* @__PURE__ */ new z();
+}, { clamp: ge } = Mt, ye = /* @__PURE__ */ new z();
 function $(n) {
   if (!n) return { kind: null, axes: null, face: null, direction: null };
   const s = n.userData;
@@ -655,7 +655,7 @@ function $(n) {
     direction: ye.copy(n.position).normalize().clone()
   };
 }
-const bt = /* @__PURE__ */ new Ht(), wt = /* @__PURE__ */ new Vt(), ve = /* @__PURE__ */ new X(), R = /* @__PURE__ */ new z(), St = /* @__PURE__ */ new $t();
+const wt = /* @__PURE__ */ new Vt(), St = /* @__PURE__ */ new Xt(), ve = /* @__PURE__ */ new X(), R = /* @__PURE__ */ new z(), Et = /* @__PURE__ */ new Ht();
 class Oe extends I {
   /**
    * Creates a new ViewportGizmo instance.
@@ -794,7 +794,7 @@ class Oe extends I {
     y(this, "_placement");
     y(this, "_controls");
     y(this, "_controlsListeners");
-    this.camera = t, this.renderer = e, this._scene = new Bt().add(this), this.set(o);
+    this.camera = t, this.renderer = e, this._scene = new Zt().add(this), this.set(o);
   }
   /** Gets the current placement of the gizmo relative to its container. */
   get placement() {
@@ -806,7 +806,7 @@ class Oe extends I {
    * @param placement - The new placement position
    */
   set placement(t) {
-    this._placement = Ct(this._domElement, t), this.domUpdate();
+    this._placement = At(this._domElement, t), this.domUpdate();
   }
   /**
    * Regenerates the gizmo with the new options.
@@ -817,11 +817,11 @@ class Oe extends I {
    * - Can be computationally expensive, so use sparingly
    */
   set(t = {}) {
-    this.dispose(), this.options = t, this._options = ce(t), this._camera = this._options.isSphere ? new Zt(-1.8, 1.8, 1.8, -1.8, 5, 10) : new jt(26, 1, 5, 10), this._camera.position.set(0, 0, 7);
+    this.dispose(), this.options = t, this._options = ce(t), this._camera = this._options.isSphere ? new jt(-1.8, 1.8, 1.8, -1.8, 5, 10) : new $t(26, 1, 5, 10), this._camera.position.set(0, 0, 7);
     const [e, o, i] = _e(this._options, this.renderer);
     o && this.add(o), i && this.add(i), this.add(...e), this._background = o, this._intersections = e;
     const { container: r, animated: l, speed: p } = this._options;
-    return this.animated = l, this.speed = p, this._container = r ? te(r) : document.body, this._domElement = Kt(this._options), this._domElement.onpointerdown = (c) => this._onPointerDown(c), this._domElement.onpointermove = (c) => this._onPointerMove(c), this._domElement.onpointerleave = () => this._onPointerLeave(), this._container.appendChild(this._domElement), this._controls && this.attachControls(this._controls), this.update(), this;
+    return this.animated = l, this.speed = p, this._container = r ? ee(r) : document.body, this._domElement = te(this._options), this._domElement.onpointerdown = (c) => this._onPointerDown(c), this._domElement.onpointermove = (c) => this._onPointerMove(c), this._domElement.onpointerleave = () => this._onPointerLeave(), this._container.appendChild(this._domElement), this._controls && this.attachControls(this._controls), this.update(), this;
   }
   /**
    * Renders the gizmo to the screen.
@@ -851,7 +851,7 @@ class Oe extends I {
       l,
       e.width,
       e.height
-    ), t.getViewport(St).toArray(this._originalViewport), t.getScissorTest() && t.getScissor(St).toArray(this._originalScissor), this;
+    ), t.getViewport(Et).toArray(this._originalViewport), t.getScissorTest() && t.getScissor(Et).toArray(this._originalScissor), this;
   }
   /**
    * Updates the gizmo's orientation to match the current camera orientation.
@@ -950,7 +950,7 @@ class Oe extends I {
    */
   _setOrientation(t) {
     const e = this.camera, o = this.target;
-    R.copy(t), I.DEFAULT_UP.z === 1 && Math.abs(t.z) > 0.99 ? R.y = -1e-4 : I.DEFAULT_UP.x === 1 && Math.abs(t.x) > 0.99 && (R.y = oe), R.normalize().multiplyScalar(this._distance).add(o), bt.lookAt(R, o, this.up), this._quaternionEnd.setFromRotationMatrix(bt), this._quaternionStart.copy(e.quaternion), this.animating = !0, this._lastAnimateTimeSeconds = null;
+    R.copy(t), I.DEFAULT_UP.z === 1 && Math.abs(t.z) > 0.99 ? R.y = -yt : I.DEFAULT_UP.x === 1 && Math.abs(t.x) > 0.99 && (R.y = yt), R.normalize().multiplyScalar(this._distance).add(o), wt.lookAt(R, o, this.up), this._quaternionEnd.setFromRotationMatrix(wt), this._quaternionStart.copy(e.quaternion), this.animating = !0, this._lastAnimateTimeSeconds = null;
   }
   /**
    * Handles the pointer down event for starting drag operations.
@@ -962,12 +962,12 @@ class Oe extends I {
     if (!this.enabled) return;
     const e = (c) => {
       if (!this._dragging) {
-        if (ne(c, this._pointerStart)) return;
+        if (oe(c, this._pointerStart)) return;
         this._dragging = !0;
       }
       const d = ve.set(c.clientX, c.clientY).sub(this._pointerStart).multiplyScalar(1 / this._domRect.width * Math.PI), f = this.coordinateConversion(
         R.subVectors(this.camera.position, this.target)
-      ), h = wt.setFromVector3(f);
+      ), h = St.setFromVector3(f);
       h.theta = l - d.x, h.phi = ge(
         p - d.y,
         N,
@@ -984,7 +984,7 @@ class Oe extends I {
     t.preventDefault(), this._pointerStart.set(t.clientX, t.clientY);
     const i = this.coordinateConversion(
       R.subVectors(this.camera.position, this.target)
-    ), r = wt.setFromVector3(i), l = r.theta, p = r.phi;
+    ), r = St.setFromVector3(i), l = r.theta, p = r.phi;
     this._distance = r.radius, document.addEventListener("pointermove", e, !1), document.addEventListener("pointerup", o, !1), this.dispatchEvent({ type: "start" });
   }
   /**
@@ -1006,7 +1006,7 @@ class Oe extends I {
    * @param e - The pointer event
    */
   _onPointerMove(t) {
-    !this.enabled || this._dragging || (this._background && yt(this._background, !0), this._handleHover(t));
+    !this.enabled || this._dragging || (this._background && vt(this._background, !0), this._handleHover(t));
   }
   /**
    * Handles pointer leave events to reset hover states.
@@ -1015,7 +1015,7 @@ class Oe extends I {
    */
   _onPointerLeave() {
     if (!this.enabled || this._dragging) return;
-    this._background && yt(this._background, !1);
+    this._background && vt(this._background, !1);
     const t = this._focus !== null;
     this._focus && (j(this._focus, !1), this._focus = null), this._domElement.style.cursor = "", t && this.dispatchEvent({
       type: "hoverchange",
