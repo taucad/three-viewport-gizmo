@@ -48,6 +48,12 @@ const FACE_LABELS_FROM_UP_DIRECTION = {
   },
 } as const;
 
+/**
+ * Fills the user options with the defaults for the chosen gizmo type and up axis.
+ *
+ * @param options - The user options; left untouched
+ * @returns A new options object with every default applied
+ */
 export const optionsFallback = (
   options: GizmoOptions
 ): GizmoOptionsFallback => {

@@ -7,6 +7,7 @@ afterEach(() => {
   resetDefaultUp();
 });
 
+/** The label resolved for one axis of a cube gizmo. */
 const faceLabel = (gizmo: ReturnType<typeof createGizmo>, axis: "x" | "y" | "z" | "nx" | "ny" | "nz") =>
   getInternals(gizmo)._options[axis].label;
 
@@ -62,6 +63,7 @@ describe("up option", () => {
 });
 
 describe("Object3D.DEFAULT_UP tracking", () => {
+  /** The orientation of every face, edge and corner, in intersection order. */
   const faceQuaternions = (gizmo: ReturnType<typeof createGizmo>) =>
     getInternals(gizmo)._intersections.map((face) => face.quaternion.toArray());
 
