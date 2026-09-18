@@ -21,6 +21,9 @@ export type GizmoFaceName = (typeof GIZMO_FACES)[number];
  * Configuration options for the ViewportGizmo.
  * All properties are optional and will fall back to default values if not specified.
  */
+/** A world up axis. */
+export type GizmoUpAxis = "x" | "y" | "z";
+
 export type GizmoOptions = {
   /** Parent element for the gizmo. Can be an HTMLElement or a CSS selector string */
   container?: HTMLElement | string;
@@ -73,6 +76,13 @@ export type GizmoOptions = {
    * Default `64` for a `sphere` type, and `128` for the cube.
    **/
   resolution?: number;
+
+  /**
+   * The world up axis this gizmo orients its faces, drags and face clicks around.
+   * Defaults to the axis set in `Object3D.DEFAULT_UP` and follows later changes to it on the
+   * next `update()` or `render()`; pass it explicitly when views with different up axes share a process.
+   */
+  up?: GizmoUpAxis;
 
   /** The width of the axes lines material in pixels.   LineMaterial2 */
   lineWidth?: number;

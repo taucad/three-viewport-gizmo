@@ -1,13 +1,13 @@
-var zt = Object.defineProperty;
-var Ut = (n, s, t) => s in n ? zt(n, s, { enumerable: !0, configurable: !0, writable: !0, value: t }) : n[s] = t;
-var y = (n, s, t) => Ut(n, typeof s != "symbol" ? s + "" : s, t);
-import { MathUtils as Mt, Vector3 as z, Vector2 as X, Raycaster as Ft, Object3D as I, Color as xt, CanvasTexture as Rt, RepeatWrapping as ht, SRGBColorSpace as It, BufferGeometry as Gt, BufferAttribute as W, SpriteMaterial as B, MeshBasicMaterial as G, Sprite as it, Mesh as H, SphereGeometry as Ct, CylinderGeometry as qt, BackSide as Bt, Quaternion as pt, Scene as Zt, OrthographicCamera as jt, PerspectiveCamera as $t, Vector4 as Ht, Matrix4 as Vt, Spherical as Xt } from "three";
-import { mergeGeometries as Wt } from "three/addons/utils/BufferGeometryUtils.js";
-import { Line2NodeMaterial as Nt } from "three/webgpu";
-import { Line2 as Yt } from "three/addons/lines/Line2.js";
-import { Line2 as Jt } from "three/addons/lines/webgpu/Line2.js";
-import { LineGeometry as Qt } from "three/addons/lines/LineGeometry.js";
-import { LineMaterial as Kt } from "three/addons/lines/LineMaterial.js";
+var Rt = Object.defineProperty;
+var It = (n, s, t) => s in n ? Rt(n, s, { enumerable: !0, configurable: !0, writable: !0, value: t }) : n[s] = t;
+var g = (n, s, t) => It(n, typeof s != "symbol" ? s + "" : s, t);
+import { MathUtils as Et, Vector3 as k, Vector2 as H, Raycaster as Ft, Object3D as nt, Color as xt, CanvasTexture as Ut, RepeatWrapping as ht, SRGBColorSpace as Gt, BufferGeometry as qt, BufferAttribute as X, SpriteMaterial as q, MeshBasicMaterial as U, Sprite as it, Mesh as $, SphereGeometry as Ct, CylinderGeometry as Bt, BackSide as Zt, Quaternion as pt, Scene as jt, OrthographicCamera as $t, PerspectiveCamera as Vt, Vector4 as Ht, Matrix4 as Xt, Spherical as Wt } from "three";
+import { mergeGeometries as Nt } from "three/addons/utils/BufferGeometryUtils.js";
+import { Line2NodeMaterial as Yt } from "three/webgpu";
+import { Line2 as Jt } from "three/addons/lines/Line2.js";
+import { Line2 as Qt } from "three/addons/lines/webgpu/Line2.js";
+import { LineGeometry as Kt } from "three/addons/lines/LineGeometry.js";
+import { LineMaterial as te } from "three/addons/lines/LineMaterial.js";
 const At = (n, s) => {
   const [t, e] = s.split("-");
   return Object.assign(n.style, {
@@ -17,60 +17,60 @@ const At = (n, s) => {
     bottom: t === "bottom" ? "0" : "",
     transform: `${e === "center" ? "translateX(-50%)" : ""} ${t === "center" ? "translateY(-50%)" : ""}`
   }), s;
-}, te = ({
+}, ee = ({
   placement: n,
   size: s,
   offset: t,
   id: e,
   className: o
 }) => {
-  const i = document.createElement("div"), { top: r, left: l, right: p, bottom: c } = t;
+  const i = document.createElement("div"), { top: r, left: c, right: p, bottom: l } = t;
   return Object.assign(i.style, {
     id: e,
     position: "absolute",
     zIndex: "1000",
     height: `${s}px`,
     width: `${s}px`,
-    margin: `${r}px ${p}px ${c}px ${l}px`,
+    margin: `${r}px ${p}px ${l}px ${c}px`,
     borderRadius: "100%"
   }), At(i, n), e && (i.id = e), o && (i.className = o), i;
-}, ee = (n) => {
+}, ne = (n) => {
   const s = typeof n == "string" ? document.querySelector(n) : n;
   if (!s) throw Error("Invalid DOM element");
   return s;
-}, { clamp: ot } = Mt, ne = [
+}, { clamp: ot } = Et, oe = [
   ["x", 0, 3],
   ["y", 1, 4],
   ["z", 2, 5]
-], dt = /* @__PURE__ */ new z();
-function ut(n, s) {
+], ut = /* @__PURE__ */ new k();
+function dt(n, s) {
   const { idleMaterial: t, hoverMaterial: e, hover: o, opacity: i } = n.userData;
   if (!t || !e) {
     n.material.opacity = s;
     return;
   }
   t.opacity = s;
-  const r = i > 0 ? i : 1, l = ot(
+  const r = i > 0 ? i : 1, c = ot(
     s * (o.opacity / r),
     0,
     1
   );
-  e.opacity = l;
+  e.opacity = c;
 }
 function ft({ isSphere: n }, s, t) {
-  n && (dt.set(0, 0, 1).applyQuaternion(t.quaternion), ne.forEach(([e, o, i]) => {
-    const r = dt[e];
-    let l = s[o], p = l.userData.opacity;
-    ut(
-      l,
+  n && (ut.set(0, 0, 1).applyQuaternion(t.quaternion), oe.forEach(([e, o, i]) => {
+    const r = ut[e];
+    let c = s[o], p = c.userData.opacity;
+    dt(
+      c,
       ot(r >= 0 ? p : p / 2, 0, 1)
-    ), l = s[i], p = l.userData.opacity, ut(
-      l,
+    ), c = s[i], p = c.userData.opacity, dt(
+      c,
       ot(r >= 0 ? p / 2 : p, 0, 1)
     );
   }));
 }
-const oe = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY - s.y) < t, mt = /* @__PURE__ */ new Ft(), _t = /* @__PURE__ */ new X(), gt = (n, s, t, e) => {
+const se = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY - s.y) < t, mt = /* @__PURE__ */ new Ft(), _t = /* @__PURE__ */ new H(), yt = (n, s, t, e) => {
   _t.set(
     (n.clientX - s.left) / s.width * 2 - 1,
     -((n.clientY - s.top) / s.height) * 2 + 1
@@ -80,18 +80,18 @@ const oe = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY
     !1
   );
   if (o.length > 0) {
-    o.sort((c, d) => c.distance - d.distance);
-    const r = 0.2, l = o[0].distance, p = o.filter(
-      (c) => c.distance <= l + r
+    o.sort((l, u) => l.distance - u.distance);
+    const r = 0.2, c = o[0].distance, p = o.filter(
+      (l) => l.distance <= c + r
     );
-    p.length > 1 && (p.sort((c, d) => {
-      const f = c.object.userData.intersectionOrder ?? 0;
-      return (d.object.userData.intersectionOrder ?? 0) - f;
+    p.length > 1 && (p.sort((l, u) => {
+      const m = l.object.userData.intersectionOrder ?? 0;
+      return (u.object.userData.intersectionOrder ?? 0) - m;
     }), o.splice(0, p.length, ...p));
   }
   const i = o.length ? o[0] : null;
   return !i || !i.object.visible ? null : i;
-}, N = 1e-6, yt = 1e-4, se = 2 * Math.PI, Ot = ["x", "y", "z"], U = [...Ot, "nx", "ny", "nz"], ie = ["x", "z", "y", "nx", "nz", "ny"], re = ["z", "x", "y", "nz", "nx", "ny"], Y = "Right", J = "Top", Q = "Front", K = "Left", tt = "Bottom", et = "Back", Lt = [
+}, W = 1e-6, gt = 1e-4, ie = 2 * Math.PI, Ot = ["x", "y", "z"], R = [...Ot, "nx", "ny", "nz"], re = ["x", "z", "y", "nx", "nz", "ny"], ae = ["z", "x", "y", "nz", "nx", "ny"], N = "Right", Y = "Top", J = "Front", Q = "Left", K = "Bottom", tt = "Back", Lt = [
   "right",
   "top",
   "front",
@@ -101,39 +101,39 @@ const oe = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY
 ], Tt = 1.3, vt = (n, s = !0) => {
   const { material: t, userData: e } = n, { color: o, opacity: i } = s ? e.hover : e;
   t.color.set(o), t.opacity = i;
-}, F = (n) => JSON.parse(JSON.stringify(n)), ae = {
+}, I = (n) => JSON.parse(JSON.stringify(n)), ce = {
   yUp: {
-    x: Y,
-    y: J,
-    z: Q,
-    nx: K,
-    ny: tt,
-    nz: et
-  },
-  zUp: {
-    x: Y,
-    y: et,
+    x: N,
+    y: Y,
     z: J,
-    nx: K,
-    ny: Q,
+    nx: Q,
+    ny: K,
     nz: tt
   },
-  xUp: {
-    x: J,
-    y: Q,
+  zUp: {
+    x: N,
+    y: tt,
     z: Y,
-    nx: tt,
-    ny: et,
+    nx: Q,
+    ny: J,
     nz: K
+  },
+  xUp: {
+    x: Y,
+    y: J,
+    z: N,
+    nx: K,
+    ny: tt,
+    nz: Q
   }
-}, ce = (n) => {
-  const s = n.type || "sphere", t = s === "sphere", e = s === "rounded-cube", o = n.resolution || t ? 64 : 128, i = I.DEFAULT_UP, r = i.z === 1, l = i.x === 1, c = ae[r ? "zUp" : l ? "xUp" : "yUp"], { container: d } = n;
-  n.container = void 0, n = JSON.parse(JSON.stringify(n)), n.container = d;
-  const f = r ? ie : l ? re : U;
-  Lt.forEach((m, b) => {
-    n[m] && (n[f[b]] = n[m]);
+}, le = (n) => {
+  const s = n.type || "sphere", t = s === "sphere", e = s === "rounded-cube", o = n.resolution || t ? 64 : 128, i = n.up ?? Dt(nt.DEFAULT_UP), r = i === "z", c = i === "x", l = ce[r ? "zUp" : c ? "xUp" : "yUp"], { container: u, ...m } = n;
+  n = JSON.parse(JSON.stringify(m)), n.container = u;
+  const h = r ? re : c ? ae : R;
+  Lt.forEach((d, w) => {
+    n[d] && (n[h[w]] = n[d]);
   });
-  const h = {
+  const v = {
     enabled: !0,
     color: 16777215,
     opacity: 1,
@@ -154,14 +154,15 @@ const oe = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY
         color: 14540253
       }
     }
-  }, v = {
+  }, S = {
     line: !1,
     scale: t ? 0.45 : 0.7,
     hover: {
       scale: t ? 0.5 : 0.7
     }
-  }, E = {
+  }, A = {
     type: s,
+    up: i,
     container: document.body,
     size: 128,
     placement: "top-right",
@@ -217,43 +218,43 @@ const oe = (n, s, t = 10) => Math.abs(n.clientX - s.x) < t && Math.abs(n.clientY
       }
     },
     x: {
-      ...F(h),
-      ...t ? { label: "X", color: 16725587, line: !0 } : { label: c.x }
+      ...I(v),
+      ...t ? { label: "X", color: 16725587, line: !0 } : { label: l.x }
     },
     y: {
-      ...F(h),
-      ...t ? { label: "Y", color: 9100032, line: !0 } : { label: c.y }
+      ...I(v),
+      ...t ? { label: "Y", color: 9100032, line: !0 } : { label: l.y }
     },
     z: {
-      ...F(h),
-      ...t ? { label: "Z", color: 2920447, line: !0 } : { label: c.z }
+      ...I(v),
+      ...t ? { label: "Z", color: 2920447, line: !0 } : { label: l.z }
     },
     nx: {
-      ...F(v),
-      label: t ? "" : c.nx
+      ...I(S),
+      label: t ? "" : l.nx
     },
     ny: {
-      ...F(v),
-      label: t ? "" : c.ny
+      ...I(S),
+      label: t ? "" : l.ny
     },
     nz: {
-      ...F(v),
-      label: t ? "" : c.nz
+      ...I(S),
+      label: t ? "" : l.nz
     }
   };
-  if (st(n, E), e) {
-    const m = n;
-    m.edges.radius = m.radius, m.edges.scale = 1, m.edges.opacity = 1, m.edges.hover.scale = 1, m.edges.hover.opacity = 1, m.corners.radius = m.radius, m.corners.scale = 1, m.corners.opacity = 1, m.corners.hover.scale = 1, m.corners.hover.opacity = 1, m.radius = 0, U.forEach((b) => {
-      m[b].scale = 1, m[b].opacity = 1, m[b].hover.scale = 1, m[b].hover.opacity = 1;
+  if (st(n, A), e) {
+    const d = n;
+    d.edges.radius = d.radius, d.edges.scale = 1, d.edges.opacity = 1, d.edges.hover.scale = 1, d.edges.hover.opacity = 1, d.corners.radius = d.radius, d.corners.scale = 1, d.corners.opacity = 1, d.corners.hover.scale = 1, d.corners.hover.opacity = 1, d.radius = 0, R.forEach((w) => {
+      d[w].scale = 1, d[w].opacity = 1, d[w].hover.scale = 1, d[w].hover.opacity = 1;
     });
   }
   return Ot.forEach(
-    (m) => st(
-      n[`n${m}`],
-      F(n[m])
+    (d) => st(
+      n[`n${d}`],
+      I(n[d])
     )
   ), { ...n, isSphere: t };
-};
+}, Dt = (n) => n.z === 1 ? "z" : n.x === 1 ? "x" : "y";
 function st(n, ...s) {
   if (n instanceof HTMLElement || typeof n != "object" || n === null)
     return n;
@@ -265,101 +266,101 @@ function st(n, ...s) {
       )));
   return n;
 }
-const le = (n, s = 2) => {
-  const t = new xt(), e = s * 2, { isSphere: o, resolution: i, radius: r, font: l, corners: p, edges: c } = n, d = U.map((a) => ({ ...n[a], radius: r }));
-  o && p.enabled && d.push(p), o && c.enabled && d.push(c);
-  const f = document.createElement("canvas"), h = f.getContext("2d");
-  f.width = i * 2 + e * 2, f.height = i * d.length + e * d.length;
-  const [v, E] = x(d, i, l);
-  d.forEach(
+const he = (n, s = 2) => {
+  const t = new xt(), e = s * 2, { isSphere: o, resolution: i, radius: r, font: c, corners: p, edges: l } = n, u = R.map((a) => ({ ...n[a], radius: r }));
+  o && p.enabled && u.push(p), o && l.enabled && u.push(l);
+  const m = document.createElement("canvas"), h = m.getContext("2d");
+  m.width = i * 2 + e * 2, m.height = i * u.length + e * u.length;
+  const [v, S] = x(u, i, c);
+  u.forEach(
     ({
       radius: a,
-      label: u,
+      label: f,
       color: L,
       labelColor: _,
-      border: g,
+      border: y,
       hover: {
-        color: k,
+        color: P,
         labelColor: O,
         border: T
       }
     }, D) => {
-      const P = i * D + D * e + s;
-      S(
+      const z = i * D + D * e + s;
+      M(
         s,
-        P,
+        z,
         s,
         i,
         a,
-        u,
-        g,
+        f,
+        y,
         L,
         _
-      ), S(
+      ), M(
         i + s * 3,
-        P,
+        z,
         s,
         i,
         a,
-        u,
-        T ?? g,
-        k ?? L,
+        f,
+        T ?? y,
+        P ?? L,
         O ?? _
       );
     }
   );
-  const m = d.length, b = s / (i * 2), C = s / (i * 6), M = 1 / m, A = new Rt(f);
-  return A.repeat.set(0.5 - 2 * b, M - 2 * C), A.offset.set(b, 1 - C), Object.assign(A, {
-    colorSpace: It,
+  const A = u.length, d = s / (i * 2), w = s / (i * 6), E = 1 / A, C = new Ut(m);
+  return C.repeat.set(0.5 - 2 * d, E - 2 * w), C.offset.set(d, 1 - w), Object.assign(C, {
+    colorSpace: Gt,
     wrapS: ht,
     wrapT: ht,
     userData: {
-      offsetX: b,
-      offsetY: C,
-      cellHeight: M
+      offsetX: d,
+      offsetY: w,
+      cellHeight: E
     }
-  }), A;
-  function S(a, u, L, _, g, k, O, T, D) {
-    if (g = g * (_ / 2), T != null && T !== "" && (P(), h.fillStyle = t.set(T).getStyle(), h.fill()), O && O.size) {
-      const q = O.size * _ / 2;
-      a += q, u += q, _ -= O.size * _, g = Math.max(0, g - q), P(), h.strokeStyle = t.set(O.color).getStyle(), h.lineWidth = O.size * _, h.stroke();
+  }), C;
+  function M(a, f, L, _, y, P, O, T, D) {
+    if (y = y * (_ / 2), T != null && T !== "" && (z(), h.fillStyle = t.set(T).getStyle(), h.fill()), O && O.size) {
+      const G = O.size * _ / 2;
+      a += G, f += G, _ -= O.size * _, y = Math.max(0, y - G), z(), h.strokeStyle = t.set(O.color).getStyle(), h.lineWidth = O.size * _, h.stroke();
     }
-    k && w(
+    P && b(
       h,
       a + _ / 2,
-      u + (_ + L) / 2,
-      k,
+      f + (_ + L) / 2,
+      P,
       t.set(D).getStyle()
     );
-    function P() {
-      h.beginPath(), h.moveTo(a + g, u), h.lineTo(a + _ - g, u), h.arcTo(a + _, u, a + _, u + g, g), h.lineTo(a + _, u + _ - g), h.arcTo(a + _, u + _, a + _ - g, u + _, g), h.lineTo(a + g, u + _), h.arcTo(a, u + _, a, u + _ - g, g), h.lineTo(a, u + g), h.arcTo(a, u, a + g, u, g), h.closePath();
+    function z() {
+      h.beginPath(), h.moveTo(a + y, f), h.lineTo(a + _ - y, f), h.arcTo(a + _, f, a + _, f + y, y), h.lineTo(a + _, f + _ - y), h.arcTo(a + _, f + _, a + _ - y, f + _, y), h.lineTo(a + y, f + _), h.arcTo(a, f + _, a, f + _ - y, y), h.lineTo(a, f + y), h.arcTo(a, f, a + y, f, y), h.closePath();
     }
   }
-  function x(a, u, L) {
-    const g = [...a].sort((V, kt) => {
+  function x(a, f, L) {
+    const y = [...a].sort((V, kt) => {
       var ct, lt;
       return (((ct = V.label) == null ? void 0 : ct.length) || 0) - (((lt = kt.label) == null ? void 0 : lt.length) || 0);
-    }).pop().label, { family: k, weight: O } = L, T = o ? Math.sqrt(Math.pow(u * 0.7, 2) / 2) : u;
+    }).pop().label, { family: P, weight: O } = L, T = o ? Math.sqrt(Math.pow(f * 0.7, 2) / 2) : f;
     let D = T;
     n.font.size > 0 && (D = n.font.size);
-    let P = 0, q = 0;
+    let z = 0, G = 0;
     do {
-      h.font = `${O} ${D}px ${k}`;
-      const V = h.measureText(g);
-      P = V.width, q = V.fontBoundingBoxDescent, D--;
-    } while (P > T && D > 0);
-    const at = T / q, Dt = Math.min(T / P, at), Pt = Math.floor(D * Dt);
-    return [`${O} ${Pt}px ${k}`, at];
+      h.font = `${O} ${D}px ${P}`;
+      const V = h.measureText(y);
+      z = V.width, G = V.fontBoundingBoxDescent, D--;
+    } while (z > T && D > 0);
+    const at = T / G, zt = Math.min(T / z, at), Pt = Math.floor(D * zt);
+    return [`${O} ${Pt}px ${P}`, at];
   }
-  function w(a, u, L, _, g) {
-    a.font = v, a.textAlign = "center", a.textBaseline = "middle", a.fillStyle = g, a.fillText(_, u, L + (o ? E : 0));
+  function b(a, f, L, _, y) {
+    a.font = v, a.textAlign = "center", a.textBaseline = "middle", a.fillStyle = y, a.fillText(_, f, L + (o ? S : 0));
   }
-}, Z = (n, s, t) => {
+}, B = (n, s, t) => {
   const e = n.clone();
-  he(e, s);
+  pe(e, s);
   const { offsetX: o } = e.userData;
   return e.offset.setX((t ? 0.5 : 0) + o), e;
-}, he = (n, s) => {
+}, pe = (n, s) => {
   const {
     offset: t,
     userData: { offsetY: e, cellHeight: o }
@@ -367,7 +368,7 @@ const le = (n, s = 2) => {
   t.y = 1 - (s + 1) * o + e;
 };
 function rt(n, s, t = 2, e = 2) {
-  const o = t / 2 - n, i = e / 2 - n, r = n / t, l = (t - n) / t, p = n / e, c = (e - n) / e, d = [o, i, 0, -o, i, 0, -o, -i, 0, o, -i, 0], f = [l, c, r, c, r, p, l, p], h = [
+  const o = t / 2 - n, i = e / 2 - n, r = n / t, c = (t - n) / t, p = n / e, l = (e - n) / e, u = [o, i, 0, -o, i, 0, -o, -i, 0, o, -i, 0], m = [c, l, r, l, r, p, c, p], h = [
     3 * (s + 1) + 3,
     3 * (s + 1) + 4,
     s + 4,
@@ -381,51 +382,51 @@ function rt(n, s, t = 2, e = 2) {
     4,
     0
   ], v = [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11].map(
-    (w) => h[w]
+    (b) => h[b]
   );
-  let E, m, b, C, M, A, S, x;
-  for (let w = 0; w < 4; w++) {
-    C = w < 1 || w > 2 ? o : -o, M = w < 2 ? i : -i, A = w < 1 || w > 2 ? l : r, S = w < 2 ? c : p;
+  let S, A, d, w, E, C, M, x;
+  for (let b = 0; b < 4; b++) {
+    w = b < 1 || b > 2 ? o : -o, E = b < 2 ? i : -i, C = b < 1 || b > 2 ? c : r, M = b < 2 ? l : p;
     for (let a = 0; a <= s; a++)
-      E = Math.PI / 2 * (w + a / s), m = Math.cos(E), b = Math.sin(E), d.push(C + n * m, M + n * b, 0), f.push(A + r * m, S + p * b), a < s && (x = (s + 1) * w + a + 4, v.push(w, x, x + 1));
+      S = Math.PI / 2 * (b + a / s), A = Math.cos(S), d = Math.sin(S), u.push(w + n * A, E + n * d, 0), m.push(C + r * A, M + p * d), a < s && (x = (s + 1) * b + a + 4, v.push(b, x, x + 1));
   }
-  return new Gt().setIndex(new W(new Uint32Array(v), 1)).setAttribute(
+  return new qt().setIndex(new X(new Uint32Array(v), 1)).setAttribute(
     "position",
-    new W(new Float32Array(d), 3)
-  ).setAttribute("uv", new W(new Float32Array(f), 2));
+    new X(new Float32Array(u), 3)
+  ).setAttribute("uv", new X(new Float32Array(m), 2));
 }
-const pe = (n, s) => {
-  const t = new z(), { isSphere: e, radius: o, smoothness: i, type: r } = n, p = r === "rounded-cube" ? 2 - n.edges.radius * 2 : 2, c = rt(o, i, p, p);
-  return U.map((d, f) => {
-    const h = f < 3, v = U[f], E = Z(s, f, !1), m = Z(s, f, !0), { enabled: b, scale: C, opacity: M, hover: A } = n[v], S = {
-      map: E,
-      opacity: M,
+const ue = (n, s) => {
+  const t = new k(), { isSphere: e, radius: o, smoothness: i, type: r } = n, p = r === "rounded-cube" ? 2 - n.edges.radius * 2 : 2, l = rt(o, i, p, p);
+  return R.map((u, m) => {
+    const h = m < 3, v = R[m], S = B(s, m, !1), A = B(s, m, !0), { enabled: d, scale: w, opacity: E, hover: C } = n[v], M = {
+      map: S,
+      opacity: E,
       transparent: !0
     }, x = {
-      map: m,
-      opacity: A.opacity,
+      map: A,
+      opacity: C.opacity,
       transparent: !0
-    }, w = e ? new B(S) : new G(S), a = e ? new B(x) : new G(x), u = e ? new it(w) : new H(c, w), L = h ? v : v[1];
-    if (u.position[L] = (h ? 1 : -1) * (e ? Tt : 1), !e) {
-      u.lookAt(t.copy(u.position).multiplyScalar(1.7));
-      const _ = I.DEFAULT_UP.z === 1, g = I.DEFAULT_UP.x === 1;
-      (_ || g) && (v === "z" && _ || v === "x" && g ? u.rotateZ(-Math.PI / 2) : (v === "nz" && _ || v === "nx" && g) && u.rotateZ(Math.PI / 2));
+    }, b = e ? new q(M) : new U(M), a = e ? new q(x) : new U(x), f = e ? new it(b) : new $(l, b), L = h ? v : v[1];
+    if (f.position[L] = (h ? 1 : -1) * (e ? Tt : 1), !e) {
+      f.up.set(0, 0, 0)[n.up] = 1, f.lookAt(t.copy(f.position).multiplyScalar(1.7));
+      const _ = n.up === "z", y = n.up === "x";
+      (_ || y) && (v === "z" && _ || v === "x" && y ? f.rotateZ(-Math.PI / 2) : (v === "nz" && _ || v === "nx" && y) && f.rotateZ(Math.PI / 2));
     }
-    return u.scale.setScalar(C), u.renderOrder = 1, u.visible = b, u.userData = {
-      scale: C,
-      opacity: M,
-      hover: A,
+    return f.scale.setScalar(w), f.renderOrder = 1, f.visible = d, f.userData = {
+      scale: w,
+      opacity: E,
+      hover: C,
       kind: "face",
-      axes: [U[f]],
-      face: Lt[f],
-      idleMaterial: w,
+      axes: [R[m]],
+      face: Lt[m],
+      idleMaterial: b,
       hoverMaterial: a
-    }, u;
+    }, f;
   });
-}, bt = U.length, de = (n, s) => {
+}, bt = R.length, de = (n, s) => {
   const { isSphere: t, corners: e, type: o } = n, i = o === "rounded-cube";
   if (!e.enabled) return [];
-  const { color: r, opacity: l, scale: p, radius: c, smoothness: d, hover: f } = e, h = t ? null : i ? new Ct(c, d * 2, d) : rt(c, d), v = i ? 1 - c : 0.85, E = [
+  const { color: r, opacity: c, scale: p, radius: l, smoothness: u, hover: m } = e, h = t ? null : i ? new Ct(l, u * 2, u) : rt(l, u), v = i ? 1 - l : 0.85, S = [
     1,
     1,
     1,
@@ -450,53 +451,53 @@ const pe = (n, s) => {
     -1,
     -1,
     -1
-  ].map((b) => b * v), m = new z();
-  return Array(E.length / 3).fill(0).map((b, C) => {
-    let M, A;
+  ].map((d) => d * v), A = new k();
+  return Array(S.length / 3).fill(0).map((d, w) => {
+    let E, C;
     if (t) {
-      const a = Z(s, bt, !1), u = Z(s, bt, !0), L = {
+      const a = B(s, bt, !1), f = B(s, bt, !0), L = {
         map: a,
-        opacity: l,
+        opacity: c,
         transparent: !0
       }, _ = {
-        map: u,
-        opacity: f.opacity,
+        map: f,
+        opacity: m.opacity,
         transparent: !0
       };
-      M = new B(L), A = new B(_);
+      E = new q(L), C = new q(_);
     } else
-      M = new G({
+      E = new U({
         transparent: !0,
-        opacity: l,
+        opacity: c,
         color: r
-      }), A = new G({
+      }), C = new U({
         transparent: !0,
-        opacity: f.opacity,
-        color: f.color ?? r
+        opacity: m.opacity,
+        color: m.color ?? r
       });
-    const S = t ? new it(M) : new H(h, M), x = C * 3;
-    S.position.set(E[x], E[x + 1], E[x + 2]), t && S.position.normalize().multiplyScalar(1.7), S.scale.setScalar(p), S.lookAt(m.copy(S.position).multiplyScalar(2)), S.renderOrder = 1;
-    const w = [
-      S.position.x > 0 ? "x" : "nx",
-      S.position.y > 0 ? "y" : "ny",
-      S.position.z > 0 ? "z" : "nz"
+    const M = t ? new it(E) : new $(h, E), x = w * 3;
+    M.position.set(S[x], S[x + 1], S[x + 2]), t && M.position.normalize().multiplyScalar(1.7), M.scale.setScalar(p), M.up.set(0, 0, 0)[n.up] = 1, M.lookAt(A.copy(M.position).multiplyScalar(2)), M.renderOrder = 1;
+    const b = [
+      M.position.x > 0 ? "x" : "nx",
+      M.position.y > 0 ? "y" : "ny",
+      M.position.z > 0 ? "z" : "nz"
     ];
-    return S.userData = {
+    return M.userData = {
       color: r,
-      opacity: l,
+      opacity: c,
       scale: p,
-      hover: f,
+      hover: m,
       intersectionOrder: 1,
       kind: "corner",
-      axes: w,
-      idleMaterial: M,
-      hoverMaterial: A
-    }, S;
+      axes: b,
+      idleMaterial: E,
+      hoverMaterial: C
+    }, M;
   });
-}, nt = (n, s, t) => n === 0 ? null : n > 0 ? s : t, ue = (n, s, t) => {
+}, et = (n, s, t) => n === 0 ? null : n > 0 ? s : t, fe = (n, s, t) => {
   const { isSphere: e, edges: o, type: i } = n, r = i === "rounded-cube";
   if (!o.enabled) return [];
-  const { color: l, opacity: p, scale: c, hover: d, radius: f, smoothness: h } = o, v = r ? 2 - f * 2 : 1.2, E = e ? null : r ? new qt(f, f, v, h * 4) : rt(f, h, v, 0.25), m = r ? 1 - f : 0.925, b = [
+  const { color: c, opacity: p, scale: l, hover: u, radius: m, smoothness: h } = o, v = r ? 2 - m * 2 : 1.2, S = e ? null : r ? new Bt(m, m, v, h * 4) : rt(m, h, v, 0.25), A = r ? 1 - m : 0.925, d = [
     0,
     1,
     1,
@@ -533,130 +534,130 @@ const pe = (n, s) => {
     -1,
     -1,
     0
-  ].map((A) => A * m), C = new z(), M = new z(0, 1, 0);
-  return Array(b.length / 3).fill(0).map((A, S) => {
-    let x, w;
+  ].map((C) => C * A), w = new k(), E = new k(0, 1, 0);
+  return Array(d.length / 3).fill(0).map((C, M) => {
+    let x, b;
     if (e) {
-      const O = Z(s, t, !1), T = Z(s, t, !0), D = {
+      const O = B(s, t, !1), T = B(s, t, !0), D = {
         map: O,
         opacity: p,
         transparent: !0
-      }, P = {
+      }, z = {
         map: T,
-        opacity: d.opacity,
+        opacity: u.opacity,
         transparent: !0
       };
-      x = new B(D), w = new B(P);
+      x = new q(D), b = new q(z);
     } else
-      x = new G({
+      x = new U({
         transparent: !0,
         opacity: p,
-        color: l
-      }), w = new G({
+        color: c
+      }), b = new U({
         transparent: !0,
-        opacity: d.opacity,
-        color: d.color ?? l
+        opacity: u.opacity,
+        color: u.color ?? c
       });
-    const a = e ? new it(x) : new H(E, x), u = S * 3;
-    a.position.set(b[u], b[u + 1], b[u + 2]), e && a.position.normalize().multiplyScalar(1.7), a.scale.setScalar(c), a.up.copy(M), a.lookAt(C.copy(a.position).multiplyScalar(2)), r ? (!e && !a.position.z && (a.rotation.z = Math.PI), !e && !a.position.x && (a.rotation.x = 0), !e && !a.position.x && (a.rotation.z = Math.PI / 2)) : !e && !a.position.y && (a.rotation.z = Math.PI / 2), a.renderOrder = 1;
-    const L = nt(a.position.x, "x", "nx"), _ = nt(a.position.y, "y", "ny"), g = nt(a.position.z, "z", "nz"), k = [L, _, g].filter((O) => O !== null);
+    const a = e ? new it(x) : new $(S, x), f = M * 3;
+    a.position.set(d[f], d[f + 1], d[f + 2]), e && a.position.normalize().multiplyScalar(1.7), a.scale.setScalar(l), a.up.copy(E), a.lookAt(w.copy(a.position).multiplyScalar(2)), r ? (!e && !a.position.z && (a.rotation.z = Math.PI), !e && !a.position.x && (a.rotation.x = 0), !e && !a.position.x && (a.rotation.z = Math.PI / 2)) : !e && !a.position.y && (a.rotation.z = Math.PI / 2), a.renderOrder = 1;
+    const L = et(a.position.x, "x", "nx"), _ = et(a.position.y, "y", "ny"), y = et(a.position.z, "z", "nz"), P = [L, _, y].filter((O) => O !== null);
     return a.userData = {
-      color: l,
+      color: c,
       opacity: p,
-      scale: c,
-      hover: d,
+      scale: l,
+      hover: u,
       kind: "edge",
-      axes: k,
+      axes: P,
       idleMaterial: x,
-      hoverMaterial: w
+      hoverMaterial: b
     }, a;
   });
-}, fe = (n, s) => {
+}, me = (n, s) => {
   const {
     isSphere: t,
     background: { enabled: e, color: o, opacity: i, hover: r }
   } = s;
-  let l;
-  const p = new G({
+  let c;
+  const p = new U({
     color: o,
-    side: Bt,
+    side: Zt,
     opacity: i,
     transparent: !0,
     depthWrite: !1
   });
   if (!e) return null;
   if (t)
-    l = new H(
+    c = new $(
       new Ct(1.8, 64, 64),
       p
     );
   else {
-    let c;
-    n.forEach((d) => {
-      const f = d.scale.x;
-      d.scale.setScalar(0.9), d.updateMatrix();
-      const h = d.geometry.clone();
-      h.applyMatrix4(d.matrix), c = c ? Wt([c, h]) : h, d.scale.setScalar(f);
-    }), l = new H(c, p);
+    let l;
+    n.forEach((u) => {
+      const m = u.scale.x;
+      u.scale.setScalar(0.9), u.updateMatrix();
+      const h = u.geometry.clone();
+      h.applyMatrix4(u.matrix), l = l ? Nt([l, h]) : h, u.scale.setScalar(m);
+    }), c = new $(l, p);
   }
-  return l.userData = {
+  return c.userData = {
     color: o,
     opacity: i,
     hover: r
-  }, l;
-}, me = (n, s) => {
+  }, c;
+}, _e = (n, s) => {
   const t = new xt(), e = [], o = [], { isSphere: i } = n;
-  if (U.forEach((c, d) => {
-    const { enabled: f, line: h, scale: v, color: E } = n[c];
-    if (!f || !h) return;
-    const m = d < 3 ? 1 : -1, C = (i ? Tt - v / 2 : 0.975) * m;
+  if (R.forEach((l, u) => {
+    const { enabled: m, line: h, scale: v, color: S } = n[l];
+    if (!m || !h) return;
+    const A = u < 3 ? 1 : -1, w = (i ? Tt - v / 2 : 0.975) * A;
     e.push(
-      c.includes("x") ? C : 0,
-      c.includes("y") ? C : 0,
-      c.includes("z") ? C : 0,
+      l.includes("x") ? w : 0,
+      l.includes("y") ? w : 0,
+      l.includes("z") ? w : 0,
       0,
       0,
       0
     );
-    const M = t.set(E).toArray();
-    o.push(...M, ...M);
+    const E = t.set(S).toArray();
+    o.push(...E, ...E);
   }), !e.length) return null;
-  const r = new Qt().setPositions(e).setColors(o);
+  const r = new Kt().setPositions(e).setColors(o);
   if (s.isWebGPURenderer === !0) {
-    const c = new Nt({
+    const l = new Yt({
       linewidth: n.lineWidth,
       vertexColors: !0,
       worldUnits: !1
     });
-    return new Jt(r, c).computeLineDistances();
+    return new Qt(r, l).computeLineDistances();
   }
-  const p = new Kt({
+  const p = new te({
     linewidth: n.lineWidth,
     vertexColors: !0,
-    resolution: new X(window.innerWidth, window.innerHeight)
+    resolution: new H(window.innerWidth, window.innerHeight)
   });
-  return new Yt(r, p).computeLineDistances();
-}, _e = (n, s) => {
-  const { corners: t, edges: e } = n, o = [], i = le(n), r = pe(n, i);
-  o.push(...r), t.enabled && o.push(...de(n, i)), e.enabled && o.push(...ue(n, i, t.enabled ? 7 : 6));
-  const l = fe(r, n), p = me(n, s);
-  return [o, l, p];
-}, j = (n, s = !0) => {
+  return new Jt(r, p).computeLineDistances();
+}, ye = (n, s) => {
+  const { corners: t, edges: e } = n, o = [], i = he(n), r = ue(n, i);
+  o.push(...r), t.enabled && o.push(...de(n, i)), e.enabled && o.push(...fe(n, i, t.enabled ? 7 : 6));
+  const c = me(r, n), p = _e(n, s);
+  return [o, c, p];
+}, Z = (n, s = !0) => {
   const { userData: t } = n, { idleMaterial: e, hoverMaterial: o } = t;
   n.scale.setScalar((s ? t.hover : t).scale), n.material = s ? o : e;
-}, { clamp: ge } = Mt, ye = /* @__PURE__ */ new z();
-function $(n) {
+}, { clamp: ge } = Et, ve = /* @__PURE__ */ new k();
+function j(n) {
   if (!n) return { kind: null, axes: null, face: null, direction: null };
   const s = n.userData;
   return {
     kind: s.kind ?? null,
     axes: s.axes ?? null,
     face: s.face ?? null,
-    direction: ye.copy(n.position).normalize().clone()
+    direction: ve.copy(n.position).normalize().clone()
   };
 }
-const wt = /* @__PURE__ */ new Vt(), St = /* @__PURE__ */ new Xt(), ve = /* @__PURE__ */ new X(), R = /* @__PURE__ */ new z(), Et = /* @__PURE__ */ new Ht();
-class Oe extends I {
+const wt = /* @__PURE__ */ new Xt(), St = /* @__PURE__ */ new Wt(), be = /* @__PURE__ */ new H(), F = /* @__PURE__ */ new k(), Mt = /* @__PURE__ */ new Ht();
+class Le extends nt {
   /**
    * Creates a new ViewportGizmo instance.
    *
@@ -752,49 +753,49 @@ class Oe extends I {
   constructor(t, e, o = {}) {
     super();
     /** Whether the gizmo is currently active and responding to user input */
-    y(this, "enabled", !0);
+    g(this, "enabled", !0);
     /** The camera being controlled by this gizmo */
-    y(this, "camera");
+    g(this, "camera");
     /** The WebGLRenderer rendering the gizmo */
-    y(this, "renderer");
+    g(this, "renderer");
     /** The configuration options */
-    y(this, "options");
+    g(this, "options");
     /** The point around which the camera rotates */
-    y(this, "target", new z());
+    g(this, "target", new k());
     /** Whether view changes should be animated */
-    y(this, "animated", !0);
+    g(this, "animated", !0);
     /** The speed of view change animations. Higher values result in faster animations */
-    y(this, "speed", 1);
+    g(this, "speed", 1);
     /**
      * Indicates whether the gizmo is currently being animated or not,
      * Useful when interacting with other camera controllers
      *
      * @readonly This value is set internally.
      **/
-    y(this, "animating", !1);
-    y(this, "_options");
-    y(this, "_intersections");
-    y(this, "_background", null);
-    y(this, "_viewport", [0, 0, 0, 0]);
-    y(this, "_originalViewport", [0, 0, 0, 0]);
-    y(this, "_originalScissor", [0, 0, 0, 0]);
-    y(this, "_scene");
-    y(this, "_camera");
-    y(this, "_container");
-    y(this, "_domElement");
-    y(this, "_domRect");
-    y(this, "_dragging", !1);
-    y(this, "_distance", 0);
+    g(this, "animating", !1);
+    g(this, "_options");
+    g(this, "_intersections");
+    g(this, "_background", null);
+    g(this, "_viewport", [0, 0, 0, 0]);
+    g(this, "_originalViewport", [0, 0, 0, 0]);
+    g(this, "_originalScissor", [0, 0, 0, 0]);
+    g(this, "_scene");
+    g(this, "_camera");
+    g(this, "_container");
+    g(this, "_domElement");
+    g(this, "_domRect");
+    g(this, "_dragging", !1);
+    g(this, "_distance", 0);
     /** Seconds; `null` until first `_animate` tick after `_setOrientation` (first frame uses delta 0). */
-    y(this, "_lastAnimateTimeSeconds", null);
-    y(this, "_quaternionStart", new pt());
-    y(this, "_quaternionEnd", new pt());
-    y(this, "_pointerStart", new X());
-    y(this, "_focus", null);
-    y(this, "_placement");
-    y(this, "_controls");
-    y(this, "_controlsListeners");
-    this.camera = t, this.renderer = e, this._scene = new Zt().add(this), this.set(o);
+    g(this, "_lastAnimateTimeSeconds", null);
+    g(this, "_quaternionStart", new pt());
+    g(this, "_quaternionEnd", new pt());
+    g(this, "_pointerStart", new H());
+    g(this, "_focus", null);
+    g(this, "_placement");
+    g(this, "_controls");
+    g(this, "_controlsListeners");
+    this.camera = t, this.renderer = e, this._scene = new jt().add(this), this.set(o);
   }
   /** Gets the current placement of the gizmo relative to its container. */
   get placement() {
@@ -817,11 +818,23 @@ class Oe extends I {
    * - Can be computationally expensive, so use sparingly
    */
   set(t = {}) {
-    this.dispose(), this.options = t, this._options = ce(t), this._camera = this._options.isSphere ? new jt(-1.8, 1.8, 1.8, -1.8, 5, 10) : new $t(26, 1, 5, 10), this._camera.position.set(0, 0, 7);
-    const [e, o, i] = _e(this._options, this.renderer);
-    o && this.add(o), i && this.add(i), this.add(...e), this._background = o, this._intersections = e;
-    const { container: r, animated: l, speed: p } = this._options;
-    return this.animated = l, this.speed = p, this._container = r ? ee(r) : document.body, this._domElement = te(this._options), this._domElement.onpointerdown = (c) => this._onPointerDown(c), this._domElement.onpointermove = (c) => this._onPointerMove(c), this._domElement.onpointerleave = () => this._onPointerLeave(), this._container.appendChild(this._domElement), this._controls && this.attachControls(this._controls), this.update(), this;
+    const e = this._controls;
+    this.dispose(), this.options = t, this._options = le(t), this.up.set(0, 0, 0)[this._options.up] = 1, this._camera = this._options.isSphere ? new $t(-1.8, 1.8, 1.8, -1.8, 5, 10) : new Vt(26, 1, 5, 10), this._camera.position.set(0, 0, 7);
+    const [o, i, r] = ye(this._options, this.renderer);
+    i && this.add(i), r && this.add(r), this.add(...o), this._background = i, this._intersections = o;
+    const { container: c, animated: p, speed: l } = this._options;
+    return this.animated = p, this.speed = l, this._container = c ? ne(c) : document.body, this._domElement = ee(this._options), this._domElement.onpointerdown = (u) => this._onPointerDown(u), this._domElement.onpointermove = (u) => this._onPointerMove(u), this._domElement.onpointerleave = () => this._onPointerLeave(), this._container.appendChild(this._domElement), e && this.attachControls(e), this.update(), this;
+  }
+  /**
+   * Keeps a gizmo built without an explicit `up` option on the process-wide
+   * `Object3D.DEFAULT_UP`: when that global moves to another axis, the gizmo
+   * regenerates through {@link set} so faces, drags and clicks follow it.
+   *
+   * @private
+   * @returns Whether the gizmo was regenerated
+   */
+  _syncDefaultUp() {
+    return this.options.up !== void 0 || Dt(nt.DEFAULT_UP) === this._options.up ? !1 : (this.set(this.options), !0);
   }
   /**
    * Renders the gizmo to the screen.
@@ -831,9 +844,9 @@ class Oe extends I {
    * @returns The gizmo instance for method chaining
    */
   render() {
-    this.animating && this._animate();
-    const { renderer: t, _viewport: e } = this, o = t.getScissorTest(), i = t.autoClear, r = t.autoClearColor, l = t.autoClearDepth, p = t.autoClearStencil;
-    return t.autoClear = !0, t.autoClearColor = !1, t.autoClearDepth = !0, t.autoClearStencil = !1, t.setViewport(...e), o && t.setScissor(...e), t.render(this._scene, this._camera), t.setViewport(...this._originalViewport), o && t.setScissor(...this._originalScissor), t.autoClear = i, t.autoClearColor = r, t.autoClearDepth = l, t.autoClearStencil = p, this;
+    this._syncDefaultUp(), this.animating && this._animate();
+    const { renderer: t, _viewport: e } = this, o = t.getScissorTest(), i = t.autoClear, r = t.autoClearColor, c = t.autoClearDepth, p = t.autoClearStencil;
+    return t.autoClear = !0, t.autoClearColor = !1, t.autoClearDepth = !0, t.autoClearStencil = !1, t.setViewport(...e), o && t.setScissor(...e), t.render(this._scene, this._camera), t.setViewport(...this._originalViewport), o && t.setScissor(...this._originalScissor), t.autoClear = i, t.autoClearColor = r, t.autoClearDepth = c, t.autoClearStencil = p, this;
   }
   /**
    * Updates the gizmo's DOM-related properties based on its current position
@@ -843,15 +856,15 @@ class Oe extends I {
    */
   domUpdate() {
     this._domRect = this._domElement.getBoundingClientRect();
-    const t = this.renderer, e = this._domRect, o = t.domElement.getBoundingClientRect(), i = t.isWebGPURenderer === !0, r = e.top - o.top, l = i ? r : t.domElement.clientHeight - (r + e.height);
+    const t = this.renderer, e = this._domRect, o = t.domElement.getBoundingClientRect(), i = t.isWebGPURenderer === !0, r = e.top - o.top, c = i ? r : t.domElement.clientHeight - (r + e.height);
     return this._viewport.splice(
       0,
       4,
       e.left - o.left,
-      l,
+      c,
       e.width,
       e.height
-    ), t.getViewport(Et).toArray(this._originalViewport), t.getScissorTest() && t.getScissor(Et).toArray(this._originalScissor), this;
+    ), t.getViewport(Mt).toArray(this._originalViewport), t.getScissorTest() && t.getScissor(Mt).toArray(this._originalScissor), this;
   }
   /**
    * Updates the gizmo's orientation to match the current camera orientation.
@@ -869,7 +882,7 @@ class Oe extends I {
    * @returns The gizmo instance for method chaining
    */
   update(t = !0) {
-    return t && this._controls && this._controls.update(), this.domUpdate().cameraUpdate();
+    return this._syncDefaultUp() ? this : (t && this._controls && this._controls.update(), this.domUpdate().cameraUpdate());
   }
   /**
    * Connects OrbitControls with the gizmo, handling interaction states and updates.
@@ -887,7 +900,7 @@ class Oe extends I {
   /** Removes all control event listeners and references. Safe to call multiple times. */
   detachControls() {
     if (!(!this._controlsListeners || !this._controls))
-      return this.target = new z().copy(this._controls.target), this.removeEventListener("start", this._controlsListeners.start), this.removeEventListener("end", this._controlsListeners.end), this._controls.removeEventListener(
+      return this.target = new k().copy(this._controls.target), this.removeEventListener("start", this._controlsListeners.start), this.removeEventListener("end", this._controlsListeners.end), this._controls.removeEventListener(
         "change",
         this._controlsListeners.change
       ), this._controlsListeners = void 0, this._controls = void 0, this;
@@ -896,24 +909,24 @@ class Oe extends I {
   dispose() {
     var t;
     this.detachControls(), this.children.forEach((e) => {
-      var r, l, p, c, d;
+      var r, c, p, l, u;
       this.remove(e);
       const o = e.userData;
       if (o.idleMaterial && o.hoverMaterial)
-        (r = o.idleMaterial.map) == null || r.dispose(), o.idleMaterial.dispose(), o.hoverMaterial !== o.idleMaterial && ((l = o.hoverMaterial.map) == null || l.dispose(), o.hoverMaterial.dispose());
+        (r = o.idleMaterial.map) == null || r.dispose(), o.idleMaterial.dispose(), o.hoverMaterial !== o.idleMaterial && ((c = o.hoverMaterial.map) == null || c.dispose(), o.hoverMaterial.dispose());
       else {
-        const f = e, { material: h } = f;
+        const m = e, { material: h } = m;
         if (Array.isArray(h))
           for (const v of h) {
-            const E = v;
-            (p = E.map) == null || p.dispose(), E.dispose();
+            const S = v;
+            (p = S.map) == null || p.dispose(), S.dispose();
           }
         else if (h && typeof h == "object" && "dispose" in h) {
           const v = h;
-          (c = v.map) == null || c.dispose(), v.dispose();
+          (l = v.map) == null || l.dispose(), v.dispose();
         }
       }
-      (d = e.geometry) == null || d.dispose();
+      (u = e.geometry) == null || u.dispose();
     }), (t = this._domElement) == null || t.remove();
   }
   /**
@@ -937,10 +950,10 @@ class Oe extends I {
       this._controls && (this._controls.enabled = !1);
       const o = performance.now() / 1e3, i = this._lastAnimateTimeSeconds === null ? 0 : o - this._lastAnimateTimeSeconds;
       this._lastAnimateTimeSeconds = o;
-      const r = i * se * this.speed;
-      this._quaternionStart.rotateTowards(this._quaternionEnd, r), t = this._quaternionStart.angleTo(this._quaternionEnd) < N;
+      const r = i * ie * this.speed;
+      this._quaternionStart.rotateTowards(this._quaternionEnd, r), t = this._quaternionStart.angleTo(this._quaternionEnd) < W;
     }
-    t && this._quaternionStart.copy(this._quaternionEnd), this.camera.position.set(0, 0, 1).applyQuaternion(this._quaternionStart).multiplyScalar(this._distance).add(this.target), this.camera.quaternion.copy(this._quaternionStart), this._updateOrientation(), this.dispatchEvent({ type: "change", ...$(null) }), t && ((e = this._controls) == null || e.update(), this.animating = !1, this._lastAnimateTimeSeconds = null, this.dispatchEvent({ type: "end" }));
+    t && this._quaternionStart.copy(this._quaternionEnd), this.camera.position.set(0, 0, 1).applyQuaternion(this._quaternionStart).multiplyScalar(this._distance).add(this.target), this.camera.quaternion.copy(this._quaternionStart), this._updateOrientation(), this.dispatchEvent({ type: "change", ...j(null) }), t && ((e = this._controls) == null || e.update(), this.animating = !1, this._lastAnimateTimeSeconds = null, this.dispatchEvent({ type: "end" }));
   }
   /**
    * Sets the camera orientation to look at the target from a specific axis.
@@ -950,7 +963,9 @@ class Oe extends I {
    */
   _setOrientation(t) {
     const e = this.camera, o = this.target;
-    R.copy(t), I.DEFAULT_UP.z === 1 && Math.abs(t.z) > 0.99 ? R.y = -yt : I.DEFAULT_UP.x === 1 && Math.abs(t.x) > 0.99 && (R.y = yt), R.normalize().multiplyScalar(this._distance).add(o), wt.lookAt(R, o, this.up), this._quaternionEnd.setFromRotationMatrix(wt), this._quaternionStart.copy(e.quaternion), this.animating = !0, this._lastAnimateTimeSeconds = null;
+    F.copy(t);
+    const { up: i } = this._options;
+    i === "z" && Math.abs(t.z) > 0.99 ? F.y = -gt : i === "x" && Math.abs(t.x) > 0.99 && (F.y = gt), F.normalize().multiplyScalar(this._distance).add(o), wt.lookAt(F, o, this.up), this._quaternionEnd.setFromRotationMatrix(wt), this._quaternionStart.copy(e.quaternion), this.animating = !0, this._lastAnimateTimeSeconds = null;
   }
   /**
    * Handles the pointer down event for starting drag operations.
@@ -960,35 +975,35 @@ class Oe extends I {
    */
   _onPointerDown(t) {
     if (!this.enabled) return;
-    const e = (c) => {
+    const e = (l) => {
       if (!this._dragging) {
-        if (oe(c, this._pointerStart)) return;
+        if (se(l, this._pointerStart)) return;
         this._dragging = !0;
       }
-      const d = ve.set(c.clientX, c.clientY).sub(this._pointerStart).multiplyScalar(1 / this._domRect.width * Math.PI), f = this.coordinateConversion(
-        R.subVectors(this.camera.position, this.target)
-      ), h = St.setFromVector3(f);
-      h.theta = l - d.x, h.phi = ge(
-        p - d.y,
-        N,
-        Math.PI - N
+      const u = be.set(l.clientX, l.clientY).sub(this._pointerStart).multiplyScalar(1 / this._domRect.width * Math.PI), m = this.coordinateConversion(
+        F.subVectors(this.camera.position, this.target)
+      ), h = St.setFromVector3(m);
+      h.theta = c - u.x, h.phi = ge(
+        p - u.y,
+        W,
+        Math.PI - W
       ), this.coordinateConversion(
         this.camera.position.setFromSpherical(h),
         !0
-      ).add(this.target), this.camera.lookAt(this.target), this.quaternion.copy(this.camera.quaternion).invert(), this._updateOrientation(!1), this.dispatchEvent({ type: "change", ...$(null) });
+      ).add(this.target), this.camera.lookAt(this.target), this.quaternion.copy(this.camera.quaternion).invert(), this._updateOrientation(!1), this.dispatchEvent({ type: "change", ...j(null) });
     }, o = () => {
       if (document.removeEventListener("pointermove", e, !1), document.removeEventListener("pointerup", o, !1), !this._dragging) return this._handleClick(t);
-      this._focus && (j(this._focus, !1), this._focus = null), this._dragging = !1, this.dispatchEvent({ type: "end" });
+      this._focus && (Z(this._focus, !1), this._focus = null), this._dragging = !1, this.dispatchEvent({ type: "end" });
     };
     if (this.animating) return;
     t.preventDefault(), this._pointerStart.set(t.clientX, t.clientY);
     const i = this.coordinateConversion(
-      R.subVectors(this.camera.position, this.target)
-    ), r = St.setFromVector3(i), l = r.theta, p = r.phi;
+      F.subVectors(this.camera.position, this.target)
+    ), r = St.setFromVector3(i), c = r.theta, p = r.phi;
     this._distance = r.radius, document.addEventListener("pointermove", e, !1), document.addEventListener("pointerup", o, !1), this.dispatchEvent({ type: "start" });
   }
   /**
-   * Converts the input-coordinates from the standard Y-axis up to what is set in Object3D.DEFAULT_UP.
+   * Converts the input-coordinates from the standard Y-axis up to this gizmo's `up` axis.
    *
    * @private
    * @param target      - The target Vector3 to be converted
@@ -996,8 +1011,8 @@ class Oe extends I {
    * @returns The converted coordinates
    */
   coordinateConversion(t, e = !1) {
-    const { x: o, y: i, z: r } = t, l = I.DEFAULT_UP;
-    return l.x === 1 ? e ? t.set(i, r, o) : t.set(r, o, i) : l.z === 1 ? e ? t.set(r, o, i) : t.set(i, r, o) : t;
+    const { x: o, y: i, z: r } = t, { up: c } = this._options;
+    return c === "x" ? e ? t.set(i, r, o) : t.set(r, o, i) : c === "z" ? e ? t.set(r, o, i) : t.set(i, r, o) : t;
   }
   /**
    * Handles pointer move events for hover effects and drag operations.
@@ -1017,10 +1032,10 @@ class Oe extends I {
     if (!this.enabled || this._dragging) return;
     this._background && vt(this._background, !1);
     const t = this._focus !== null;
-    this._focus && (j(this._focus, !1), this._focus = null), this._domElement.style.cursor = "", t && this.dispatchEvent({
+    this._focus && (Z(this._focus, !1), this._focus = null), this._domElement.style.cursor = "", t && this.dispatchEvent({
       type: "hoverchange",
       object: null,
-      ...$(null)
+      ...j(null)
     });
   }
   /**
@@ -1030,19 +1045,19 @@ class Oe extends I {
    * @param e - The pointer event
    */
   _handleClick(t) {
-    const e = gt(
+    const e = yt(
       t,
       this._domRect,
       this._camera,
       this._intersections
     );
-    if (this._focus && (j(this._focus, !1), this._focus = null), !e) {
+    if (this._focus && (Z(this._focus, !1), this._focus = null), !e) {
       this.dispatchEvent({ type: "end" });
       return;
     }
     this._setOrientation(e.object.position), this.dispatchEvent({
       type: "change",
-      ...$(e.object)
+      ...j(e.object)
     });
   }
   /**
@@ -1052,16 +1067,16 @@ class Oe extends I {
    * @param e - The pointer event
    */
   _handleHover(t) {
-    const e = gt(
+    const e = yt(
       t,
       this._domRect,
       this._camera,
       this._intersections
     ), o = (e == null ? void 0 : e.object) || null;
-    this._focus !== o && (this._domElement.style.cursor = o ? "pointer" : "", this._focus && j(this._focus, !1), (this._focus = o) ? j(o, !0) : ft(this._options, this._intersections, this.camera), this.dispatchEvent({ type: "hoverchange", object: o, ...$(o) }));
+    this._focus !== o && (this._domElement.style.cursor = o ? "pointer" : "", this._focus && Z(this._focus, !1), (this._focus = o) ? Z(o, !0) : ft(this._options, this._intersections, this.camera), this.dispatchEvent({ type: "hoverchange", object: o, ...j(o) }));
   }
 }
 export {
-  Oe as ViewportGizmo
+  Le as ViewportGizmo
 };
 //# sourceMappingURL=three-viewport-gizmo.js.map

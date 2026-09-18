@@ -43,7 +43,7 @@ import {
 } from "./utils/constants";
 import { updateBackground } from "./utils/updateBackground";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { optionsFallback } from "./utils/optionsFallback";
+import { optionsFallback, upAxisFromVector } from "./utils/optionsFallback";
 import { axesObjects } from "./utils/axesObjects";
 import { axisHover } from "./utils/axisHover";
 import type { WebGPURenderer } from "three/webgpu";
@@ -273,10 +273,12 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
    * - Can be computationally expensive, so use sparingly
    */
   set(options: GizmoOptions = {}) {
+    const controls = this._controls;
     this.dispose();
 
     this.options = options;
     this._options = optionsFallback(options);
+    this.up.set(0, 0, 0)[this._options.up] = 1;
 
     this._camera = this._options.isSphere
       ? new OrthographicCamera(-1.8, 1.8, 1.8, -1.8, 5, 10)
@@ -309,11 +311,27 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
     this._container.appendChild(this._domElement);
 
-    if (this._controls) this.attachControls(this._controls);
+    if (controls) this.attachControls(controls);
 
     this.update();
 
     return this;
+  }
+
+  /**
+   * Keeps a gizmo built without an explicit `up` option on the process-wide
+   * `Object3D.DEFAULT_UP`: when that global moves to another axis, the gizmo
+   * regenerates through {@link set} so faces, drags and clicks follow it.
+   *
+   * @private
+   * @returns Whether the gizmo was regenerated
+   */
+  private _syncDefaultUp(): boolean {
+    if (this.options.up !== undefined) return false;
+    if (upAxisFromVector(Object3D.DEFAULT_UP) === this._options.up) return false;
+
+    this.set(this.options);
+    return true;
   }
 
   /**
@@ -324,6 +342,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
    * @returns The gizmo instance for method chaining
    */
   render() {
+    this._syncDefaultUp();
     if (this.animating) this._animate();
 
     const { renderer, _viewport } = this;
@@ -419,6 +438,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
    * @returns The gizmo instance for method chaining
    */
   update(controls: boolean = true) {
+    if (this._syncDefaultUp()) return this;
     if (controls && this._controls) this._controls.update();
     return this.domUpdate().cameraUpdate();
   }
@@ -582,12 +602,11 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
 
     _vec3.copy(position);
 
-    if (Object3D.DEFAULT_UP.z === 1 && Math.abs(position.z) > 0.99) {
+    const { up } = this._options;
+
+    if (up === "z" && Math.abs(position.z) > 0.99) {
       _vec3.y = -GIZMO_POLE_EPSILON;
-    } else if (
-      Object3D.DEFAULT_UP.x === 1 &&
-      Math.abs(position.x) > 0.99
-    ) {
+    } else if (up === "x" && Math.abs(position.x) > 0.99) {
       _vec3.y = GIZMO_POLE_EPSILON;
     }
 
@@ -689,7 +708,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
   }
 
   /**
-   * Converts the input-coordinates from the standard Y-axis up to what is set in Object3D.DEFAULT_UP.
+   * Converts the input-coordinates from the standard Y-axis up to this gizmo's `up` axis.
    *
    * @private
    * @param target      - The target Vector3 to be converted
@@ -699,12 +718,12 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
   private coordinateConversion(target: Vector3, isSpherical = false) {
     const { x, y, z } = target;
 
-    const defaultUp = Object3D.DEFAULT_UP;
+    const { up } = this._options;
 
-    if (defaultUp.x === 1)
+    if (up === "x")
       return isSpherical ? target.set(y, z, x) : target.set(z, x, y);
 
-    if (defaultUp.z === 1)
+    if (up === "z")
       return isSpherical ? target.set(z, x, y) : target.set(y, z, x);
 
     return target;

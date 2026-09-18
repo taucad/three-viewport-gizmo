@@ -5,7 +5,6 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshBasicMaterialParameters,
-  Object3D,
   Sprite,
   SpriteMaterial,
   Vector3,
@@ -60,9 +59,12 @@ export const axesFaces = (
       (isPositive ? 1 : -1) * (isSphere ? GIZMO_SPHERE_AXES_DISTANCE : 1);
 
     if (!isSphere) {
+      // lookAt orients the label around the face's own up, which Object3D seeds from
+      // DEFAULT_UP; the gizmo's up axis has to win for the text to read upright.
+      face.up.set(0, 0, 0)[options.up] = 1;
       face.lookAt(target.copy(face.position).multiplyScalar(1.7));
-      const zUp = Object3D.DEFAULT_UP.z === 1;
-      const xUp = Object3D.DEFAULT_UP.x === 1;
+      const zUp = options.up === "z";
+      const xUp = options.up === "x";
       if (zUp || xUp) {
         // z-up and x-up systems: Special rotation handling for Top and Bottom faces to rotate text for readability.
         if ((axis === "z" && zUp) || (axis === "x" && xUp)) {

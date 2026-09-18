@@ -1,6 +1,7 @@
-import type { GizmoOptions, GizmoAxisObject } from "../types.js";
+import type { GizmoOptions, GizmoOptionsFallback, GizmoAxisObject } from "../types.js";
 import { ViewportGizmo } from "../ViewportGizmo.js";
 import type { WebGLRenderer } from "three";
+import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
   Object3D,
   PerspectiveCamera,
@@ -21,6 +22,9 @@ export type ViewportGizmoInternals = {
   _onPointerDown: (e: PointerEvent) => void;
   _onPointerLeave: () => void;
   _animate: () => void;
+  _options: GizmoOptionsFallback;
+  _controls?: OrbitControls;
+  coordinateConversion: (target: Vector3, isSpherical?: boolean) => Vector3;
 };
 
 export function getInternals(gizmo: ViewportGizmo): ViewportGizmoInternals {
