@@ -87,6 +87,24 @@ describe("Object3D.DEFAULT_UP tracking", () => {
     controls.dispose();
   });
 
+  it("keeps the caller's options and container across the regeneration", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const options = { type: "cube" as const, container, top: { label: "UP" } };
+    const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5), gizmoOptions: options });
+    expect(options.container).toBe(container);
+
+    Object3D.DEFAULT_UP.set(0, 0, 1);
+    gizmo.update();
+
+    expect(gizmo.options).toBe(options);
+    expect(container.querySelector("div")).not.toBeNull();
+    expect(faceLabel(gizmo, "z")).toBe("UP");
+
+    gizmo.dispose();
+    container.remove();
+  });
+
   it("regenerates from render() as well, once per change", () => {
     const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5), gizmoOptions: { type: "cube" } });
     const before = getInternals(gizmo)._intersections;

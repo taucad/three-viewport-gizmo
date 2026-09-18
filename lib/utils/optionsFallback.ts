@@ -64,9 +64,10 @@ export const optionsFallback = (
   const upDirection = zUp ? "zUp" : xUp ? "xUp" : "yUp";
   const faceLabels = FACE_LABELS_FROM_UP_DIRECTION[upDirection];
 
-  const { container } = options;
-  options.container = undefined;
-  options = JSON.parse(JSON.stringify(options));
+  // Clone without touching the caller's object: ViewportGizmo keeps it as `options`
+  // and passes it back through set() when a default-up gizmo regenerates.
+  const { container, ...serializableOptions } = options;
+  options = JSON.parse(JSON.stringify(serializableOptions));
   options.container = container;
 
   // Convert face axis to regular axis
