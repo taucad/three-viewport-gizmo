@@ -2,6 +2,7 @@ import {
   GizmoAxisOptions,
   GizmoOptions,
   GizmoOptionsFallback,
+  GizmoUpAxis,
 } from "@lib/types";
 import {
   GIZMO_MAIN_AXES,
@@ -18,7 +19,7 @@ import {
 } from "./constants";
 
 import { deepClone } from "./deepClone";
-import { Object3D } from "three";
+import { Object3D, Vector3 } from "three";
 
 const FACE_LABELS_FROM_UP_DIRECTION = {
   yUp: {
@@ -55,12 +56,12 @@ export const optionsFallback = (
   const isRoundedCube = type === "rounded-cube";
   const resolution = options.resolution || isSphere ? 64 : 128;
 
-  const defaultUp = Object3D.DEFAULT_UP;
-  const zUp = defaultUp.z === 1;
-  const xUp = defaultUp.x === 1;
-  
+  const up = options.up ?? upAxisFromVector(Object3D.DEFAULT_UP);
+  const zUp = up === "z";
+  const xUp = up === "x";
+
   // Determine up direction for face label mapping
-  const upDirection = zUp ? 'zUp' : xUp ? 'xUp' : 'yUp';
+  const upDirection = zUp ? "zUp" : xUp ? "xUp" : "yUp";
   const faceLabels = FACE_LABELS_FROM_UP_DIRECTION[upDirection];
 
   const { container } = options;
@@ -110,6 +111,7 @@ export const optionsFallback = (
 
   const optionsFallback: GizmoOptions = {
     type,
+    up,
     container: document.body,
     size: 128,
     placement: "top-right",
@@ -230,6 +232,10 @@ export const optionsFallback = (
 
   return { ...options, isSphere } as GizmoOptionsFallback;
 };
+
+/** The up axis a gizmo built without an explicit `up` option resolves to. */
+export const upAxisFromVector = (vector: Vector3): GizmoUpAxis =>
+  vector.z === 1 ? "z" : vector.x === 1 ? "x" : "y";
 
 function assignNestedDefaults<T>(target: T, ...defaultObjects: T[]) {
   if (

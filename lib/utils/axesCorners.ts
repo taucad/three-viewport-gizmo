@@ -84,6 +84,7 @@ export const axesCorners = (
       if (isSphere) corner.position.normalize().multiplyScalar(1.7);
 
       corner.scale.setScalar(scale);
+      corner.up.set(0, 0, 0)[options.up] = 1;
       corner.lookAt(target.copy(corner.position).multiplyScalar(2));
       corner.renderOrder = 1;
 
