@@ -9,7 +9,7 @@ import {
   SpriteMaterial,
   Vector3,
 } from "three";
-import { GIZMO_AXES, GIZMO_FACES, GIZMO_SPHERE_AXES_DISTANCE } from "./constants";
+import { GIZMO_AXES, GIZMO_FACES, GIZMO_SPHERE_AXES_DISTANCE } from "../utils/constants";
 import { cloneAxisMap } from "./axesMap";
 
 export const axesFaces = (

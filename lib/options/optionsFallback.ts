@@ -16,7 +16,7 @@ import {
   GIZMO_FACE_BOTTOM,
   GIZMO_FACE_LEFT,
   GIZMO_FACE_BACK,
-} from "./constants";
+} from "../utils/constants";
 
 import { deepClone } from "./deepClone";
 import { Object3D, Vector3 } from "three";
@@ -60,7 +60,7 @@ export const optionsFallback = (
   const type = options.type || "sphere";
   const isSphere = type === "sphere";
   const isRoundedCube = type === "rounded-cube";
-  const resolution = options.resolution || isSphere ? 64 : 128;
+  const resolution = options.resolution || (isSphere ? 64 : 128);
 
   const up = options.up ?? upAxisFromVector(Object3D.DEFAULT_UP);
   const zUp = up === "z";

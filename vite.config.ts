@@ -5,7 +5,7 @@ import dts from "vite-plugin-dts";
 export default defineConfig({
   build: {
     lib: {
-      entry: "./lib/ViewportGizmo",
+      entry: "./lib/index",
       name: "ThreeViewportGizmo",
     },
     rollupOptions: {

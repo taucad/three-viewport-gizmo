@@ -11,7 +11,7 @@ import {
 } from "three";
 import { cloneAxisMap } from "./axesMap";
 import { roundedRectangleGeometry } from "./roundedRectangleGeometry";
-import { GIZMO_AXES } from "./constants";
+import { GIZMO_AXES } from "../utils/constants";
 
 /** Row index into the atlas for sphere corners (after the six +/- axis rows). */
 const SPHERE_CORNER_ATLAS_ROW = GIZMO_AXES.length;

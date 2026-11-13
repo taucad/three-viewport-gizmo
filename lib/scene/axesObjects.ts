@@ -1,5 +1,3 @@
-import type { WebGLRenderer } from "three";
-import type { WebGPURenderer } from "three/webgpu";
 import { GizmoOptionsFallback, GizmoAxisObject } from "../types";
 import { axesMap } from "./axesMap";
 import { axesFaces } from "./axesFaces";
@@ -7,10 +5,11 @@ import { axesCorners } from "./axesCorners";
 import { axesEdges } from "./axesEdges";
 import { gizmoBackground } from "./gizmoBackground";
 import { axesLines } from "./axesLines";
+import type { GizmoRenderer } from "../render/backend";
 
 export const axesObjects = (
   options: GizmoOptionsFallback,
-  renderer: WebGLRenderer | WebGPURenderer
+  renderer: GizmoRenderer
 ) => {
   const { corners, edges } = options;
 

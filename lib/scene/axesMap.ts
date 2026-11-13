@@ -7,7 +7,7 @@ import {
   Texture,
 } from "three";
 import { GizmoAxisOptions, GizmoOptionsFallback } from "@lib/types";
-import { GIZMO_AXES } from "./constants";
+import { GIZMO_AXES } from "../utils/constants";
 
 export const axesMap = (options: GizmoOptionsFallback, offset: number = 2) => {
   const colorManager = new Color();
