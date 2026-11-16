@@ -109,9 +109,12 @@ describe("roundedBoxGeometry", () => {
     const scene = build({}, up);
     const flat = roundedCubeBox(0.3).flat;
     for (const { entry, mesh, vertices } of pieces(scene)) {
-      const uv = mesh.geometry.getAttribute("uv") as BufferAttribute | undefined;
-      expect(!!uv).toBe(entry.kind === "face");
-      if (!uv) continue;
+      // Every piece has UVs (one program for all targets); an edge's or corner's sample one white texel.
+      const uv = mesh.geometry.getAttribute("uv") as BufferAttribute;
+      if (entry.kind !== "face") {
+        expect(new Set(uv.array)).toEqual(new Set([0]));
+        continue;
+      }
       const { textUp, direction } = scene.frame.faces[entry.faces[0]];
       const right = new Vector3().crossVectors(textUp, direction);
       vertices.forEach((v, i) => {

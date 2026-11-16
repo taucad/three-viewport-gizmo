@@ -1,10 +1,7 @@
 import {
-  BackSide,
   CircleGeometry,
-  FrontSide,
   Matrix4,
   Mesh,
-  MeshBasicMaterial,
   Quaternion,
   Vector3,
   type BufferGeometry,
@@ -12,6 +9,7 @@ import {
 } from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { PartBuilder } from "./build";
+import { meshAttributes, targetMaterial, whiteTexture } from "./materials";
 
 /** The 2.3.0 sphere background's radius, which fills the sphere camera's ±1.8 frustum. */
 export const BACKGROUND_RADIUS = 1.8;
@@ -37,16 +35,18 @@ function faceCamera(this: Mesh, _renderer: unknown, _scene: unknown, camera: Cam
  * The gizmo's background (P10). On the sphere a camera-facing disc of {@link BACKGROUND_SEGMENTS} triangles draws
  * what 2.3.0's 8,064-triangle back-facing sphere drew: its orthographic silhouette. On the cubes the faces are merged
  * at 0.9 scale, as in 2.3.0. Its colour and opacity follow the pointer being over the gizmo.
+ *
+ * It draws with the targets' program (`targetMaterial`), so it draws its front side: the cubes' far faces, which
+ * 2.3.0 drew with `BackSide`, are mirrored across each face's local X, which reverses their winding and leaves the
+ * shape in place (a cube face is a symmetric rectangle, and the rounded cube's six pieces mirror onto each other).
+ * Only the sphere's disc writes depth, which hides nothing behind it; the cubes' must not hide the edges and line tips
+ * that reach past its far faces, as in 2.3.0, so on WebGPU the cubes' background is the gizmo's second pipeline.
  */
 export const background: PartBuilder = (o, { targets }, owned) => {
   const sphere = o.type === "sphere";
-  const material = new MeshBasicMaterial({
-    side: sphere ? FrontSide : BackSide,
-    transparent: true,
-    depthWrite: false,
-    toneMapped: false,
-  });
-  const scale = new Vector3().setScalar(0.9);
+  const material = targetMaterial({ sprite: false, map: null, color: 0xffffff, opacity: 1 }, whiteTexture(owned));
+  material.depthWrite = sphere;
+  const scale = new Vector3(-0.9, 0.9, 0.9);
   const geometry: BufferGeometry = sphere
     ? new CircleGeometry(BACKGROUND_RADIUS, BACKGROUND_SEGMENTS)
     : mergeGeometries(
@@ -56,7 +56,7 @@ export const background: PartBuilder = (o, { targets }, owned) => {
             (object as Mesh).geometry.clone().applyMatrix4(new Matrix4().compose(object.position, object.quaternion, scale))
           )
       );
-  owned.add(material).add(geometry);
+  owned.add(material).add(meshAttributes(geometry));
   const object = new Mesh(geometry, material);
   if (sphere) object.onBeforeRender = faceCamera;
   return {

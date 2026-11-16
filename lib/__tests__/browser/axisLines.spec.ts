@@ -30,7 +30,7 @@ const open = async (page: Page, backend: string) => {
 };
 
 for (const backend of ["webgpu", "webgl"] as const) {
-  for (const type of ["sphere", "cube"] as const) {
+  for (const type of ["sphere", "cube", "rounded-cube"] as const) {
     for (const dpr of [1, 2]) {
       test(`${backend} ${type} at DPR ${dpr}: the line width is constant across a window resize`, async ({ browser }) => {
         const context = await browser.newContext({ deviceScaleFactor: dpr, viewport: { width: 1280, height: 800 } });
@@ -57,10 +57,6 @@ for (const backend of ["webgpu", "webgl"] as const) {
     });
 
     test(`${backend} ${type}: the gizmo adds at most ${PROGRAMS_BUDGET} programs or pipelines`, async ({ page }) => {
-      // Expected failure: 3 on the sphere (sprite, background disc, lines), 4 on the cube (labelled face, plain edge
-      // and corner, back-side background, lines), on both backends. Flip it when the background and the plain
-      // targets share the lines' vertex-coloured program (and, on WebGPU, its blending and depth-write flags).
-      test.fail(true, "the background and plain targets do not yet share the lines' program");
       const errors = await open(page, backend);
       const { gizmoAdded } = await page.evaluate<Counts>(`T.count("${type}")`);
       test.info().annotations.push({ type: "programs", description: String(gizmoAdded) });

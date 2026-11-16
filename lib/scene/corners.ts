@@ -3,6 +3,7 @@ import type { LabelFrame } from "../orbit/labelFrame";
 import type { TargetEntry } from "../orbit/targets";
 import type { SceneOptions } from "./build";
 import { cornerOf, placeAt, type Placement } from "./faces";
+import { meshAttributes } from "./materials";
 import { roundedRectangleGeometry } from "./roundedRectangleGeometry";
 
 /** A corner facing out along its diagonal, upright about the label up. */
@@ -14,5 +15,5 @@ export function placeCorner(entry: TargetEntry, frame: LabelFrame): Placement {
 /** The cube's corner geometry: a rounded square. */
 export function cornerGeometry(o: SceneOptions): BufferGeometry {
   const { radius, smoothness } = o.corners;
-  return roundedRectangleGeometry(radius, smoothness);
+  return meshAttributes(roundedRectangleGeometry(radius, smoothness));
 }

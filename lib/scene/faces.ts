@@ -1,7 +1,7 @@
 import { Matrix4, Quaternion, Vector3, type BufferGeometry, type Texture } from "three";
 import type { AxisEnd, LabelFrame } from "../orbit/labelFrame";
 import type { TargetEntry } from "../orbit/targets";
-import type { Disposable } from "./materials";
+import { meshAttributes, type Disposable } from "./materials";
 import { roundedRectangleGeometry } from "./roundedRectangleGeometry";
 import type { SceneOptions } from "./build";
 
@@ -32,7 +32,7 @@ export function placeFace(entry: TargetEntry, frame: LabelFrame, distance = 1): 
 
 /** The cube's face geometry: a rounded rectangle. The rounded cube's faces are pieces of its box (`roundedBox.ts`). */
 export function faceGeometry(o: SceneOptions): BufferGeometry {
-  return roundedRectangleGeometry(o.radius, o.smoothness);
+  return meshAttributes(roundedRectangleGeometry(o.radius, o.smoothness));
 }
 
 /** The label textures of a scene. Every texture it hands out is its own and freed by its `dispose()`. */

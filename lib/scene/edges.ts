@@ -3,6 +3,7 @@ import type { LabelFrame } from "../orbit/labelFrame";
 import type { TargetEntry } from "../orbit/targets";
 import type { SceneOptions } from "./build";
 import { cornerOf, placeAt, type Placement } from "./faces";
+import { meshAttributes } from "./materials";
 import { roundedRectangleGeometry } from "./roundedRectangleGeometry";
 
 /**
@@ -19,5 +20,5 @@ export function placeEdge(entry: TargetEntry, frame: LabelFrame): Placement {
 /** The cube's edge geometry, long along local X: a rounded bar. */
 export function edgeGeometry(o: SceneOptions): BufferGeometry {
   const { radius, smoothness } = o.edges;
-  return roundedRectangleGeometry(radius, smoothness, 1.2, 0.25);
+  return meshAttributes(roundedRectangleGeometry(radius, smoothness, 1.2, 0.25));
 }
