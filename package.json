@@ -12,6 +12,10 @@
       "types": "./dist/three-viewport-gizmo.d.ts",
       "default": "./dist/three-viewport-gizmo.js"
     },
+    "./camera-controls": {
+      "types": "./dist/camera-controls.d.ts",
+      "default": "./dist/camera-controls.js"
+    },
     "./package.json": "./package.json"
   },
   "types": "./dist/three-viewport-gizmo.d.ts",
@@ -64,7 +68,13 @@
     "vitest": "4.1.12"
   },
   "peerDependencies": {
+    "camera-controls": "^3.0.0",
     "three": ">=0.162.0 <1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "camera-controls": {
+      "optional": true
+    }
   },
   "keywords": [
     "three.js",
