@@ -24,7 +24,7 @@ const backends = ["webgl", "webgpu"] as const;
 
 const open = async (page: Page, params: Record<string, string>) => {
   const errors: string[] = [];
-  page.on("console", (m) => m.type() === "error" && !m.text().includes("GL Driver Message") && errors.push(m.text()));
+  page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && !m.text().includes("GL Driver Message") && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`/lib/__tests__/browser/frame.html?${new URLSearchParams(params)}`);
   await page.waitForFunction("window.READY === true", null, { timeout: 30_000 });

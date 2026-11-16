@@ -251,8 +251,4 @@ describe("hitTest cost", () => {
   });
 });
 
-describe("hitTest in a browser (G2's `:test-browser`, not on `next` yet)", () => {
-  it.todo("should hover and click each of the 26 targets of the cube");
-  it.todo("should hover and click each of the 26 targets of the rounded cube");
-  it.todo("should hover and click each of the 26 targets of the sphere with corners and edges on");
-});
+// The 26 targets of each type by real mouse, hover and click: tests/browser/views.spec.ts (H1).

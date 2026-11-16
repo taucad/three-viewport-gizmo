@@ -137,9 +137,14 @@ test.describe("render on demand (K5, P11)", () => {
     const { position } = await P<Pose>("pose()");
     expect(position[0]).toBeCloseTo(0, 3);
     expect(position[1]).toBeCloseTo(0, 3);
-    const frames = await P<number>("demandFrames()");
-    expect(frames).toBeGreaterThan(2);
+    // `end` fires in the frame whose render() writes the last pose, after the host drew its scene, so the host owes
+    // exactly one more frame to show it; then nothing asks for a frame. Reading the count as soon as `end` is seen
+    // raced that trailing frame (6 vs 5 on SwiftShader, K7).
+    const endFrame = await P<number>("demandEndFrame()");
+    expect(endFrame).toBeGreaterThan(2);
     await settle(page);
-    expect(await P<number>("demandFrames()")).toBe(frames);
+    expect(await P<number>("demandFrames()")).toBe(endFrame + 1);
+    await settle(page);
+    expect(await P<number>("demandFrames()")).toBe(endFrame + 1);
   });
 });

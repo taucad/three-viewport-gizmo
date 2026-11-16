@@ -1,5 +1,5 @@
 import type { Camera, Scene } from "three";
-import type { GizmoRenderer } from "./backend";
+import { isWebGPURenderer, type GizmoRenderer } from "./backend";
 
 /**
  * Compiles the gizmo's own scene with its own camera for the renderer's current render target (P6), so the
@@ -12,6 +12,11 @@ import type { GizmoRenderer } from "./backend";
  * @returns Resolves when every program or pipeline is ready
  */
 export const warmUp = async (renderer: GizmoRenderer, scene: Scene, camera: Camera): Promise<void> => {
-  // ponytail: peer three >=0.162 has compileAsync on both renderers; no sync `compile` fallback needed.
+  // Without KHR_parallel_shader_compile (SwiftShader, some phones) WebGL's compileAsync logs "extension not
+  // supported" and compiles synchronously anyway, so compile synchronously and log nothing.
+  if (!isWebGPURenderer(renderer) && !renderer.extensions.has("KHR_parallel_shader_compile")) {
+    renderer.compile(scene, camera);
+    return;
+  }
   await renderer.compileAsync(scene, camera);
 };

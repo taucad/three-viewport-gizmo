@@ -66,6 +66,29 @@ for (const budgetRow of rows) {
     } else record(row, cell, value, within(row, value, cell));
   }
 }
+// Rows the browser gate checks, from its JSON report (tests/browser/playwright.config.ts), per backend.
+const browserReport = path.join(here, 'out', 'browser.json');
+if (fs.existsSync(browserReport)) {
+  const tests = [];
+  const walk = (suite) => {
+    for (const spec of suite.specs ?? []) for (const t of spec.tests) tests.push({ title: spec.title, project: t.projectName, status: t.status });
+    (suite.suites ?? []).forEach(walk);
+  };
+  JSON.parse(fs.readFileSync(browserReport, 'utf8')).suites.forEach(walk);
+  const gates = [
+    ...rows.filter((r) => r.checkedBy === 'test-browser'),
+    { id: 'private-reads', budget: 0, kind: 'blocking', tests: '^H1 no test, spec or harness reads' },
+    { id: 'console-warnings', budget: 0, kind: 'blocking', tests: '^H1 every browser spec counts console warnings' },
+  ];
+  for (const row of gates) {
+    for (const project of [...new Set(tests.map((t) => t.project))]) {
+      const mine = tests.filter((t) => t.project === project && t.status !== 'skipped' && new RegExp(row.tests).test(t.title));
+      if (!mine.length) continue;
+      const bad = mine.filter((t) => t.status !== 'expected').length;
+      record({ ...row, expectedFail: false }, { backend: project, label: `${project} (${mine.length} tests)` }, bad ? `${bad} failed` : 'all passed', bad === 0);
+    }
+  }
+}
 for (const [key, r] of Object.entries(runs)) if (r.failed) { failed++; lines.push(`| run | ${key} | ${r.failed} | | blocking | FAIL |`); }
 
 const table = [`Perf budget on ${meta.gpu} (${meta.chromium}, N=${meta.N}); report rows alarm only on the reference machine.`, '', '| Row | Cell | Measured | Budget | Kind | Status |', '| --- | --- | --- | --- | --- | --- |', ...lines].join('\n');

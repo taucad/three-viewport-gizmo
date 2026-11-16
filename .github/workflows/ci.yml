@@ -101,7 +101,7 @@ jobs:
     # SwiftShader Vulkan) and reproduces P Finding 1, so both halves of the gate run on every pull request.
     needs: preflight
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       GIZMO_GPU: swiftshader
       PERF_N: '100'
@@ -113,6 +113,8 @@ jobs:
         with:
           node-version: '26.7.0'
       - run: npx playwright install --with-deps chromium
+      # The screenshot matrix runs against the built docs site's Matrix page (site/out).
+      - run: npx nx run three-viewport-gizmo:docs
       - run: npx nx run three-viewport-gizmo:test-browser
       - if: success() || failure()
         run: npx nx run three-viewport-gizmo:perf
@@ -123,6 +125,7 @@ jobs:
           path: |
             test-results
             perf/out/*.json
+            tests/browser/__screenshots__
           if-no-files-found: ignore
           retention-days: 14
 
@@ -137,6 +140,12 @@ jobs:
         with:
           node-version: '26.7.0'
       - run: npm run build
+      - name: Check the package (publint, attw)
+        # fflate 0.8.3 crashes attw 0.18.2's unpacking, so both are pinned (C2).
+        run: |
+          set -euo pipefail
+          npx --yes publint@0.3.25 --strict
+          npx --yes --package @arethetypeswrong/cli@0.18.2 --package fflate@0.8.2 -- attw --pack . --profile esm-only
       - name: Freeze the exact npm candidate
         env:
           SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
