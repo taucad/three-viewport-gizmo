@@ -94,6 +94,36 @@ jobs:
             npx nx release plan:check --base=HEAD~1 --head=HEAD
           fi
 
+  browser-gate:
+    # D16: Linux with Chromium's SwiftShader adapter gives WebGL (ANGLE) and WebGPU (Dawn on
+    # SwiftShader Vulkan) and reproduces P Finding 1, so both halves of the gate run on every pull request.
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GIZMO_GPU: swiftshader
+      PERF_N: '100'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '26.7.0'
+      - run: npx playwright install --with-deps chromium
+      - run: npx nx run three-viewport-gizmo:test-browser
+      - if: success() || failure()
+        run: npx nx run three-viewport-gizmo:perf
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: browser-gate
+          path: |
+            test-results
+            perf/out/*.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   candidate:
     needs: [preflight, quality]
     runs-on: ubuntu-24.04
@@ -307,7 +337,7 @@ jobs:
 
   ci-gate:
     if: always()
-    needs: [preflight, quality, candidate, consumer, publish, registry-verify, registry-release]
+    needs: [preflight, quality, browser-gate, candidate, consumer, publish, registry-verify, registry-release]
     runs-on: ubuntu-24.04
     steps:
       - name: Assert required job results
@@ -317,7 +347,7 @@ jobs:
         run: |
           node <<'NODE'
           const needs = JSON.parse(process.env.RESULTS);
-          const required = ['preflight', 'quality', 'candidate', 'consumer'];
+          const required = ['preflight', 'quality', 'browser-gate', 'candidate', 'consumer'];
           if (needs.preflight?.result === 'success' && process.env.PUBLISH === 'true') {
             required.push('publish', 'registry-verify', 'registry-release');
           }
