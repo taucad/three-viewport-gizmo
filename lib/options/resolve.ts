@@ -146,7 +146,8 @@ export function resolveOptions(options: GizmoOptions, context: ResolveContext): 
     }),
     corners: fill(options.corners, roundedPart, {
       enabled: !isSphere,
-      color: isSphere ? 0xf2d962 : 0xffffff,
+      // rounded-cube: the corners share the edges' colour, so its one rim of edges and corners takes one material.
+      color: isSphere ? 0xf2d962 : isRounded ? 0xeeeeee : 0xffffff,
       opacity: 1,
       scale: isSphere ? 0.15 : 0.2,
       radius: 1,

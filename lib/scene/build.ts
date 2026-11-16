@@ -24,6 +24,7 @@ import { cornerGeometry, placeCorner } from "./corners";
 import { edgeGeometry, placeEdge } from "./edges";
 import { atlasLabels, faceGeometry, placeFace, type LabelProvider, type LabelTextures, type Placement } from "./faces";
 import type { Owned } from "./materials";
+import { roundedBoxGeometry } from "./roundedBox";
 import { restyleTargets, targetMaterials, targetOf } from "./update";
 
 type DeepRequired<T> = T extends (...args: never[]) => unknown
@@ -60,7 +61,7 @@ export type PartBuilder = (o: SceneOptions, scene: Readonly<{ frame: LabelFrame;
 /** A target's geometry and where it sits. The geometry is registered in `owned` by the provider. */
 export type PlacedGeometry = Readonly<{ geometry: BufferGeometry }> & Placement;
 
-/** The geometry of every target for one cube type. S5's seamless rounded box is another one. */
+/** The geometry of every target for one cube type. */
 export type GeometryProvider = (o: SceneOptions, frame: LabelFrame, owned: Owned) => (entry: TargetEntry) => PlacedGeometry;
 
 /** The seams later tasks fill: labels (S2), axis lines (S3), background (S4), cube geometry (S5), triad (S6). */
@@ -89,17 +90,17 @@ export type GizmoScene = {
   pointerOver: boolean;
 };
 
-const PARTS: Readonly<Record<GizmoTargetKind, (entry: TargetEntry, frame: LabelFrame, o: SceneOptions) => Placement>> = {
+const PARTS: Readonly<Record<GizmoTargetKind, (entry: TargetEntry, frame: LabelFrame) => Placement>> = {
   face: (entry, frame) => placeFace(entry, frame),
   edge: placeEdge,
   corner: placeCorner,
 };
 
-/** The cube and the 2.3.0 rounded cube: one shared geometry per kind. */
+/** The cube: one shared geometry per kind. */
 const cubeGeometry: GeometryProvider = (o, frame, owned) => {
   const geometry = { face: faceGeometry(o), edge: edgeGeometry(o), corner: cornerGeometry(o) };
   Object.values(geometry).forEach((g) => owned.add(g));
-  return (entry) => ({ geometry: geometry[entry.kind], ...PARTS[entry.kind](entry, frame, o) });
+  return (entry) => ({ geometry: geometry[entry.kind], ...PARTS[entry.kind](entry, frame) });
 };
 
 const Y = /*@__PURE__*/ new Vector3(0, 1, 0);
@@ -177,7 +178,7 @@ const triad: PartBuilder = () => ({ object: new Group(), update() {} });
 /** The 2.3.0 look on the new build: S2 to S6 replace one builder each. */
 export const DEFAULT_BUILDERS: SceneBuilders = {
   labels: atlasLabels,
-  geometry: { cube: cubeGeometry, "rounded-cube": cubeGeometry },
+  geometry: { cube: cubeGeometry, "rounded-cube": roundedBoxGeometry },
   lines: axisLines,
   background,
   triad,
