@@ -72,6 +72,10 @@ export type ViewReading = {
   up: Vec3;
   /** The label of the target the view rests on (`gizmo.atTarget`), or null between targets. */
   atTarget: string | null;
+  /** Where the running flight is going (`gizmo.heading`): a target label, `"a direction"`, or null when none runs. */
+  heading: string | null;
+  /** `gizmo.canRoll`. */
+  canRoll: boolean;
   /** Degrees between the camera's right vector and the plane perpendicular to the stage's up axis. */
   roll: number;
 };
@@ -249,6 +253,7 @@ export async function createStage(
       notify();
     });
     gizmo.addEventListener("attargetchange", notify);
+    gizmo.addEventListener("end", notify);
   }
 
   const handle: StageHandle = {
@@ -264,7 +269,13 @@ export async function createStage(
     toWorld,
     readView() {
       const focus = gizmo?.target ?? (controls instanceof OrbitControls ? controls.target : target);
-      return readView(camera, focus, up, gizmo?.atTarget?.target.label ?? null);
+      const heading = gizmo?.heading;
+      return {
+        ...readView(camera, focus, up),
+        atTarget: gizmo?.atTarget?.target.label ?? null,
+        heading: heading ? (heading.target?.label ?? "a direction") : null,
+        canRoll: gizmo?.canRoll ?? false,
+      };
     },
     onViewChange(fn) {
       viewListeners.add(fn);
@@ -329,13 +340,12 @@ function applyPose(camera: PerspectiveCamera | OrthographicCamera, focus: Vector
 function readView(
   camera: PerspectiveCamera | OrthographicCamera,
   focus: Vector3,
-  up: Vector3,
-  atTarget: string | null
-): ViewReading {
+  up: Vector3
+): Pick<ViewReading, "direction" | "up" | "roll"> {
   const direction = camera.position.clone().sub(focus).normalize();
   const cameraRight = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
   const roll = (Math.asin(Math.min(1, Math.max(-1, cameraRight.dot(up)))) * 180) / Math.PI;
-  return { direction: direction.toArray(), up: camera.up.toArray(), atTarget, roll };
+  return { direction: direction.toArray(), up: camera.up.toArray(), roll };
 }
 
 function loadFont() {

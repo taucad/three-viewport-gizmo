@@ -76,9 +76,17 @@ export function Stage({ config, options, setup, onStage, label, className }: Pro
   const gizmo = status.state === "ready" ? status.stage.gizmo : null;
   // Keyed by content; `set()` gets the object itself, so an explicit `undefined` still returns a key to its default.
   const live = options && JSON.stringify(options);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
   useEffect(() => {
     const current = hooks.current.options;
-    if (gizmo && current) gizmo.set(current);
+    if (!gizmo || !current) return;
+    try {
+      gizmo.set(current);
+      setOptionsError(null);
+    } catch (error) {
+      // `set()` changes nothing when it throws; say why instead of failing the page.
+      setOptionsError(error instanceof Error ? error.message : String(error));
+    }
   }, [gizmo, live]);
 
   const fallback =
@@ -101,6 +109,11 @@ export function Stage({ config, options, setup, onStage, label, className }: Pro
       {status.state === "error" && (
         <p className="stage-note stage-error" role="alert">
           This viewport could not start: {status.message}
+        </p>
+      )}
+      {optionsError && (
+        <p className="stage-note stage-error" role="alert">
+          Couldn&apos;t apply these options: {optionsError}
         </p>
       )}
       {fallback && (
