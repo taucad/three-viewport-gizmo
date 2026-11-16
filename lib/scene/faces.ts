@@ -1,4 +1,4 @@
-import { Matrix4, PlaneGeometry, Quaternion, Vector3, type BufferGeometry, type Texture } from "three";
+import { Matrix4, Quaternion, Vector3, type BufferGeometry, type Texture } from "three";
 import type { AxisEnd, LabelFrame } from "../orbit/labelFrame";
 import type { TargetEntry } from "../orbit/targets";
 import type { GizmoOptionsFallback } from "../types";
@@ -33,14 +33,9 @@ export function placeFace(entry: TargetEntry, frame: LabelFrame, distance = 1): 
   return placeAt(direction.clone().multiplyScalar(distance), direction, new Vector3().crossVectors(textUp, direction));
 }
 
-/**
- * The face geometry: a rounded rectangle on the cube; on the rounded cube a square by type (N1), since its edges and
- * corners do the rounding and `radius` sizes them.
- */
+/** The cube's face geometry: a rounded rectangle. The rounded cube's faces are pieces of its box (`roundedBox.ts`). */
 export function faceGeometry(o: SceneOptions): BufferGeometry {
-  if (o.type !== "rounded-cube") return roundedRectangleGeometry(o.radius, o.smoothness);
-  const side = 2 - 2 * o.edges.radius;
-  return new PlaneGeometry(side, side);
+  return roundedRectangleGeometry(o.radius, o.smoothness);
 }
 
 /** The label textures of a scene. Every texture it hands out is its own and freed by its `dispose()`. */

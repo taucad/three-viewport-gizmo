@@ -4,7 +4,6 @@ import {
   Material,
   Mesh,
   MeshBasicMaterial,
-  PlaneGeometry,
   Sprite,
   SpriteMaterial,
   Texture,
@@ -71,8 +70,7 @@ describe("buildScene", () => {
     expect(scene.group.children).toContain(scene.parts.triad.object);
   });
 
-  // The rounded cube's default edge colour (0xeeeeee) differs from its corners' (white): one idle material more.
-  it.each([["cube", 16], ["rounded-cube", 17]] as const)("draws %s with at most %i materials, sharing per style", (type, budget) => {
+  it.each([["cube", 16], ["rounded-cube", 16]] as const)("draws %s with at most %i materials, sharing per style", (type, budget) => {
     const scene = build({ type });
     expect(materialsOf(scene).length).toBeLessThanOrEqual(budget);
     const edges = scene.targets.filter((t) => t.entry.kind === "edge");
@@ -110,13 +108,6 @@ describe("buildScene", () => {
       }
     }
   );
-
-  it("makes rounded-cube faces square whatever the radius", () => {
-    for (const radius of [0.1, 0.3, 0.45]) {
-      const face = build({ type: "rounded-cube", radius }).targets[0].object as Mesh;
-      expect(face.geometry).toBeInstanceOf(PlaneGeometry);
-    }
-  });
 
   it("passes each new target material to onMaterial with the targets that share it, and keeps the host's", () => {
     const host = new MeshBasicMaterial();
