@@ -10,6 +10,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TrackballControls } from "three/addons/controls/TrackballControls.js";
 import { ViewportGizmoError } from "../errors";
 import type { GizmoControls } from "../types";
+import { ORBIT_TAKES_UP } from "../__tests__/test-utils";
 import { assertControls, cameraUpRefusal, holdControls, readControlsLimits, refreshCameraUp } from "./contract";
 
 CameraControls.install({ THREE });
@@ -45,8 +46,8 @@ const roll90 = (camera: PerspectiveCamera) => {
 describe("assertControls (T #23)", () => {
   it("accepts the real controllers", () => {
     const camera = cameraAt(0, 0, 5);
-    expect(() => assertControls(new OrbitControls(camera))).not.toThrow();
-    expect(() => assertControls(new TrackballControls(camera))).not.toThrow();
+    expect(() => assertControls(new OrbitControls(camera, document.body))).not.toThrow();
+    expect(() => assertControls(new TrackballControls(camera, document.body))).not.toThrow();
     expect(() => assertControls(adapt(new CameraControls(camera)))).not.toThrow();
   });
 
@@ -74,7 +75,7 @@ describe("assertControls (T #23)", () => {
 
 describe("holdControls (scope audit P4 inverted)", () => {
   it("keeps controls the host disabled disabled after a gizmo interaction", () => {
-    const controls = new OrbitControls(cameraAt(0, 0, 5));
+    const controls = new OrbitControls(cameraAt(0, 0, 5), document.body);
     controls.enabled = false;
     const restore = holdControls(controls);
     expect(controls.enabled).toBe(false);
@@ -84,8 +85,8 @@ describe("holdControls (scope audit P4 inverted)", () => {
 
   it("disables enabled controls during the interaction and re-enables them after", () => {
     for (const controls of [
-      new OrbitControls(cameraAt(0, 0, 5)),
-      new TrackballControls(cameraAt(0, 0, 5)),
+      new OrbitControls(cameraAt(0, 0, 5), document.body),
+      new TrackballControls(cameraAt(0, 0, 5), document.body),
       adapt(new CameraControls(cameraAt(0, 0, 5))),
     ]) {
       const restore = holdControls(controls);
@@ -98,7 +99,7 @@ describe("holdControls (scope audit P4 inverted)", () => {
 
 describe("readControlsLimits (U5)", () => {
   it("reads OrbitControls' numeric limits, keeping Infinity", () => {
-    const controls = new MapControls(cameraAt(0, 0, 5));
+    const controls = new MapControls(cameraAt(0, 0, 5), document.body);
     controls.maxPolarAngle = Math.PI / 2;
     expect(readControlsLimits(controls)).toEqual({
       minPolarAngle: 0,
@@ -109,8 +110,8 @@ describe("readControlsLimits (U5)", () => {
   });
 
   it("reads nothing from controls without limits, and skips non-numbers", () => {
-    expect(readControlsLimits(new TrackballControls(cameraAt(0, 0, 5)))).toEqual({});
-    const controls = new OrbitControls(cameraAt(0, 0, 5));
+    expect(readControlsLimits(new TrackballControls(cameraAt(0, 0, 5), document.body))).toEqual({});
+    const controls = new OrbitControls(cameraAt(0, 0, 5), document.body);
     (controls as { minPolarAngle: unknown }).minPolarAngle = Number.NaN;
     (controls as { maxPolarAngle: unknown }).maxPolarAngle = "1";
     expect(readControlsLimits(controls)).toEqual({ minAzimuthAngle: -Infinity, maxAzimuthAngle: Infinity });
@@ -118,21 +119,28 @@ describe("readControlsLimits (U5)", () => {
 });
 
 describe("cameraUpRefusal (ruling A, roll Finding 5)", () => {
-  it("accepts no controls, OrbitControls and MapControls (three >= 0.168), and updateCameraUp()", () => {
+  it.runIf(ORBIT_TAKES_UP)("accepts no controls, OrbitControls and MapControls (three >= 0.168), and updateCameraUp()", () => {
     expect(cameraUpRefusal(undefined)).toBeNull();
-    expect(cameraUpRefusal(new OrbitControls(cameraAt(0, 0, 5)))).toBeNull();
-    expect(cameraUpRefusal(new MapControls(cameraAt(0, 0, 5)))).toBeNull();
+    expect(cameraUpRefusal(new OrbitControls(cameraAt(0, 0, 5), document.body))).toBeNull();
+    expect(cameraUpRefusal(new MapControls(cameraAt(0, 0, 5), document.body))).toBeNull();
     expect(cameraUpRefusal(adapt(new CameraControls(cameraAt(0, 0, 5))))).toBeNull();
   });
 
   it("refuses free-tumble and unknown controls, so roll defaults off", () => {
-    expect(cameraUpRefusal(new TrackballControls(cameraAt(0, 0, 5)))).toMatch(/no `updateCameraUp\(\)`/);
-    const arcball = new ArcballControls(cameraAt(0, 0, 5)) as unknown as GizmoControls;
+    expect(cameraUpRefusal(new TrackballControls(cameraAt(0, 0, 5), document.body))).toMatch(/no `updateCameraUp\(\)`/);
+    const arcball = new ArcballControls(cameraAt(0, 0, 5), document.body) as unknown as GizmoControls;
     expect(cameraUpRefusal(arcball)).toMatch(/no `updateCameraUp\(\)`/);
   });
 
+  it.runIf(!ORBIT_TAKES_UP)("refuses the real OrbitControls and MapControls below three 0.168, naming the revision", () => {
+    for (const controls of [new OrbitControls(cameraAt(0, 0, 5), document.body), new MapControls(cameraAt(0, 0, 5), document.body)]) {
+      expect(cameraUpRefusal(controls)).toMatch(new RegExp(`three r${THREE.REVISION} cannot take a new up: roll needs three 0.168`));
+    }
+    expect(cameraUpRefusal(undefined)).toBeNull();
+  });
+
   it("names the three version for OrbitControls without the `_quat` field (three < 0.168)", () => {
-    const controls = new OrbitControls(cameraAt(0, 0, 5)) as Partial<OrbitControls & Record<"_quat", unknown>>;
+    const controls = new OrbitControls(cameraAt(0, 0, 5), document.body) as Partial<OrbitControls & Record<"_quat", unknown>>;
     delete controls._quat;
     expect(cameraUpRefusal(controls as OrbitControls)).toMatch(
       new RegExp(`three r${THREE.REVISION} cannot take a new up: roll needs three 0.168`)
@@ -140,30 +148,38 @@ describe("cameraUpRefusal (ruling A, roll Finding 5)", () => {
   });
 });
 
+// three 0.168 ships the turn as the private `_rotateLeft`; later revisions make it public as `rotateLeft`.
+function orbitLeft(controls: OrbitControls, angle: number): void {
+  const turn = controls as unknown as { rotateLeft?: (angle: number) => void; _rotateLeft?: (angle: number) => void };
+  if (turn.rotateLeft) turn.rotateLeft(angle);
+  else turn._rotateLeft!(angle);
+}
+
 describe("refreshCameraUp (L5)", () => {
   // A horizontal drag is `rotateLeft` on OrbitControls and `rotate(azimuth, 0)` on camera-controls: a turn about the
   // orbit up. About the rolled up (-1, 0, 0) the camera's x stays 0; about the stale (0, 1, 0) its y stays 0.
-  it("makes a horizontal OrbitControls drag after a roll orbit the new up", () => {
+  // The cached up is an OrbitControls member from three 0.168; `orbitLeft` reaches the turn on every revision.
+  it.runIf(ORBIT_TAKES_UP)("makes a horizontal OrbitControls drag after a roll orbit the new up", () => {
     const camera = cameraAt(0, 0, 5);
-    const controls = new OrbitControls(camera);
+    const controls = new OrbitControls(camera, document.body);
     roll90(camera);
     refreshCameraUp(controls);
     controls.update();
     expect(camera.position.distanceTo(new Vector3(0, 0, 5))).toBeLessThan(1e-9);
     expect(camera.up.x).toBeCloseTo(-1, 9);
 
-    controls.rotateLeft(0.5);
+    orbitLeft(controls, 0.5);
     controls.update();
     expect(camera.position.x).toBeCloseTo(0, 9);
     expect(Math.abs(camera.position.y)).toBeGreaterThan(1);
     expect(camera.position.length()).toBeCloseTo(5, 9);
   });
 
-  it("control: without the refresh OrbitControls orbits the stale up", () => {
+  it.runIf(ORBIT_TAKES_UP)("control: without the refresh OrbitControls orbits the stale up", () => {
     const camera = cameraAt(0, 0, 5);
-    const controls = new OrbitControls(camera);
+    const controls = new OrbitControls(camera, document.body);
     roll90(camera);
-    controls.rotateLeft(0.5);
+    orbitLeft(controls, 0.5);
     controls.update();
     expect(camera.position.y).toBeCloseTo(0, 9);
     expect(Math.abs(camera.position.x)).toBeGreaterThan(1);
@@ -182,7 +198,7 @@ describe("refreshCameraUp (L5)", () => {
 
   it("leaves TrackballControls untouched: it turns camera.up itself", () => {
     const camera = cameraAt(0, 0, 5);
-    const controls = new TrackballControls(camera);
+    const controls = new TrackballControls(camera, document.body);
     roll90(camera);
     expect(() => refreshCameraUp(controls)).not.toThrow();
     expect(camera.up.x).toBeCloseTo(-1, 9);

@@ -4,8 +4,9 @@
  * restored (S probe P12), a draw into a host render target, and the draw, program and allocation rows. Served from
  * source by the G2 browser gate's Vite server at `/lib/__tests__/browser/frame.html`.
  *
- * The reversed-depth cases pin three r184's `ReversedDepthFuncs` mapping (Always→Never), which `renderInRect` spells
- * around: when three fixes the mapping they fail with `insideWrong > 0`, and `placeDepthReset` drops the swap.
+ * The reversed-depth cases cover three's `ReversedDepthFuncs` mapping on both sides of its r187 fix (Always→Never
+ * before, Always→Always from r187), which `placeDepthReset` spells around by revision; CI runs them on the latest three
+ * and the peer matrix on the floor.
  */
 import { expect, test, type Page } from "@playwright/test";
 

@@ -20,7 +20,8 @@ export default function Quickstart() {
       <h2>Prerequisites</h2>
       <p>
         A three.js scene with a camera and a <code>WebGLRenderer</code> or <code>WebGPURenderer</code>.
-        The package is ESM only and needs <code>three</code> 0.162 or later as a peer dependency.
+        The package is ESM only and needs <code>three</code> 0.167 or later as a peer dependency (0.171 or later with
+        <code>WebGPURenderer</code>).
       </p>
 
       <h2>Install</h2>

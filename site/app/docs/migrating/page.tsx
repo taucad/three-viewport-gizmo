@@ -187,8 +187,8 @@ export default function MigratingGuide() {
 
       <h2>Prerequisites</h2>
       <p>
-        <code>three</code> 0.162 or later (unchanged) and an ESM build. Roll needs three 0.168 or later
-        when OrbitControls are attached.
+        <code>three</code> 0.167 or later (2.x took 0.162), 0.171 or later with <code>WebGPURenderer</code>,
+        and an ESM build. Roll needs three 0.168 or later when OrbitControls are attached.
       </p>
 
       <h2>Steps</h2>

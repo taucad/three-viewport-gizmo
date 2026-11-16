@@ -45,7 +45,7 @@ export default function OrbitControlsGuide() {
         </li>
         <li>
           Roll is on by default with OrbitControls from three 0.168, which can take a new up. On
-          0.162 to 0.167 pass <code>roll: false</code>, or <code>attachControls</code> throws{" "}
+          0.167 pass <code>roll: false</code>, or <code>attachControls</code> throws{" "}
           <code>ROLL_UNSUPPORTED</code> when you ask for roll.
         </li>
         <li>

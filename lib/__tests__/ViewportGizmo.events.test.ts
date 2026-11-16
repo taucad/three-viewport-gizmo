@@ -7,7 +7,7 @@ import { TrackballControls } from "three/addons/controls/TrackballControls.js";
 import { ViewportGizmoError } from "../errors.js";
 import type { GizmoTargetName, ViewportGizmoEventMap } from "../index.js";
 import type { ViewportGizmo } from "../ViewportGizmo.js";
-import { createGizmo, fire, mountGizmo, runFlight } from "./test-utils.js";
+import { createGizmo, fire, mountGizmo, ORBIT_TAKES_UP, runFlight } from "./test-utils.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -388,7 +388,7 @@ describe("controls", () => {
     gizmo.attachControls(controls);
     expect(gizmo.target).not.toBe(controls.target);
     expect(gizmo.target.toArray()).toEqual([0, 0.5, 0]);
-    expect(gizmo.canRoll).toBe(true);
+    expect(gizmo.canRoll).toBe(ORBIT_TAKES_UP);
 
     controls.enabled = true;
     void gizmo.lookFrom("top");
@@ -405,7 +405,10 @@ describe("controls", () => {
 
   it("takes roll with OrbitControls (C1, ruling A) and refuses roll: true with TrackballControls", () => {
     const gizmo = createGizmo({ cameraPosition: new Vector3(3, 2, 4), gizmoOptions: { type: "cube", roll: true } });
-    expect(() => gizmo.attachControls(new OrbitControls(gizmo.camera, gizmo.renderer.domElement))).not.toThrow();
+    const orbit = new OrbitControls(gizmo.camera, gizmo.renderer.domElement);
+    if (ORBIT_TAKES_UP) expect(() => gizmo.attachControls(orbit)).not.toThrow();
+    // Below three 0.168 (R16): the coded error, naming the installed revision.
+    else expect(() => gizmo.attachControls(orbit)).toThrow(expect.objectContaining({ code: "ROLL_UNSUPPORTED", message: expect.stringMatching(/three r1\d\d .*roll needs three 0\.168/) }));
     const trackball = new TrackballControls(gizmo.camera, gizmo.renderer.domElement);
     expect(() => gizmo.attachControls(trackball)).toThrow(expect.objectContaining({ code: "ROLL_UNSUPPORTED" }));
     gizmo.dispose();
