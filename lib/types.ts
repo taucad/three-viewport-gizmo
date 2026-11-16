@@ -158,8 +158,8 @@ export type GizmoControls = {
 // --- Options (R8, R12, U4 to U8, U10, R11, OD2, OD3, P D19) ----------------------------------------------------------
 
 /**
- * Options for one target. Keys `x` to `nz` of {@link GizmoOptions} name world axis ends; `top`, `bottom`, `back`,
- * `right` and `left` name faces in the label frame.
+ * Options for one target. Keys `x` to `nz` of {@link GizmoOptions} name world axis ends; `top`, `bottom`, `front`,
+ * `back`, `right` and `left` name faces in the label frame.
  */
 export type GizmoTargetOptions = {
   /** Whether to draw the target. Default `true` */
@@ -279,8 +279,8 @@ export type GizmoOptions = {
   /** Label up. Default: `camera.up` at construction (R12). Must be within 1e-6 of a signed axis. */
   up?: Readonly<Vector3Like>;
 
-  /** Label front, perpendicular to `up` (U8). Default: the 2.x front for that up. */
-  front?: Readonly<Vector3Like>;
+  /** Direction the Front label faces, perpendicular to `up` (U8). Default: the 2.x front for that up. */
+  frontDirection?: Readonly<Vector3Like>;
 
   /**
    * Whether the view may roll (L4). Default inferred: on when the gizmo writes the camera or the attached controls can
@@ -410,6 +410,8 @@ export type GizmoOptions = {
   top?: GizmoTargetOptions;
   /** The face labelled Bottom. */
   bottom?: GizmoTargetOptions;
+  /** The face labelled Front. */
+  front?: GizmoTargetOptions;
   /** The face labelled Back. */
   back?: GizmoTargetOptions;
   /** The face labelled Right. */
@@ -418,11 +420,11 @@ export type GizmoOptions = {
   left?: GizmoTargetOptions;
 };
 
-/** The options as resolved: every default filled, `up` and `front` as vectors, `roll` and `animated` decided. */
+/** The options as resolved: every default filled, `up` and `frontDirection` as vectors, `roll`, `animated` decided. */
 export type GizmoResolvedOptions = Readonly<
-  Omit<GizmoOptions, "up" | "front" | "roll" | "animated"> & {
+  Omit<GizmoOptions, "up" | "frontDirection" | "roll" | "animated"> & {
     up: Readonly<Vector3>;
-    front: Readonly<Vector3>;
+    frontDirection: Readonly<Vector3>;
     roll: boolean | "free";
     animated: boolean;
   }
@@ -462,11 +464,11 @@ export type GizmoUpAxis = "x" | "y" | "z";
 /** 2.3.0 runtime: A world axis end. */
 export type GizmoAxisName = (typeof GIZMO_AXES)[number];
 
-/** 2.3.0 runtime: The options the class still reads: the 3.0 options less the 3.0-only keys, with 2.x `up`, `front`. */
+/** 2.3.0 runtime: The options the class still reads: the 3.0 options less the 3.0-only keys, with 2.x `up`. */
 export type LegacyGizmoOptions = Omit<
   GizmoOptions,
   | "up"
-  | "front"
+  | "frontDirection"
   | "roll"
   | "poleEntry"
   | "oppositeOnRepeat"
@@ -479,7 +481,6 @@ export type LegacyGizmoOptions = Omit<
   | "onMaterial"
 > & {
   up?: GizmoUpAxis;
-  front?: GizmoTargetOptions;
 };
 
 /** 2.3.0 runtime: Optional userData fields on the target meshes and sprites. */

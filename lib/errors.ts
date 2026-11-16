@@ -5,7 +5,7 @@
  * - `INVALID_OPTION`: a known option with the wrong type or out of range.
  * - `REMOVED_OPTION`: a 2.x option form, such as `up: 'z'`.
  * - `REMOVED_MEMBER`: a 2.x member called from JavaScript, such as `domUpdate()`.
- * - `INVALID_FRAME`: `up` is not a signed axis, or `front` is not perpendicular to it.
+ * - `INVALID_FRAME`: `up` is not a signed axis, or `frontDirection` is not perpendicular to it.
  * - `ROLL_UNSUPPORTED`: `roll` on with controls that cannot take a new up.
  * - `UNKNOWN_VIEW`: `lookFrom` with a name that is not a view, or a zero vector.
  * - `INVALID_TURN`: `turn` with no field, a non-finite angle, or `toward` beside an angle.

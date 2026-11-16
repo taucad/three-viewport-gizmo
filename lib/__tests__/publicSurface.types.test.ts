@@ -1,7 +1,7 @@
 // The 3.0 public contract (K3). `tsconfig.json` lists this file in `files`, so `:typecheck` checks every
 // `expectTypeOf` and `@ts-expect-error` here; `:test` runs the runtime half.
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { Vector3, type Color, type Texture } from "three";
+import { Vector3, type Color, type Texture, type Vector3Like } from "three";
 import type CameraControls from "camera-controls";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { TrackballControls } from "three/addons/controls/TrackballControls.js";
@@ -143,6 +143,10 @@ describe("public surface", () => {
     expectTypeOf<GizmoOptions["limits"]>().toEqualTypeOf<GizmoLimits | undefined>();
     expectTypeOf<GizmoOptions["navigation"]>().toEqualTypeOf<GizmoNavigationOptions | undefined>();
     expectTypeOf<GizmoOptions["top"]>().toEqualTypeOf<GizmoTargetOptions | undefined>();
+    expectTypeOf<GizmoOptions["front"]>().toEqualTypeOf<GizmoTargetOptions | undefined>();
+    expectTypeOf<GizmoOptions["frontDirection"]>().toEqualTypeOf<Readonly<Vector3Like> | undefined>();
+    expectTypeOf<GizmoResolvedOptions["frontDirection"]>().toEqualTypeOf<Readonly<Vector3>>();
+    expectTypeOf<GizmoResolvedOptions["front"]>().toEqualTypeOf<GizmoTargetOptions | undefined>();
     expectTypeOf<GizmoOptions["roll"]>().toEqualTypeOf<boolean | "free" | undefined>();
     expectTypeOf<NonNullable<GizmoOptions["onMaterial"]>>().parameter(1).toEqualTypeOf<GizmoMaterialUse>();
     expectTypeOf<NonNullable<GizmoOptions["onMaterial"]>>().returns.toEqualTypeOf<GizmoMaterial>();
@@ -219,20 +223,24 @@ describe("public surface", () => {
     const mixed: GizmoTurn = { toward: "left", roll: Math.PI / 2 };
     // @ts-expect-error -- `lookFrom`'s options are an object, not the 2.x boolean
     const animate: GizmoLookFromOptions = false;
+    // @ts-expect-error -- `front` styles the Front face; the label direction is `frontDirection`
+    const frontVector: GizmoOptions = { front: { x: 0, y: -1, z: 0 } };
     // @ts-expect-error -- not a code
     const code: GizmoErrorCode = "NOT_A_CODE";
 
     const accepted: GizmoOptions = {
       up: { x: 0, y: 0, z: 1 },
-      front: { x: 0, y: -1, z: 0 },
+      frontDirection: { x: 0, y: -1, z: 0 },
+      front: { color: 0x3366ff, label: "Front" },
       roll: "free",
       navigation: { enabled: true, reveal: "always" },
       limits: { maxPolarAngle: Math.PI / 2 },
     };
     const turns: GizmoTurn[] = [{ toward: "up" }, { azimuth: Math.PI / 2 }, { roll: -Math.PI / 2, animated: false }];
 
-    expect([zUp, navigating, mixed, animate, code]).toHaveLength(5);
+    expect([zUp, navigating, mixed, animate, frontVector, code]).toHaveLength(6);
     expect(accepted.roll).toBe("free");
+    expect([accepted.front?.label, accepted.frontDirection?.y]).toEqual(["Front", -1]);
     expect(turns).toHaveLength(3);
   });
 
