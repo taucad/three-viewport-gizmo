@@ -6,6 +6,7 @@ import {
   Vector3,
   type BufferGeometry,
   type Camera,
+  type Object3D,
 } from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { PartBuilder } from "./build";
@@ -20,13 +21,22 @@ export const BACKGROUND_SEGMENTS = 128;
 const _parent = /*@__PURE__*/ new Quaternion();
 
 /**
- * Turns the disc to face `camera` and moves it to the back of the 2.3.0 sphere, so the axis lines behind the origin
- * still draw in front of it as they did. Runs before the renderer reads the disc's world matrix.
+ * An `onBeforeRender` that turns a quad to face `camera`, as a sprite does, so it draws with the meshes' program
+ * instead of the sprite program (perf budget `programs`).
  */
-function faceCamera(this: Mesh, _renderer: unknown, _scene: unknown, camera: Camera): void {
+export function turnToCamera(this: Object3D, _renderer: unknown, _scene: unknown, camera: Camera): void {
   if (this.parent) this.parent.getWorldQuaternion(_parent).invert();
   else _parent.identity();
   camera.getWorldQuaternion(this.quaternion).premultiply(_parent);
+  this.updateMatrixWorld();
+}
+
+/**
+ * Turns the disc to face `camera` and moves it to the back of the 2.3.0 sphere, so the axis lines behind the origin
+ * still draw in front of it as they did. Runs before the renderer reads the disc's world matrix.
+ */
+function faceCamera(this: Mesh, renderer: unknown, scene: unknown, camera: Camera): void {
+  turnToCamera.call(this, renderer, scene, camera);
   this.position.set(0, 0, -BACKGROUND_RADIUS).applyQuaternion(this.quaternion);
   this.updateMatrixWorld();
 }

@@ -95,12 +95,19 @@
       const memory = async (type = "cube", dpr = 2) => {
         const before = renderer.info.memory.textures;
         const { scene, target } = await shoot({ type }, { dpr, hoverAll: true });
-        const maps = textures(scene);
+        const all = textures(scene);
+        // S7: the one shared 1×1 white map of the plain targets, lines and background; the rest are labels.
+        const whites = all.filter((t) => t.isDataTexture);
+        const maps = all.filter((t) => !t.isDataTexture);
+        const users = new Set();
+        scene.group.traverse((o) => o.material?.map === whites[0] && users.add(o.material));
+        for (const t of scene.targets) for (const m of [t.idle, t.hover]) m.map === whites[0] && users.add(m);
         const result = {
           backend: renderer.backend?.isWebGPUBackend ? "webgpu" : "webgl",
           textures: maps.length,
           sides: [...new Set(maps.map((t) => t.image.width))],
           bytes: maps.reduce((sum, t) => sum + textureBytes(t.image.width), 0),
+          white: whites.map((t) => ({ width: t.image.width, height: t.image.height, bytes: t.image.data.byteLength, users: users.size })),
           // The renderer's own count, less the render target's texture.
           rendererTextures: renderer.info.memory.textures - before - 1,
         };

@@ -5,17 +5,17 @@ import {
   CylinderGeometry,
   Group,
   Mesh,
-  MeshBasicMaterial,
+  PlaneGeometry,
   Quaternion,
-  Sprite,
-  SpriteMaterial,
   SRGBColorSpace,
   Vector3,
 } from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { GIZMO_MAIN_AXES } from "../utils/constants";
 import { pixelsPerUnit } from "./axisLines";
+import { turnToCamera } from "./background";
 import type { PartBuilder, SceneOptions } from "./build";
+import { meshAttributes, targetMaterial, whiteTexture } from "./materials";
 
 /** Tau's triad: axis length from the cube's corner, in the cube's units (its half size is 1). */
 const LENGTH = 2.1;
@@ -60,35 +60,37 @@ function drawLetter(canvas: HTMLCanvasElement, axis: (typeof GIZMO_MAIN_AXES)[nu
 
 /**
  * The axis triad of the cube types (OD3): world +X, +Y and +Z from the cube's corner, as Tau draws them, with an X, Y
- * or Z label past each tip in the axis colour. The lines are one mesh with one vertex-coloured material carrying the
- * axis lines' flags, so it shares their program; the labels are three sprites. Nothing is built until the triad
+ * or Z label past each tip in the axis colour. The lines are one vertex-coloured mesh and the labels three
+ * camera-facing quads, all on the targets' program (`targetMaterial`), so showing the triad adds no program or
+ * pipeline (perf budget `programs`). Nothing is built until the triad
  * first shows, so a gizmo without it pays nothing; toggling it after that writes `visible` and the scene's scale only.
  * Draws while shown: 4 (one line mesh, three labels).
  */
 export const triad: PartBuilder = (_, __, owned) => {
   const object = new Group();
   object.position.setScalar(ORIGIN);
-  let lines: Mesh<ReturnType<typeof mergeGeometries>, MeshBasicMaterial> | null = null;
+  let lines: Mesh | null = null;
   let letters: { canvas: HTMLCanvasElement; texture: CanvasTexture }[] = [];
   let base: ArrayLike<number> = [];
   let count = 0;
 
   const create = (o: SceneOptions) => {
     const unit = new CylinderGeometry(1, 1, 1, RADIAL_SEGMENTS).translate(0, 0.5, 0);
-    unit.deleteAttribute("normal");
     unit.deleteAttribute("uv");
     base = unit.attributes.position.array;
     count = unit.attributes.position.count;
-    const geometry = mergeGeometries(GIZMO_MAIN_AXES.map(() => unit));
-    unit.dispose();
+    // Each line's normals, turned once, as the axis lines' are.
+    const turned = ROTATIONS.map((rotation) => unit.clone().applyQuaternion(rotation));
+    const geometry = mergeGeometries(turned);
+    for (const g of [unit, ...turned]) g.dispose();
     const colors = new BufferAttribute(new Float32Array(geometry.attributes.position.count * 3), 3);
     GIZMO_MAIN_AXES.forEach((axis, i) => {
       const { r, g, b } = _color.set(TRIAD_COLORS[axis]);
       for (let k = 0; k < count; k++) colors.setXYZ(i * count + k, r, g, b);
     });
-    geometry.setAttribute("color", colors);
-    // The axis lines' flags (S3), so S7's unification shares one program between them and the triad.
-    const material = new MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: true, toneMapped: false });
+    meshAttributes(geometry.setAttribute("color", colors));
+    const white = whiteTexture(owned);
+    const material = targetMaterial({ sprite: false, map: null, color: 0xffffff, opacity: 1 }, white);
     owned.add(geometry).add(material);
     lines = new Mesh(geometry, material);
     // ponytail: positions move on a size or field-of-view change; the gizmo is always in view.
@@ -99,15 +101,17 @@ export const triad: PartBuilder = (_, __, owned) => {
     // Texture size fixed at first show, as the face labels' are at build (S2).
     const dpr = globalThis.devicePixelRatio || 1;
     const texels = Math.ceil(LABEL_SIZE * TRIAD_SCENE_SCALE * pixelsPerUnit(o) * dpr * 2);
+    const quad = meshAttributes(new PlaneGeometry());
+    owned.add(quad);
     letters = GIZMO_MAIN_AXES.map((_axis, i) => {
       const canvas = document.createElement("canvas");
       canvas.width = canvas.height = texels;
       const texture = new CanvasTexture(canvas);
       texture.colorSpace = SRGBColorSpace;
-      // The sphere targets' sprite flags (S1), so the cube adds at most the sprite program.
-      const material = new SpriteMaterial({ map: texture, transparent: true, depthWrite: true, toneMapped: false });
+      const material = targetMaterial({ sprite: false, map: texture, color: 0xffffff, opacity: 1 }, white);
       owned.add(texture).add(material);
-      const sprite = new Sprite(material);
+      const sprite = new Mesh(quad, material);
+      sprite.onBeforeRender = turnToCamera;
       sprite.renderOrder = 3;
       sprite.scale.set(LABEL_SIZE, LABEL_SIZE, 1);
       sprite.position.setComponent(i, LENGTH + LABEL_GAP);

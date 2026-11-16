@@ -1,4 +1,4 @@
-import { Mesh, Vector3, type BufferGeometry, type Object3D, type Sprite } from "three";
+import { Mesh, MeshBasicMaterial, Vector3, type BufferGeometry, type Object3D } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { classifyChange } from "../options/changes";
 import { resolveOptions } from "../options/resolve";
@@ -36,7 +36,7 @@ describe("triad", () => {
     const { object } = scene.parts.triad;
     expect(object.visible).toBe(true);
     expect(object.position.toArray()).toEqual([-1.05, -1.05, -1.05]);
-    const [lines, ...labels] = object.children as [Mesh<BufferGeometry>, ...Sprite[]];
+    const [lines, ...labels] = object.children as [Mesh<BufferGeometry>, ...Mesh<BufferGeometry>[]];
     expect(lines.isMesh).toBe(true);
     expect(labels).toHaveLength(3);
     // Each label sits past its own world axis's tip.
@@ -44,7 +44,7 @@ describe("triad", () => {
       expect(label.position.getComponent(i)).toBeCloseTo(2.3, 9);
       expect(label.position.toArray().filter((_, k) => k !== i)).toEqual([0, 0]);
     });
-    const owned = [lines.geometry, lines.material, ...labels.flatMap((l) => [l.material, l.material.map!])];
+    const owned = [lines.geometry, lines.material, ...labels.flatMap((l) => [l.geometry, l.material, (l.material as MeshBasicMaterial).map!])];
     for (const resource of owned) expect(scene.owned.has(resource as never)).toBe(true);
     // The x line's vertices are coloured with Tau's X colour and lie along +X, 1.5 px across.
     const { position, color } = lines.geometry.attributes;
