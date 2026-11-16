@@ -275,8 +275,10 @@
         },
 
         /** `n` gizmo frames (measure and draw), for the allocation sample; the host frame is left out. */
-        loop(n) {
+        async loop(n) {
           for (let i = 0; i < n; i++) drawGizmo();
+          // Software WebGPU would grind through the queued frames after the page closes and stall the worker's next page.
+          if (backend === "webgpu") await renderer.backend.device.queue.onSubmittedWorkDone();
           return n;
         },
         /** Moves the internal camera's far plane: a field-of-view change (F2) on the cube, a deeper frustum on the sphere. */
