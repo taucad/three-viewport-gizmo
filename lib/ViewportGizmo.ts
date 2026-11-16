@@ -16,6 +16,7 @@ import { ViewportGizmoError } from "./errors";
 import { attachPointer, forwardWheel, type PointerInput } from "./interaction/pointerSession";
 import { hitTest, sphereDiscs, type HitBox, type HitScene } from "./interaction/hitTest";
 import { attachKeyboard, type KeyboardInput } from "./interaction/keyboard";
+import { attachNavigation, navigationAnchor, type Navigation } from "./navigation/navigation";
 import { classifyChange } from "./options/changes";
 import { mergeOptions, resolveOptions, targetEnabled } from "./options/resolve";
 import { orbitFrameAbout, type OrbitFrame } from "./orbit/frame";
@@ -193,6 +194,8 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   private readonly _input: PointerInput;
   private readonly _stopWheel: () => void;
   private readonly _keys: KeyboardInput;
+  /** The built-in navigation buttons while `navigation.enabled` (OD2); null adds no node. */
+  private _nav: Navigation | null = null;
   private _disposed = false;
 
   /**
@@ -253,6 +256,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       lookFrom: (view) => this._lookFrom("key", view),
       turn: (turn) => this._turn("key", turn),
     });
+    this._navigate();
 
     this._seen.copy(camera.quaternion);
     this._sync();
@@ -502,6 +506,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._input.detach();
     this._stopWheel();
     this._keys.detach();
+    this._nav?.detach();
     this._reset.removeFromParent();
     disposeScene(this._scene);
     this._three.remove(this.root);
@@ -857,6 +862,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     if (key(next) === key(this._atTarget)) return;
     this._atTarget = next;
     this._keys.refresh(next?.target ?? null);
+    this._nav?.refresh();
     this.dispatchEvent({ type: "attargetchange", atTarget: next });
   }
 
@@ -898,6 +904,23 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       disabled: !this._enabled,
     });
     this._keys.refresh(this._atTarget?.target ?? null);
+    this._nav?.refresh();
+  }
+
+  /** Adds or removes the navigation buttons to match `navigation.enabled`, and restyles them from the options. */
+  private _navigate(): void {
+    const on = this._options.navigation.enabled;
+    if (on && !this._nav) {
+      this._nav = attachNavigation(this.domElement, this, {
+        lookFrom: (view) => this._lookFrom("navigation", view),
+        turn: (turn) => this._turn("navigation", turn),
+        anchor: () => navigationAnchor(this._camera, this._scene.group.scale.x, this._options.size),
+      });
+    } else if (!on && this._nav) {
+      this._nav.detach();
+      this._nav = null;
+    }
+    this._nav?.restyle();
   }
 
   /** Turns the gizmo to mirror the camera, and the sphere's depth fade when the camera turned. Allocates nothing. */
@@ -977,6 +1000,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     if (next.container !== previous.container) {
       resolveContainer(next.container, this.renderer.domElement).appendChild(this.domElement);
     }
+    this._navigate();
     this._sync();
     if (!this._active) this._refreshAtTarget(false);
     this._rehover();

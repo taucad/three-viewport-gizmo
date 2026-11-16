@@ -133,6 +133,7 @@ export function Playground() {
   const animated = params.get("animated") !== "false";
   const triad = params.get("triad") === "true";
   const controlled = params.get("controlled") === "true";
+  const navigation = params.get("navigation") === "true";
   const hasTriad = values.type !== "sphere";
 
   const [stage, setStage] = useState<StageHandle | null>(null);
@@ -181,6 +182,9 @@ export function Playground() {
     poleEntry: values.poleEntry,
     limits: LIMITS[values.limits],
     triad: { enabled: hasTriad && triad },
+    navigation: { enabled: navigation },
+    // Room for the buttons, which sit around the cube and outside its box.
+    offset: navigation ? { top: 30, right: 30, bottom: 30, left: 30 } : { top: 10, right: 10, bottom: 10, left: 10 },
     roll: ROLL[values.roll],
   };
   const optionsKey = JSON.stringify(options);
@@ -311,6 +315,15 @@ export function Playground() {
             onChange={(e) => update("triad", String(e.target.checked))}
           />{" "}
           Axis triad{hasTriad ? "" : " (cube types only)"}
+        </label>
+
+        <label>
+          <input
+            type="checkbox"
+            checked={navigation}
+            onChange={(e) => update("navigation", String(e.target.checked))}
+          />{" "}
+          Navigation buttons
         </label>
 
         <label>
