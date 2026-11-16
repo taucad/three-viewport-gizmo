@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import type { WebGLRenderer } from "three";
-import { PerspectiveCamera, Vector3, Vector4 } from "three";
+import { PerspectiveCamera, REVISION, Vector3, Vector4 } from "three";
 import type { GizmoOptions } from "../index.js";
 import { ViewportGizmo } from "../ViewportGizmo.js";
 
@@ -123,3 +123,6 @@ export function runFlight(gizmo: ViewportGizmo, onFrame?: (frame: number) => voi
   spy.mockRestore();
   return frame;
 }
+
+/** OrbitControls exposes its cached up from three 0.168 (R16); below it roll with OrbitControls is refused. */
+export const ORBIT_TAKES_UP = Number(REVISION) >= 168;

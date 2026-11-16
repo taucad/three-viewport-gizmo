@@ -129,6 +129,45 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  peer-three:
+    # R16 peer floor: the lowest three that passes, 0.168 (the first that can roll with OrbitControls) and the latest.
+    # Unit tests, a consumer type check of the built .d.ts and a WebGL browser smoke; the full gate runs on the
+    # lockfile's three, which is the latest.
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        three: ['0.167.0', '0.168.0', '0.187.0']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GIZMO_GPU: swiftshader
+      GIZMO_BACKENDS: webgl
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '26.7.0'
+      - run: npm run build
+      - name: Install three ${{ matrix.three }}
+        env:
+          THREE: ${{ matrix.three }}
+        run: |
+          set -euo pipefail
+          npm install --no-save --ignore-scripts "three@$THREE" "@types/three@$THREE"
+          test "$(node -p "require('./node_modules/three/package.json').version")" = "$THREE"
+      - run: npx vitest run
+      - name: Type-check a consumer against the built package
+        run: npx tsc -p tests/peer
+      - run: npx playwright install --with-deps chromium
+      # WebGPURenderer draws the gizmo from three 0.171, so the floor's smoke is WebGL only.
+      - name: WebGL browser smoke
+        run: >-
+          npx playwright test -c tests/browser --grep-invert webgpu
+          tests/browser/input.spec.ts tests/browser/baseline.spec.ts tests/browser/gate.spec.ts lib/__tests__/browser/frame.spec.ts
+
   candidate:
     needs: [preflight, quality]
     runs-on: ubuntu-24.04
@@ -357,7 +396,7 @@ jobs:
 
   ci-gate:
     if: always()
-    needs: [preflight, quality, browser-gate, candidate, consumer, publish, registry-verify, registry-release]
+    needs: [preflight, quality, browser-gate, peer-three, candidate, consumer, publish, registry-verify, registry-release]
     runs-on: ubuntu-24.04
     steps:
       - name: Assert required job results
@@ -367,7 +406,7 @@ jobs:
         run: |
           node <<'NODE'
           const needs = JSON.parse(process.env.RESULTS);
-          const required = ['preflight', 'quality', 'browser-gate', 'candidate', 'consumer'];
+          const required = ['preflight', 'quality', 'browser-gate', 'peer-three', 'candidate', 'consumer'];
           if (needs.preflight?.result === 'success' && process.env.PUBLISH === 'true') {
             required.push('publish', 'registry-verify', 'registry-release');
           }

@@ -27,7 +27,7 @@
 npm i @taulabs/three-viewport-gizmo@beta three
 ```
 
-Without the tag, npm installs 2.x until 3.0 is stable. The package is ESM only and needs `three` 0.162 or later as a peer dependency.
+Without the tag, npm installs 2.x until 3.0 is stable. The package is ESM only and needs `three` 0.167 or later as a peer dependency (0.171 or later with `WebGPURenderer`).
 
 ## Quickstart
 

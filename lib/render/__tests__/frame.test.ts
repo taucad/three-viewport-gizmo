@@ -1,4 +1,4 @@
-import { AlwaysDepth, NeverDepth, PerspectiveCamera, RenderTarget, Scene, Vector4 } from "three";
+import { AlwaysDepth, NeverDepth, PerspectiveCamera, RenderTarget, REVISION, Scene, Vector4 } from "three";
 import { describe, expect, it } from "vitest";
 import { createDepthReset, renderInRect } from "../frame";
 import { measureViewport, targetRect, type MutableViewport } from "../rect";
@@ -83,9 +83,11 @@ describe("renderInRect", () => {
     expect([target.viewport.toArray(), target.scissor.toArray(), target.scissorTest]).toEqual([[1, 2, 3, 4], [5, 6, 7, 8], false]);
   });
 
-  it("spells depth test 'always' as NeverDepth on a reversed-depth renderer (three r184 ReversedDepthFuncs)", () => {
+  it("spells depth test 'always' so the installed three maps it to 'always' (the browser case reads the depth)", () => {
     const { reset, scene, camera } = setup();
-    for (const [reversed, func] of [[false, AlwaysDepth], [true, NeverDepth]] as const) {
+    // Before r187 three maps Always to Never under reversed depth, so the reset asks for Never; from r187, Always.
+    const reversedAlways = Number.parseInt(REVISION, 10) < 187 ? NeverDepth : AlwaysDepth;
+    for (const [reversed, func] of [[false, AlwaysDepth], [true, reversedAlways]] as const) {
       renderInRect(fakeRenderer({ reversed }).renderer, scene, camera, rect, reset);
       expect(reset.material.depthFunc).toBe(func);
     }

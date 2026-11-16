@@ -7,7 +7,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TrackballControls } from "three/addons/controls/TrackballControls.js";
 import type { GizmoOptions, GizmoTargetName, GizmoTurnEnd } from "../index.js";
 import type { ViewportGizmo } from "../ViewportGizmo.js";
-import { createGizmo, fire, mountGizmo, runFlight } from "./test-utils.js";
+import { createGizmo, fire, mountGizmo, ORBIT_TAKES_UP, runFlight } from "./test-utils.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -351,7 +351,8 @@ describe("heading, cancel and home", () => {
 });
 
 describe("roll option and orbit up (L4, ruling A)", () => {
-  it("infers the default from the controls and controlled mode, and re-infers on attach and detach", () => {
+  // Below three 0.168 OrbitControls cannot take a new up, so the matrix differs; the events test covers the refusal.
+  it.runIf(ORBIT_TAKES_UP)("infers the default from the controls and controlled mode, and re-infers on attach and detach", () => {
     const gizmo = createGizmo({ cameraPosition: axis(3, 2, 4) });
     const canvas = gizmo.renderer.domElement;
     const matrix: [string, boolean | "free"][] = [];

@@ -5,6 +5,7 @@ import {
   MeshBasicMaterial,
   NeverDepth,
   PlaneGeometry,
+  REVISION,
   Vector4,
   type OrthographicCamera,
   type PerspectiveCamera,
@@ -68,15 +69,18 @@ export function createDepthReset(owned: Owned): DepthReset {
   return reset;
 }
 
+/** three's `ReversedDepthFuncs` maps "always" to "never" before r187 (fixed upstream in r187). */
+const SWAPS_ALWAYS = Number.parseInt(REVISION, 10) < 187;
+
 /**
- * Places `reset` just inside `camera`'s far plane, covering its view, and spells "always" for the renderer: three r184
- * maps `AlwaysDepth` to `NeverDepth` under a reversed depth buffer (`ReversedDepthFuncs`), so a reversed host gets
- * `NeverDepth`, which r184 turns back into "always". Allocates nothing; follows field-of-view changes (F2).
+ * Places `reset` just inside `camera`'s far plane, covering its view, and spells "always" for the renderer: before
+ * r187 three maps `AlwaysDepth` to `NeverDepth` under a reversed depth buffer (`ReversedDepthFuncs`), so a reversed host
+ * on those releases gets `NeverDepth`, which three turns back into "always"; r187 maps "always" to itself (H2).
+ * Allocates nothing; follows field-of-view changes (F2).
  */
 function placeDepthReset(reset: DepthReset, camera: PerspectiveCamera | OrthographicCamera, renderer: GizmoRenderer) {
   const reversed = isWebGPURenderer(renderer) ? renderer.reversedDepthBuffer : renderer.capabilities.reversedDepthBuffer;
-  // ponytail: tracks three r184's mapping; the reversed-depth browser case fails when three fixes it.
-  reset.material.depthFunc = reversed ? NeverDepth : AlwaysDepth;
+  reset.material.depthFunc = reversed && SWAPS_ALWAYS ? NeverDepth : AlwaysDepth;
 
   const distance = camera.far * RESET_DEPTH;
   const half =
