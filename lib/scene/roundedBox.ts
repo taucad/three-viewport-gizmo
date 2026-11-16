@@ -3,6 +3,7 @@ import { classifyPoint, PRIORITY_DEPTH, type HitBox } from "../interaction/hitTe
 import type { LabelFrame } from "../orbit/labelFrame";
 import { targetTable } from "../orbit/targets";
 import type { GeometryProvider } from "./build";
+import { meshAttributes } from "./materials";
 
 /**
  * The radius range the box is built and hit with. At 0 a face point sits on `±flat` and `classifyPoint` names nothing;
@@ -123,7 +124,7 @@ export function roundedBoxPieces(box: HitBox, steps: number, frame: LabelFrame):
         .setAttribute("position", new Float32BufferAttribute(positions, 3))
         .setAttribute("normal", new Float32BufferAttribute(normals, 3));
       if (uvs.length) geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
-      return [name, geometry];
+      return [name, meshAttributes(geometry)];
     })
   );
 }

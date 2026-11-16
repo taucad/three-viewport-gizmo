@@ -88,7 +88,30 @@ describe("buildScene", () => {
       }
     }
     const background = (scene.parts.background.object as Mesh).material as Material;
-    expect(background.depthWrite).toBe(false);
+    // The cubes' background must not hide what reaches past its far faces; the sphere's disc hides nothing.
+    expect(background.depthWrite).toBe(type === "sphere");
+    expect(((scene.parts.lines.object as Mesh).material as Material).depthWrite).toBe(true);
+  });
+
+  it.each(TYPES)("draws %s with at most two programs or pipelines, idle, hovered and with the triad (perf budget `programs`)", (type) => {
+    const scene = build({ type, triad: { enabled: true } });
+    const signatures = new Set<string>();
+    const drawn: (Mesh | Sprite)[] = [scene.parts.background.object as Mesh, scene.parts.lines.object as Mesh];
+    scene.parts.triad.object.traverse((object) => (object as Mesh).isMesh && drawn.push(object as Mesh));
+    for (const { object, idle, hover } of scene.targets) for (const material of [idle, hover]) drawn.push(Object.assign(object.clone(), { material }));
+    for (const object of drawn) {
+      const material = object.material as MeshBasicMaterial;
+      const { map } = material;
+      const { attributes, index } = object.geometry;
+      // What a WebGL program or WebGPU pipeline is keyed on, for these materials: flags, the map's sampling and which
+      // attributes the geometry has (a sprite's are the renderer's).
+      signatures.add(
+        [material.type, material.vertexColors, material.side, material.blending, material.transparent, material.depthWrite,
+          material.depthTest, material.toneMapped, map?.colorSpace, map?.minFilter, map?.magFilter,
+          ...(object instanceof Mesh ? [!!index, ...Object.keys(attributes).sort()] : [])].join()
+      );
+    }
+    expect(signatures.size).toBeLessThanOrEqual(2);
   });
 
   it.each(UPS.map((up) => [up.toArray().join(","), up] as const))(

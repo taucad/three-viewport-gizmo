@@ -4,7 +4,13 @@
  */
 import { expect, test } from "@playwright/test";
 
-type Memory = { backend: string; textures: number; sides: number[]; bytes: number };
+type Memory = {
+  backend: string;
+  textures: number;
+  sides: number[];
+  bytes: number;
+  white: { width: number; height: number; bytes: number; users: number }[];
+};
 type Sharp = { toReference: number; blurryToReference: number };
 
 test.use({ deviceScaleFactor: 2 });
@@ -16,12 +22,18 @@ for (const backend of ["webgpu", "webgl"] as const) {
       await page.waitForFunction("window.READY === true");
     });
 
-    test("the cube holds at most 12 label textures and 1.5 MB after hovering every target", async ({ page }) => {
+    // Budget row `textures`: at most 13, that is 12 label textures plus one shared 1×1 white texture (S7); bytes unchanged.
+    test("the cube holds at most 12 label textures, 1.5 MB, and one shared white texel after hovering every target", async ({ page }) => {
       for (const dpr of [1, 2]) {
         const result = await page.evaluate<Memory>(`T.memory("cube", ${dpr})`);
         expect(result.backend).toBe(backend);
         expect(result.textures).toBeLessThanOrEqual(12);
         expect(result.bytes).toBeLessThanOrEqual(1.5 * 2 ** 20);
+        expect(result.white).toHaveLength(1);
+        const [white] = result.white;
+        expect([white.width, white.height, white.bytes]).toEqual([1, 1, 4]);
+        // Shared by the plain targets' materials, the lines and the background, never one texture each.
+        expect(white.users).toBeGreaterThan(1);
       }
     });
 

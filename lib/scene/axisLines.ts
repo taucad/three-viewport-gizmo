@@ -1,8 +1,9 @@
-import { BufferAttribute, Color, CylinderGeometry, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from "three";
+import { BufferAttribute, Color, CylinderGeometry, Mesh, Quaternion, Vector3 } from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { fieldOfViewDistance } from "../render/internalCamera";
 import { GIZMO_AXES, GIZMO_SPHERE_AXES_DISTANCE } from "../utils/constants";
 import type { PartBuilder, SceneOptions } from "./build";
+import { meshAttributes, targetMaterial, whiteTexture } from "./materials";
 
 /** Half the sphere's orthographic frustum height, as in `createInternalCamera`. */
 const SPHERE_HALF_HEIGHT = 1.8;
@@ -39,19 +40,20 @@ const _scale = /*@__PURE__*/ new Vector3();
  */
 export const axisLines: PartBuilder = (_, { frame }, owned) => {
   const unit = new CylinderGeometry(1, 1, 1, RADIAL_SEGMENTS).translate(0, 0.5, 0);
-  unit.deleteAttribute("normal");
   unit.deleteAttribute("uv");
   const base = unit.attributes.position.array;
   const count = unit.attributes.position.count;
-  const geometry = mergeGeometries(GIZMO_AXES.map(() => unit));
-  unit.dispose();
+  const rotations = GIZMO_AXES.map((end) => new Quaternion().setFromUnitVectors(Y, frame.byEnd[end].direction));
+  // Each line's normals, turned once: the update scales a line only along and across its axis, which keeps them.
+  const lines = GIZMO_AXES.map((_, i) => unit.clone().applyQuaternion(rotations[i]));
+  const geometry = mergeGeometries(lines);
+  for (const line of [unit, ...lines]) line.dispose();
   const colors = new BufferAttribute(new Float32Array(geometry.attributes.position.count * 3), 3);
-  geometry.setAttribute("color", colors);
-  // The target materials' fixed flags (S1), so a later vertex-coloured background or edge material shares this program.
-  const material = new MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: true, toneMapped: false });
+  meshAttributes(geometry.setAttribute("color", colors));
+  // The targets' program: white texture, coloured by vertex.
+  const material = targetMaterial({ sprite: false, map: null, color: 0xffffff, opacity: 1 }, whiteTexture(owned));
   owned.add(geometry).add(material);
 
-  const rotations = GIZMO_AXES.map((end) => new Quaternion().setFromUnitVectors(Y, frame.byEnd[end].direction));
   const object = new Mesh(geometry, material);
   // ponytail: positions move on every update, so culling would need a bounds refresh; the gizmo is always in view.
   object.frustumCulled = false;
