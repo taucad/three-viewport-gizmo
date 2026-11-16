@@ -1,4 +1,3 @@
-import { PerformanceObserver } from "node:perf_hooks";
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
 import { Quaternion, Vector3 } from "three";
@@ -65,7 +64,7 @@ describe("sample", () => {
     expect(out.up.distanceTo(flight.up)).toBeLessThan(1e-12);
   });
 
-  it("should allocate nothing per frame (I4)", async () => {
+  it("should allocate nothing per frame (I4)", () => {
     const flights = [
       orbitFlight(frame, frame.u, { azimuth: 0, polar: 1, roll: 0.7 }, { azimuth: 2, polar: 2 }, 1),
       rigidFlight(new Quaternion(), new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), 2), 1),
@@ -79,19 +78,20 @@ describe("sample", () => {
     const run = (count: number) => {
       for (let i = 0; i < count; i++) sample(flights[i & 1], elapsed[i % 97] as number, out);
     };
-    let collections = 0;
-    const observer = new PerformanceObserver((list) => (collections += list.getEntries().length));
-    run(100_000); // warm up and optimise first
-    gc();
-    observer.observe({ entryTypes: ["gc"] });
-    const before = process.memoryUsage().heapUsed;
-    const calls = 1_000_000;
-    run(calls);
-    const after = process.memoryUsage().heapUsed;
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    observer.disconnect();
-    // A collection mid-run would hide allocations, so none may happen; 16 B per call would be 16 MB.
-    expect(collections).toBe(0);
-    expect((after - before) / calls).toBeLessThan(0.5);
+    run(200_000); // warm-up: JIT tier-up and its own allocations stay out of the measurement
+
+    // Bytes per call in short batches between full collections. A batch allocating 16 B per call (160 KB) stays well
+    // below the young generation, so no scavenge hides it; the median drops a batch a stray collection disturbed.
+    const calls = 10_000;
+    const perCall: number[] = [];
+    for (let batch = 0; batch < 15; batch++) {
+      gc();
+      const before = process.memoryUsage().heapUsed;
+      run(calls);
+      perCall.push((process.memoryUsage().heapUsed - before) / calls);
+    }
+    const median = perCall.sort((x, y) => x - y)[7];
+    // `sample` owns none of I4's 256 B per animating frame: a single Vector3 (about 40 B) fails this.
+    expect(median).toBeLessThan(8);
   });
 });
