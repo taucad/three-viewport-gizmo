@@ -124,7 +124,6 @@ export function resolveOptions(options: GizmoOptions, context: ResolveContext): 
     offset: fill(options.offset, { top: 10, left: 10, bottom: 10, right: 10 }),
     animated: options.animated ?? !prefersReducedMotion(),
     speed: options.speed ?? 1,
-    resolution: options.resolution ?? (isSphere ? 64 : 128),
     up: frame.up,
     frontDirection: frame.front,
     roll: options.roll ?? (!controlled && controlsTakeUp),
