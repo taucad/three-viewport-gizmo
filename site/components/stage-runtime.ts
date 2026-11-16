@@ -218,6 +218,8 @@ export async function createStage(
   let controls: OrbitControls | CameraControls | null = null;
   const timer = new Timer();
   let updateControls = () => {};
+  /** Hands the controls the camera the page wrote: in controlled mode the gizmo writes nothing, so it syncs nothing. */
+  let syncControls = () => {};
   const viewListeners = new Set<() => void>();
   const notify = () => viewListeners.forEach((fn) => fn());
 
@@ -227,6 +229,7 @@ export async function createStage(
     orbit.update();
     orbit.addEventListener("change", notify);
     gizmo?.attachControls(orbit);
+    syncControls = () => orbit.update();
     controls = orbit;
   } else if (controller === "camera-controls") {
     if (!cameraControlsInstalled) {
@@ -239,7 +242,9 @@ export async function createStage(
     void cc.setLookAt(...camera.position.toArray(), ...target.toArray(), false);
     cc.addEventListener("update", notify);
     // The adapter keeps camera-controls and the gizmo in step; the gizmo disables `cc` while it turns.
-    gizmo?.attachControls(cameraControls(cc));
+    const adapter = cameraControls(cc);
+    gizmo?.attachControls(adapter);
+    syncControls = () => void adapter.update();
     updateControls = () => {
       const delta = timer.getDelta();
       if (cc.enabled) cc.update(delta);
@@ -252,6 +257,8 @@ export async function createStage(
       if (gizmo.options.controlled) applyPose(camera, gizmo.target, pose);
       notify();
     });
+    // camera-controls keeps its own orbit state: without this, the next drag on the canvas starts from the old view.
+    gizmo.addEventListener("end", () => gizmo.options.controlled && syncControls());
     gizmo.addEventListener("attargetchange", notify);
     gizmo.addEventListener("end", notify);
   }
