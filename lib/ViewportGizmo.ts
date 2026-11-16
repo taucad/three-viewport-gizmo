@@ -10,16 +10,15 @@ import {
   type WebGLRenderer,
 } from "three";
 import type { WebGPURenderer } from "three/webgpu";
-import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-import {
-  GizmoOptions,
-  ViewportGizmoEventMap,
-  GizmoAxisOptions,
+import type {
+  GizmoControls,
+  LegacyGizmoOptions,
+  LegacyGizmoEventMap,
   GizmoOptionsFallback,
   GizmoAxisObject,
   GizmoViewportArray,
-  GizmoAxisKind,
+  GizmoTargetKind,
   GizmoAxisName,
   GizmoFaceName,
   GizmoAxisObjectUserData,
@@ -38,10 +37,8 @@ import { renderInRect, saveViewport, viewportRect } from "./render/viewport";
 import { axesObjects } from "./scene/axesObjects";
 import { updateAxis } from "./scene/updateAxis";
 
-export type { GizmoOptions, ViewportGizmoEventMap, GizmoAxisOptions };
-
 function objectIdentity(object: GizmoAxisObject | null): {
-  kind: GizmoAxisKind | null;
+  kind: GizmoTargetKind | null;
   axes: readonly GizmoAxisName[] | null;
   face: GizmoFaceName | null;
   direction: Vector3 | null;
@@ -74,7 +71,7 @@ const _pose: OrbitPose = { azimuth: 0, polar: 0 };
  *
  * @extends Object3D
  */
-export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
+export class ViewportGizmo extends Object3D<LegacyGizmoEventMap> {
   /** Whether the gizmo is currently active and responding to user input */
   enabled: boolean = true;
 
@@ -85,7 +82,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
   renderer: WebGLRenderer | WebGPURenderer;
 
   /** The configuration options */
-  options!: GizmoOptions;
+  options!: LegacyGizmoOptions;
 
   /** The point around which the camera rotates */
   target = new Vector3();
@@ -123,7 +120,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
   private _flightStart: number | null = null;
   private _focus: GizmoAxisObject | null = null;
   private _placement!: GizmoOptionsFallback["placement"];
-  private _controls?: OrbitControls;
+  private _controls?: GizmoControls;
   private _controlsListeners?: {
     start: () => void;
     end: () => void;
@@ -135,12 +132,12 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
    *
    * @param camera - The camera to be controlled by this gizmo
    * @param renderer - The renderer drawing the scene; `WebGLRenderer` or `WebGPURenderer`
-   * @param options - Configuration; see {@link GizmoOptions} for every field and its default
+   * @param options - Configuration; see {@link LegacyGizmoOptions} for every field and its default
    */
   constructor(
     camera: PerspectiveCamera | OrthographicCamera,
     renderer: WebGLRenderer | WebGPURenderer,
-    options: GizmoOptions = {}
+    options: LegacyGizmoOptions = {}
   ) {
     super();
 
@@ -173,7 +170,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
    * - Provides a way to completely rebuild the gizmo with new options
    * - Can be computationally expensive, so use sparingly
    */
-  set(options: GizmoOptions = {}) {
+  set(options: LegacyGizmoOptions = {}) {
     const controls = this._controls;
     this.dispose();
 
@@ -319,7 +316,7 @@ export class ViewportGizmo extends Object3D<ViewportGizmoEventMap> {
    *
    * @param controls - The scene's {@link https://threejs.org/docs/#examples/en/controls/OrbitControls OrbitControls}
    */
-  attachControls(controls: OrbitControls) {
+  attachControls(controls: GizmoControls) {
     this.detachControls();
 
     this.target = controls.target;

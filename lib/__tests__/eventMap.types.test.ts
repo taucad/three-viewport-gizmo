@@ -1,26 +1,26 @@
 import { describe, expectTypeOf, it } from "vitest";
 import type { Vector3 } from "three";
 import type {
-  GizmoAxisKind,
+  GizmoTargetKind,
   GizmoAxisName,
   GizmoAxisObject,
   GizmoAxisObjectUserData,
   GizmoFaceName,
-  ViewportGizmoEventMap,
+  LegacyGizmoEventMap,
 } from "../types.js";
 import { GIZMO_AXES, GIZMO_FACES } from "../utils/constants.js";
 
-describe("ViewportGizmoEventMap + userData contracts", () => {
+describe("LegacyGizmoEventMap + userData contracts", () => {
   it("change and hoverchange carry identity fields", () => {
-    expectTypeOf<ViewportGizmoEventMap["change"]>().toMatchTypeOf<{
-      kind: GizmoAxisKind | null;
+    expectTypeOf<LegacyGizmoEventMap["change"]>().toMatchTypeOf<{
+      kind: GizmoTargetKind | null;
       axes: readonly GizmoAxisName[] | null;
       face: GizmoFaceName | null;
       direction: Vector3 | null;
     }>();
-    expectTypeOf<ViewportGizmoEventMap["hoverchange"]>().toMatchTypeOf<{
+    expectTypeOf<LegacyGizmoEventMap["hoverchange"]>().toMatchTypeOf<{
       object: GizmoAxisObject | null;
-      kind: GizmoAxisKind | null;
+      kind: GizmoTargetKind | null;
       axes: readonly GizmoAxisName[] | null;
       face: GizmoFaceName | null;
       direction: Vector3 | null;
@@ -29,7 +29,7 @@ describe("ViewportGizmoEventMap + userData contracts", () => {
 
   it("GizmoAxisObjectUserData optional fields", () => {
     expectTypeOf<GizmoAxisObjectUserData["kind"]>().toEqualTypeOf<
-      GizmoAxisKind | undefined
+      GizmoTargetKind | undefined
     >();
     expectTypeOf<GizmoAxisObjectUserData["axes"]>().toEqualTypeOf<
       readonly GizmoAxisName[] | undefined

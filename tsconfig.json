@@ -23,6 +23,7 @@
       "@lib/*": ["./lib/*"]
     }
   },
+  "files": ["lib/__tests__/publicSurface.types.test.ts"],
   "include": ["lib/**/*.ts"],
   "exclude": ["lib/**/*.test.ts", "lib/__tests__/**"]
 }

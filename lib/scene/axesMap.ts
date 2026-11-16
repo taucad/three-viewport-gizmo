@@ -6,7 +6,7 @@ import {
   SRGBColorSpace,
   Texture,
 } from "three";
-import { GizmoAxisOptions, GizmoOptionsFallback } from "@lib/types";
+import { GizmoTargetOptions, GizmoOptionsFallback } from "@lib/types";
 import { GIZMO_AXES } from "../utils/constants";
 
 export const axesMap = (options: GizmoOptionsFallback, offset: number = 2) => {
@@ -14,7 +14,7 @@ export const axesMap = (options: GizmoOptionsFallback, offset: number = 2) => {
   const doubleOffset = offset * 2;
   const { isSphere, resolution, radius, font, corners, edges } = options;
 
-  const axes: (Required<GizmoAxisOptions> & { radius: number })[] =
+  const axes: (Required<GizmoTargetOptions> & { radius: number })[] =
     GIZMO_AXES.map((axis) => ({ ...options[axis], radius }));
 
   if (isSphere && corners.enabled) axes.push(corners as any);
@@ -108,7 +108,7 @@ export const axesMap = (options: GizmoOptionsFallback, offset: number = 2) => {
     size: number,
     radius: number,
     label: string,
-    border: GizmoAxisOptions["border"],
+    border: GizmoTargetOptions["border"],
     color: ColorRepresentation,
     labelColor: ColorRepresentation
   ) {
@@ -158,7 +158,7 @@ export const axesMap = (options: GizmoOptionsFallback, offset: number = 2) => {
   }
 
   function getFontStyle(
-    axis: GizmoAxisOptions[],
+    axis: GizmoTargetOptions[],
     resolution: number,
     font: GizmoOptionsFallback["font"]
   ) {

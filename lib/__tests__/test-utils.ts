@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { GizmoOptions, GizmoOptionsFallback, GizmoAxisObject } from "../types.js";
+import type { LegacyGizmoOptions, GizmoOptionsFallback, GizmoAxisObject } from "../types.js";
 import { ViewportGizmo } from "../ViewportGizmo.js";
 import type { WebGLRenderer } from "three";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -68,7 +68,7 @@ export function createStubRenderer(
 export type CreateGizmoOptions = {
   readonly defaultUp?: Vector3;
   readonly cameraPosition: Vector3;
-  readonly gizmoOptions?: GizmoOptions;
+  readonly gizmoOptions?: LegacyGizmoOptions;
 };
 
 export function createGizmo({

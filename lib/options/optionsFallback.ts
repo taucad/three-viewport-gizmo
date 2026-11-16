@@ -1,8 +1,8 @@
-import {
-  GizmoAxisOptions,
-  GizmoOptions,
+import type {
   GizmoOptionsFallback,
+  GizmoTargetOptions,
   GizmoUpAxis,
+  LegacyGizmoOptions,
 } from "@lib/types";
 import {
   GIZMO_MAIN_AXES,
@@ -55,7 +55,7 @@ const FACE_LABELS_FROM_UP_DIRECTION = {
  * @returns A new options object with every default applied
  */
 export const optionsFallback = (
-  options: GizmoOptions
+  options: LegacyGizmoOptions
 ): GizmoOptionsFallback => {
   const type = options.type || "sphere";
   const isSphere = type === "sphere";
@@ -84,7 +84,7 @@ export const optionsFallback = (
   });
 
   // Positive Axes fallback options
-  const axesFallback: GizmoAxisOptions = {
+  const axesFallback: GizmoTargetOptions = {
     enabled: true,
     color: 0xffffff,
     opacity: 1,
@@ -116,7 +116,7 @@ export const optionsFallback = (
     },
   };
 
-  const optionsFallback: GizmoOptions = {
+  const optionsFallback: LegacyGizmoOptions = {
     type,
     up,
     container: document.body,
