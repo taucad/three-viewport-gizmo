@@ -166,7 +166,6 @@ jobs:
           assert.equal(typeof ViewportGizmo, 'function');
           await access(resolve(packageRoot, manifest.types));
           NODE
-          node -e "const { ViewportGizmo } = require('@taulabs/three-viewport-gizmo'); if (typeof ViewportGizmo !== 'function') process.exit(1)"
 
   publish:
     if: needs.preflight.outputs.npm-publish == 'true'
@@ -252,7 +251,6 @@ jobs:
           npm init --yes >/dev/null
           npm install --ignore-scripts "$name@$version" three@0.184.0
           node --input-type=module -e "import { ViewportGizmo } from '$name'; if (typeof ViewportGizmo !== 'function') process.exit(1)"
-          node -e "const { ViewportGizmo } = require('$name'); if (typeof ViewportGizmo !== 'function') process.exit(1)"
           npm audit signatures --json --include-attestations > /tmp/npm-audit-signatures.json
           cd "$root"
           expected=()

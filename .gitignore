@@ -21,3 +21,6 @@ site/next-env.d.ts
 *.sln
 *.sw?
 site/tsconfig.tsbuildinfo
+
+# Build output: published from the npm tarball, never committed
+/dist
