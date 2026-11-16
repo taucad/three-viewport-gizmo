@@ -20,7 +20,7 @@ const TRIAD_DRAWS = 4;
 
 const open = async (page: Page, backend: string) => {
   const errors: string[] = [];
-  page.on("console", (message) => message.type() === "error" && errors.push(message.text()));
+  page.on("console", (message) => (message.type() === "error" || message.type() === "warning") && !message.text().includes("GL Driver Message") && errors.push(message.text()));
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`/lib/__tests__/browser/triad.html?backend=${backend}`);
   await page.waitForFunction("window.READY === true");

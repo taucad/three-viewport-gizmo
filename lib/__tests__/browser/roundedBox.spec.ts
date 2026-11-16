@@ -24,7 +24,7 @@ type View = {
 for (const backend of ["webgpu", "webgl"] as const) {
   test(`${backend} rounded-cube: no seam at any of the 26 views; hover lights the piece the hit test names`, async ({ page }) => {
     const errors: string[] = [];
-    page.on("console", (message) => message.type() === "error" && errors.push(message.text()));
+    page.on("console", (message) => (message.type() === "error" || message.type() === "warning") && !message.text().includes("GL Driver Message") && errors.push(message.text()));
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`/lib/__tests__/browser/roundedBox.html?backend=${backend}`);
     await page.waitForFunction("window.READY === true");

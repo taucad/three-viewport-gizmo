@@ -19,7 +19,7 @@ type State = { at: string | null; up: number[]; screenUp: number[]; animating: b
 
 const open = async (page: Page, backend: string, roll: string) => {
   const errors: string[] = [];
-  page.on("console", (message) => message.type() === "error" && errors.push(message.text()));
+  page.on("console", (message) => (message.type() === "error" || message.type() === "warning") && !message.text().includes("GL Driver Message") && errors.push(message.text()));
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`/lib/__tests__/browser/turns.html?backend=${backend}&roll=${roll}`);
   await page.waitForFunction("window.READY === true");

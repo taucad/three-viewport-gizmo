@@ -125,4 +125,27 @@ describe("roundedBoxGeometry", () => {
       });
     }
   });
+  // Regression (S6's report of an upside-down "Top"): the rounded cube's labels read exactly as the plain cube's on
+  // every up, so any orientation question belongs to the label frame (O1), not to these UVs.
+  it.each(UPS.map((up) => [up.join(","), up] as const))("orients each label as the plain cube does on up %s", (_, up) => {
+    const cube = buildScene(resolveOptions({ type: "cube" }, { up: new Vector3(...up) }));
+    for (const { entry, mesh, vertices } of pieces(build({}, up))) {
+      if (entry.kind !== "face") continue;
+      const uv = mesh.geometry.getAttribute("uv") as BufferAttribute;
+      // The texture's right and up on the surface: on the flat face, u and v grow linearly along them.
+      const right = new Vector3();
+      const top = new Vector3();
+      vertices.forEach((v, i) => {
+        right.addScaledVector(v, uv.getX(i) - 0.5);
+        top.addScaledVector(v, uv.getY(i) - 0.5);
+      });
+      const plain = cube.targets.find((t) => t.target.name === entry.name)!.object;
+      const along = (x: number, y: number) => new Vector3(x, y, 0).applyQuaternion(plain.quaternion);
+      const normal = entry.direction;
+      const project = (v: Vector3) => v.sub(normal.clone().multiplyScalar(v.dot(normal))).normalize();
+      // The vertex sums lean with the triangle diagonals; a flip or a quarter turn would be at or below 0.
+      expect(project(right).dot(along(1, 0))).toBeGreaterThan(0.99);
+      expect(project(top).dot(along(0, 1))).toBeGreaterThan(0.99);
+    }
+  });
 });

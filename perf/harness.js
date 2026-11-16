@@ -54,7 +54,8 @@ const make = (opts = {}) => {
   // `up` is a signed axis such as `+z`, `-x` or `y`; 3.0 takes the label up as a vector.
   const up = q.get('up');
   const axis = up && new THREE.Vector3().setComponent('xyz'.indexOf(up.at(-1)), up.startsWith('-') ? -1 : 1);
-  const g = new ViewportGizmo(camera, renderer, { type, container: wrap, ...(axis ? { up: axis } : {}), ...opts });
+  const triad = q.get('triad') === '1' ? { triad: { enabled: true } } : {};
+  const g = new ViewportGizmo(camera, renderer, { type, container: wrap, ...(axis ? { up: axis } : {}), ...triad, ...opts });
   g.render2 = () => g.render();
   return g;
 };
@@ -98,6 +99,7 @@ window.P = {
     const inv = inventory(g);
     let compileMs = null;
     if (warm && type !== 'viewhelper') { t = now(); await g.compile(); compileMs = now() - t; }
+    const afterCompile = snap();
     renderer.info.reset(); t = now(); g.render2(); const firstRenderCpuMs = now() - t; await sync(); const firstRenderSyncedMs = now() - t;
     const afterFirst = snap();
     renderer.info.reset(); t = now(); g.render2(); const secondRenderCpuMs = now() - t; await sync();
@@ -111,7 +113,7 @@ window.P = {
       t = now(); g.render2(); const secondHoverRenderCpuMs = now() - t; await sync();
       hover = { hit, firstHoverRenderCpuMs, firstHoverRenderSyncedMs, secondHoverRenderCpuMs, after: snap() };
     }
-    return { base, constructMs, compileMs, inventory: inv, firstRenderCpuMs, firstRenderSyncedMs, secondRenderCpuMs, afterFirst, steady, hover };
+    return { base, constructMs, compileMs, afterCompile, inventory: inv, firstRenderCpuMs, firstRenderSyncedMs, secondRenderCpuMs, afterFirst, steady, hover };
   },
 
   async construct(n) { // construct + dispose without rendering
@@ -254,6 +256,7 @@ Object.assign(window.P, {
 // --- browser gate (tests/browser) ---
 const events = { start: 0, change: 0, end: 0 };
 let demandFrames = 0;
+let demandEndFrame = null;
 Object.assign(window.P, {
   /** A gizmo that the gate drives with real input, an OrbitControls on the canvas, and event counts. */
   gate(position) {
@@ -271,6 +274,8 @@ Object.assign(window.P, {
     if (position) { camera.position.fromArray(position); camera.lookAt(0, 0, 0); }
     g = make();
     for (const type of Object.keys(events)) g.addEventListener(type, () => events[type]++);
+    // `end` fires inside the frame whose render() writes the last pose, after the host drew its scene.
+    g.addEventListener('end', () => { demandEndFrame = demandFrames; });
     let queued = false;
     const draw = () => { queued = false; demandFrames++; renderer.render(scene, camera); g.render2(); };
     g.addEventListener('invalidate', () => { if (!queued) { queued = true; requestAnimationFrame(draw); } });
@@ -278,6 +283,7 @@ Object.assign(window.P, {
     return true;
   },
   demandFrames: () => demandFrames,
+  demandEndFrame: () => demandEndFrame,
   rect: () => { const r = elementOf(g).getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; },
   canvasRect: () => { const r = renderer.domElement.getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; },
   events: () => ({ ...events }),
