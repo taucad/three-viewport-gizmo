@@ -50,6 +50,13 @@ function reachable(scene: GizmoScene) {
 
 const materialsOf = (scene: GizmoScene) => [...reachable(scene)].filter((r): r is Material => r instanceof Material);
 
+/** The axis lines drawn: the six are one mesh, and a hidden one collapses to the origin. */
+const shownLines = (scene: GizmoScene) => {
+  const { array } = (scene.parts.lines.object as Mesh).geometry.attributes.position;
+  const block = array.length / 6;
+  return [0, 1, 2, 3, 4, 5].filter((i) => array.slice(i * block, (i + 1) * block).some((v) => v !== 0)).length;
+};
+
 const listenDispose = (resources: Iterable<EventDispatcher<any>>) => {
   const disposed = new Set<unknown>();
   for (const resource of resources) resource.addEventListener("dispose", () => disposed.add(resource));
@@ -57,10 +64,10 @@ const listenDispose = (resources: Iterable<EventDispatcher<any>>) => {
 };
 
 describe("buildScene", () => {
-  it.each(TYPES)("builds all 26 targets, six lines, a background and a triad slot on %s", (type) => {
+  it.each(TYPES)("builds all 26 targets, the lines as one mesh, a background and a triad slot on %s", (type) => {
     const scene = build({ type });
     expect(scene.targets.map((t) => t.target.name)).toHaveLength(26);
-    expect(scene.parts.lines.object.children).toHaveLength(6);
+    expect(scene.parts.lines.object).toBeInstanceOf(Mesh);
     expect(scene.group.children).toContain(scene.parts.triad.object);
   });
 
@@ -224,10 +231,10 @@ describe("updateScene", () => {
       // `nx` fills from `x`, as in 2.x.
       expect(object.visible).toBe(entry.kind === "edge" ? false : end !== "x" && end !== "nx");
     }
-    const lines = scene.parts.lines.object.children;
-    expect(lines.filter((line) => line.visible)).toHaveLength(0); // x is off, so its line is too
+    expect(shownLines(scene)).toBe(0); // x is off, so its line is too
+    expect(scene.parts.lines.object.visible).toBe(false);
     updateScene(scene, resolve({ type: "cube", x: { line: true } }));
-    expect(lines.filter((line) => line.visible)).toHaveLength(1);
+    expect(shownLines(scene)).toBe(1);
     // The cube's edges are at opacity 0 at rest: hidden until hovered.
     expect(scene.targets.every((t) => t.object.visible === (t.entry.kind !== "edge"))).toBe(true);
     hoverScene(scene, "top-front");

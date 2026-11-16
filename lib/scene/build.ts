@@ -1,12 +1,7 @@
 import {
-  BufferAttribute,
-  Color,
-  CylinderGeometry,
   Group,
   Mesh,
-  MeshBasicMaterial,
   Sprite,
-  Vector3,
   type BufferGeometry,
   type Material,
   type Object3D,
@@ -15,7 +10,8 @@ import {
 import { labelFrame, type AxisEnd, type LabelFrame } from "../orbit/labelFrame";
 import { targetTable, type TargetEntry } from "../orbit/targets";
 import type { GizmoResolvedOptions, GizmoTarget, GizmoTargetKind } from "../types";
-import { GIZMO_AXES, GIZMO_SPHERE_AXES_DISTANCE } from "../utils/constants";
+import { GIZMO_SPHERE_AXES_DISTANCE } from "../utils/constants";
+import { axisLines } from "./axisLines";
 import { background } from "./background";
 import { cornerGeometry, placeCorner } from "./corners";
 import { edgeGeometry, placeEdge } from "./edges";
@@ -97,44 +93,6 @@ const cubeGeometry: GeometryProvider = (o, frame, owned) => {
   const geometry = { face: faceGeometry(o), edge: edgeGeometry(o), corner: cornerGeometry(o) };
   Object.values(geometry).forEach((g) => owned.add(g));
   return (entry) => ({ geometry: geometry[entry.kind], ...PARTS[entry.kind](entry, frame, o) });
-};
-
-const Y = /*@__PURE__*/ new Vector3(0, 1, 0);
-const _color = /*@__PURE__*/ new Color();
-
-/**
- * One line per axis end, built whether or not it is drawn so `line` and `enabled` are `visible` flags (N1), with one
- * vertex-coloured material for all six.
- */
-// ponytail: world-space cylinders sized from `lineWidth` and `size`; S3's `axisLines.ts` replaces them.
-const axisLines: PartBuilder = (_, { frame }, owned) => {
-  const material = new MeshBasicMaterial({ vertexColors: true, toneMapped: false });
-  owned.add(material);
-  const object = new Group();
-  const lines = GIZMO_AXES.map((end) => {
-    const geometry = new CylinderGeometry(1, 1, 1, 8).translate(0, 0.5, 0);
-    geometry.setAttribute("color", new BufferAttribute(new Float32Array(geometry.attributes.position.count * 3), 3));
-    owned.add(geometry);
-    const mesh = new Mesh(geometry, material);
-    mesh.quaternion.setFromUnitVectors(Y, frame.byEnd[end].direction);
-    object.add(mesh);
-    return [end, mesh] as const;
-  });
-  return {
-    object,
-    update(o) {
-      const radius = (o.lineWidth * 1.8) / o.size;
-      for (const [end, mesh] of lines) {
-        const { enabled, line, scale, color } = o[end];
-        mesh.visible = enabled && line;
-        mesh.scale.set(radius, o.type === "sphere" ? GIZMO_SPHERE_AXES_DISTANCE - scale / 2 : 0.975, radius);
-        const colors = mesh.geometry.attributes.color as BufferAttribute;
-        const { r, g, b } = _color.set(color);
-        for (let i = 0; i < colors.count; i++) colors.setXYZ(i, r, g, b);
-        colors.needsUpdate = true;
-      }
-    },
-  };
 };
 
 /** An empty slot for S6's axis triad. */
