@@ -96,8 +96,9 @@ describe("resolveOptions", () => {
   });
 
   it("should default to the 2.3.0 values for each type", () => {
-    expect(resolve({}).resolution).toBe(64);
-    expect(resolve({ type: "cube" }).resolution).toBe(128);
+    // Unset: the labels size their textures from `size` and the device pixel ratio (S2, D13).
+    expect(resolve({}).resolution).toBeUndefined();
+    expect(resolve({ type: "cube", resolution: 256 }).resolution).toBe(256);
     expect(resolve({ type: "cube" }).radius).toBe(0.2);
     expect(resolve({ type: "rounded-cube" }).radius).toBe(0.3);
     expect(resolve({}).x).toMatchObject({ label: "X", color: 0xff3653, line: true });

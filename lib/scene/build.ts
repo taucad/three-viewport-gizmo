@@ -15,7 +15,8 @@ import { axisLines } from "./axisLines";
 import { background } from "./background";
 import { cornerGeometry, placeCorner } from "./corners";
 import { edgeGeometry, placeEdge } from "./edges";
-import { atlasLabels, faceGeometry, placeFace, type LabelProvider, type LabelTextures, type Placement } from "./faces";
+import { faceGeometry, placeFace, type LabelProvider, type LabelTextures, type Placement } from "./faces";
+import { canvasLabels } from "./labels";
 import type { Owned } from "./materials";
 import { roundedBoxGeometry } from "./roundedBox";
 import { restyleTargets, targetMaterials, targetOf } from "./update";
@@ -30,8 +31,8 @@ type DeepRequired<T> = T extends (...args: never[]) => unknown
 
 // ponytail: local until lane K exports a deep-required `GizmoResolvedOptions` (N1's type request); then alias it.
 /** Resolved options as the scene reads them: every default filled by `resolveOptions`. */
-export type SceneOptions = DeepRequired<Omit<GizmoResolvedOptions, "container" | "onMaterial">> &
-  Pick<GizmoResolvedOptions, "onMaterial">;
+export type SceneOptions = DeepRequired<Omit<GizmoResolvedOptions, "container" | "onMaterial" | "resolution">> &
+  Pick<GizmoResolvedOptions, "onMaterial" | "resolution">;
 
 /** One of the 26 targets as built. Hidden kinds and targets are built too, so `enabled` is a `visible` flag (U10). */
 export type SceneTarget = {
@@ -99,9 +100,9 @@ const cubeGeometry: GeometryProvider = (o, frame, owned) => {
 /** An empty slot for S6's axis triad. */
 const triad: PartBuilder = () => ({ object: new Group(), update() {} });
 
-/** The 2.3.0 look on the new build: S2 to S6 replace one builder each. */
+/** The 2.3.0 look on the new build, with S2's labels: S3 to S6 replace one builder each. */
 export const DEFAULT_BUILDERS: SceneBuilders = {
-  labels: atlasLabels,
+  labels: canvasLabels,
   geometry: { cube: cubeGeometry, "rounded-cube": roundedBoxGeometry },
   lines: axisLines,
   background,

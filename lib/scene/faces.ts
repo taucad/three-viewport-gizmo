@@ -1,9 +1,6 @@
 import { Matrix4, Quaternion, Vector3, type BufferGeometry, type Texture } from "three";
 import type { AxisEnd, LabelFrame } from "../orbit/labelFrame";
 import type { TargetEntry } from "../orbit/targets";
-import type { GizmoOptionsFallback } from "../types";
-import { GIZMO_AXES } from "../utils/constants";
-import { axesMap, cloneAxisMap } from "./axesMap";
 import type { Disposable } from "./materials";
 import { roundedRectangleGeometry } from "./roundedRectangleGeometry";
 import type { SceneOptions } from "./build";
@@ -44,42 +41,9 @@ export type LabelTextures = Disposable & {
   texture(part: AxisEnd | "edge" | "corner", state: "idle" | "hover"): Texture;
   /** Redraws every texture in place for a cheap change: same textures, new pixels. */
   update(o: SceneOptions): void;
+  /** Called after the provider redrew on its own, for a late font: the host needs a frame. */
+  onRedraw?: () => void;
 };
 
-/** Makes the label textures for a build. S2's one-texture-per-label provider replaces {@link atlasLabels}. */
+/** Makes the label textures for a build. The default is `canvasLabels` in `labels.ts`. */
 export type LabelProvider = (o: SceneOptions) => LabelTextures;
-
-const ATLAS_ROWS = [...GIZMO_AXES, "corner", "edge"] as const;
-
-/**
- * The 2.3.0 atlas as a label provider: one canvas, one clone per part and state with its cell locked at creation. Its
- * clones share one source, so a redraw uploads once.
- */
-// ponytail: adapts 2.x `axesMap` until S2 lands `labels.ts`; the atlas always holds the sphere's edge and corner rows.
-export const atlasLabels: LabelProvider = (o) => {
-  const draw = (o: SceneOptions) =>
-    axesMap({
-      ...o,
-      isSphere: o.type === "sphere",
-      corners: { ...o.corners, enabled: true },
-      edges: { ...o.edges, enabled: true },
-    } as unknown as GizmoOptionsFallback);
-  const atlas = draw(o);
-  const textures = new Map<string, Texture>();
-  return {
-    texture(part, state) {
-      const key = `${part}|${state}`;
-      let texture = textures.get(key);
-      if (!texture) textures.set(key, (texture = cloneAxisMap(atlas, ATLAS_ROWS.indexOf(part), state === "hover")));
-      return texture;
-    },
-    update(next) {
-      atlas.image = draw(next).image;
-      for (const texture of textures.values()) texture.needsUpdate = true;
-    },
-    dispose() {
-      for (const texture of textures.values()) texture.dispose();
-      atlas.dispose();
-    },
-  };
-};
