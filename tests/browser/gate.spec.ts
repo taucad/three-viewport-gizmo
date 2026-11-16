@@ -30,9 +30,6 @@ for (const type of types) {
   });
 
   test(`F2 ${type}: after compile() the first frame builds no program or pipeline`, async ({ open }, info) => {
-    // Expected failure until lib/render/warmUp.ts compiles synchronously where WebGL lacks KHR_parallel_shader_compile:
-    // three's compileAsync warns "KHR_parallel_shader_compile extension not supported" there (SwiftShader, some phones).
-    test.fail(info.project.name === "webgl" && info.project.metadata.gpu === "swiftshader", "F2: compileAsync warns without KHR_parallel_shader_compile");
     const { P, errors } = await open({ type });
     const first = await P<First>("first(true)");
     measured(info, { afterCompile: programs(first.afterCompile), afterFirst: programs(first.afterFirst), firstRenderCpuMs: first.firstRenderCpuMs });

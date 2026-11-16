@@ -132,6 +132,12 @@ describe("setFieldOfView", () => {
       Object.assign(renderer, { compileAsync });
       await warmUp(renderer, scene, camera);
       expect(compileAsync).toHaveBeenCalledWith(scene, camera);
+      // Without KHR_parallel_shader_compile, compile synchronously: three's compileAsync would log a warning.
+      const compile = vi.fn();
+      Object.assign(renderer, { compile, extensions: { has: () => false } });
+      await warmUp(renderer, scene, camera);
+      expect(compile).toHaveBeenCalledWith(scene, camera);
+      expect(compileAsync).toHaveBeenCalledTimes(1);
 
       setFieldOfView(camera, Math.PI / 3);
 

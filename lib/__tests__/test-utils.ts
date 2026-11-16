@@ -34,6 +34,8 @@ export function createStubRenderer(options: StubRendererOptions = {}): WebGLRend
     clear: (): void => {},
     render: (): void => {},
     compileAsync: async (): Promise<void> => {},
+    compile: (): void => {},
+    extensions: { has: (): boolean => true },
   };
   return stub as unknown as WebGLRenderer;
 }
