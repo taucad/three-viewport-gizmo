@@ -19,7 +19,7 @@ import { classifyChange } from "./options/changes";
 import { mergeOptions, resolveOptions, targetEnabled } from "./options/resolve";
 import { orbitFrameAbout, type OrbitFrame } from "./orbit/frame";
 import type { LabelFrame } from "./orbit/labelFrame";
-import { clampPose, hasAzimuthLimits, poseQuaternion, readPose, type OrbitPose } from "./orbit/pose";
+import { clampPose, hasAzimuthLimits, poseQuaternion, readPose, type OrbitCamera, type OrbitPose } from "./orbit/pose";
 import type { TargetEntry } from "./orbit/targets";
 import { sample, type Flight, type FlightFrame } from "./orbit/transition";
 import { planHome, planTurn, planView, restsOn, snapCardinal, TARGET_TOLERANCE, type TurnContext } from "./orbit/turn";
@@ -178,6 +178,11 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   private _release: (() => void) | null = null;
   /** Set while the gizmo itself calls `controls.update()`, so their `change` does not come back. */
   private _syncing = false;
+  /**
+   * The pose the gizmo last wrote, or reported in controlled mode (U4). In controlled mode it stands in for the camera
+   * while a turn runs, so a host that applies the pose late, or not at all, never changes a flight or a drag.
+   */
+  private readonly _written = { quaternion: new Quaternion(), up: new Vector3(), valid: false };
   /** The camera orientation `update()` last saw; a change asks for a frame. */
   private readonly _seen = new Quaternion();
   /** The camera orientation `_sync` last mirrored; NaN after a scene change, so the next sync applies. */
@@ -510,7 +515,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       let orbit: DragRun["orbit"] = null;
       if (this._options.roll !== "free") {
         const frame = orbitFrameAbout(w, this._label.front);
-        orbit = { frame, from: readPose(this.camera, frame, this.target), limits: this._limits(w), up: w.clone() };
+        orbit = { frame, from: readPose(this._view(), frame, this.target), limits: this._limits(w), up: w.clone() };
       }
       run = { kind: "drag", cause: "drag", rate: Math.PI / press.rect.width, dx: 0, dy: 0, orbit };
       this._active = run;
@@ -529,7 +534,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       // `roll: 'free'` (the approved Tumble demo): a trackball turn by this step's travel about the screen's axes; the
       // orbit up follows the screen up.
       _quaternion
-        .copy(this.camera.quaternion)
+        .copy(this._current())
         .multiply(_turn.setFromAxisAngle(Y, -(dx - run.dx) * rate))
         .multiply(_turn.setFromAxisAngle(X, -(dy - run.dy) * rate));
       run.dx = dx;
@@ -661,11 +666,15 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   private _finish(outcome: GizmoOutcome, handover = false): void {
     const run = this._active;
     if (!run) return;
+    const pose = this._pose();
     this._active = null;
+    // A handover continues from the reported pose; at rest the camera is the truth again.
+    if (!handover) this._written.valid = false;
     this._grabbed = false;
 
     const controls = this._controls;
-    if (!handover && controls) {
+    // Controlled mode wrote no camera, so the controls have nothing to sync from: the host syncs them (U4).
+    if (!handover && controls && !this._options.controlled) {
       // camera-controls keeps its own pose: hand it the one the gizmo wrote before it is enabled again.
       this._syncing = true;
       try {
@@ -678,10 +687,14 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
         this._release = null;
       }
     }
+    if (!handover && controls && this._options.controlled && !this._press) {
+      this._release?.();
+      this._release = null;
+    }
     if (!handover) this._refreshAtTarget(true);
     this._writeState();
 
-    const end: GizmoTurnEnd = { cause: run.cause, pose: this._pose(), outcome };
+    const end: GizmoTurnEnd = { cause: run.cause, pose, outcome };
     this.dispatchEvent({ type: "end", ...end });
     if (run.kind === "flight") run.resolve(end);
     if (!handover) this._invalidate();
@@ -692,6 +705,10 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
    * (L2); the controls hear about an up change.
    */
   private _write(quaternion: Readonly<Quaternion>, up: Readonly<Vector3>): void {
+    this._written.quaternion.copy(quaternion);
+    this._written.up.copy(up);
+    this._written.valid = true;
+    if (this._options.controlled) return; // U4: the pose goes out in `change`; the host writes the camera
     const { camera, target } = this;
     const distance = camera.position.distanceTo(target);
     camera.quaternion.copy(quaternion);
@@ -710,7 +727,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     const o = this._options;
     const w = this._gestureUp();
     return {
-      camera: this.camera,
+      camera: this._view(),
       target: this.target,
       up: w,
       label: this._label,
@@ -722,7 +739,8 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   }
 
   private _gestureUp(): Vector3 {
-    if (roll(this._options) && this.camera.up.lengthSq() > 0) this._up.copy(this.camera.up).normalize();
+    const up = this._reported() ? this._written.up : this.camera.up;
+    if (roll(this._options) && up.lengthSq() > 0) this._up.copy(up).normalize();
     else if (!roll(this._options)) this._up.copy(this._label.up);
     return this._up;
   }
@@ -867,8 +885,29 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     fadeScene(this._scene, quaternion);
   }
 
+  /** Whether the reported pose stands in for the camera: controlled mode, during a turn or a handover (U4). */
+  private _reported(): boolean {
+    return this._options.controlled && this._written.valid;
+  }
+
+  /** The orientation a turn continues from. */
+  private _current(): Readonly<Quaternion> {
+    return this._reported() ? this._written.quaternion : this.camera.quaternion;
+  }
+
+  /** The camera as a plan reads it: the reported pose at the camera's distance in controlled mode. */
+  private _view(): OrbitCamera {
+    if (!this._reported()) return this.camera;
+    const distance = this.camera.position.distanceTo(this.target);
+    const quaternion = this._written.quaternion.clone();
+    return { quaternion, position: _back.set(0, 0, 1).applyQuaternion(quaternion).multiplyScalar(distance).add(this.target).clone() };
+  }
+
   private _pose(): GizmoPose {
-    return { direction: new Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion), up: this.camera.up.clone() };
+    return {
+      direction: new Vector3(0, 0, 1).applyQuaternion(this._current()),
+      up: (this._reported() ? this._written.up : this.camera.up).clone(),
+    };
   }
 
   private _invalidate(): void {

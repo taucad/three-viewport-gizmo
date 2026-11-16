@@ -302,7 +302,12 @@ export type GizmoOptions = {
   /** Polar and azimuth limits in the orbit frame (U5). */
   limits?: GizmoLimits;
 
-  /** Report the pose in `change` and write no camera (U4). Default `false`. */
+  /**
+   * Report the pose in `change` and write no camera (U4). Default `false`. The host applies each pose (`lookAt` from
+   * `direction` with `up` reproduces write mode) and calls `update()`. The gizmo still disables attached controls while
+   * it turns, but neither updates them nor calls `updateCameraUp()`: sync controls that keep their own state, such as
+   * camera-controls, after `end`.
+   */
   controlled?: boolean;
 
   /** Vertical field of view of the gizmo's own camera, in radians; the cube keeps its apparent size (R11). */
