@@ -1,22 +1,31 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Object3D, Vector3 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { createGizmo, createStubRenderer, getInternals, resetDefaultUp } from "./test-utils.js";
+import { createGizmo, createStubRenderer, resetDefaultUp, targetObjects } from "./test-utils.js";
 
 afterEach(() => {
   resetDefaultUp();
 });
 
-/** The label resolved for one axis of a cube gizmo. */
-const faceLabel = (gizmo: ReturnType<typeof createGizmo>, axis: "x" | "y" | "z" | "nx" | "ny" | "nz") =>
-  getInternals(gizmo)._options[axis].label;
+const AXIS_DIRECTIONS = {
+  x: new Vector3(1, 0, 0),
+  y: new Vector3(0, 1, 0),
+  z: new Vector3(0, 0, 1),
+  nx: new Vector3(-1, 0, 0),
+  ny: new Vector3(0, -1, 0),
+  nz: new Vector3(0, 0, -1),
+};
+
+/** The label of the face target that looks from one world axis end. */
+const faceLabel = (gizmo: ReturnType<typeof createGizmo>, axis: keyof typeof AXIS_DIRECTIONS) =>
+  gizmo.targets.find((target) => target.direction.equals(AXIS_DIRECTIONS[axis]))?.label;
 
 describe("up option", () => {
   it("defaults to Object3D.DEFAULT_UP", () => {
     Object3D.DEFAULT_UP.set(0, 0, 1);
     const gizmo = createGizmo({ defaultUp: new Vector3(0, 0, 1), cameraPosition: new Vector3(5, 5, 5) });
 
-    expect(getInternals(gizmo)._options.up).toBe("z");
+    expect(gizmo.up.toArray()).toEqual([0, 0, 1]);
     expect(faceLabel(gizmo, "z")).toBe("Top");
   });
 
@@ -78,14 +87,27 @@ describe("up option", () => {
       const legacyUp = new Vector3(0, 0, 0);
       legacyUp[up] = 1;
       const legacy = createGizmo({ defaultUp: legacyUp, cameraPosition: camera, gizmoOptions: { type: "cube" } });
-      const legacyFaces = getInternals(legacy)._intersections.map((face) => face.quaternion.toArray());
+      const legacyFaces = targetObjects(legacy).map((face) => face.quaternion.toArray());
 
       const perInstance = createGizmo({ cameraPosition: camera, gizmoOptions: { type: "cube", up } });
       expect(Object3D.DEFAULT_UP.y).toBe(1);
-      const faces = getInternals(perInstance)._intersections.map((face) => face.quaternion.toArray());
+      const faces = targetObjects(perInstance).map((face) => face.quaternion.toArray());
 
       expect(faces).toEqual(legacyFaces);
     }
+  });
+
+  it.each(["x", "y", "z"] as const)("names all 26 targets of a %s-up cube in its label frame", (up) => {
+    const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5), gizmoOptions: { type: "cube", up } });
+    const names = gizmo.targets.map((target) => target.name);
+
+    expect(new Set(names).size).toBe(26);
+    for (const target of gizmo.targets.filter((candidate) => candidate.kind === "face")) {
+      expect(target.label.toLowerCase()).toBe(target.name);
+    }
+    const corner = gizmo.targets.find((target) => target.name === "top-front-right")!;
+    expect(corner.kind).toBe("corner");
+    expect(corner.label).toBe("Top Front Right");
   });
 
   it("maps face options onto the axes of the given up", () => {
@@ -101,22 +123,24 @@ describe("up option", () => {
 describe("Object3D.DEFAULT_UP tracking", () => {
   /** The orientation of every face, edge and corner, in intersection order. */
   const faceQuaternions = (gizmo: ReturnType<typeof createGizmo>) =>
-    getInternals(gizmo)._intersections.map((face) => face.quaternion.toArray());
+    targetObjects(gizmo).map((face) => face.quaternion.toArray());
 
   it("regenerates a default-up gizmo when the global moves to another axis", () => {
     const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5), gizmoOptions: { type: "cube" } });
     const renderer = createStubRenderer();
     const controls = new OrbitControls(gizmo.camera, renderer.domElement);
     gizmo.attachControls(controls);
-    expect(getInternals(gizmo)._options.up).toBe("y");
+    expect(gizmo.up.toArray()).toEqual([0, 1, 0]);
 
     Object3D.DEFAULT_UP.set(0, 0, 1);
     gizmo.update();
 
-    expect(getInternals(gizmo)._options.up).toBe("z");
     expect(faceLabel(gizmo, "z")).toBe("Top");
     expect(gizmo.up.toArray()).toEqual([0, 0, 1]);
-    expect(getInternals(gizmo)._controls).toBe(controls);
+    // Still attached: an update steps the controls.
+    const update = vi.spyOn(controls, "update");
+    gizmo.update();
+    expect(update).toHaveBeenCalledOnce();
 
     const fresh = createGizmo({ defaultUp: new Vector3(0, 0, 1), cameraPosition: new Vector3(5, 5, 5) });
     expect(faceQuaternions(gizmo)).toEqual(faceQuaternions(fresh));
@@ -145,27 +169,27 @@ describe("Object3D.DEFAULT_UP tracking", () => {
 
   it("regenerates from render() as well, once per change", () => {
     const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5), gizmoOptions: { type: "cube" } });
-    const before = getInternals(gizmo)._intersections;
+    const before = gizmo.targets;
 
     Object3D.DEFAULT_UP.set(1, 0, 0);
     gizmo.render();
-    const after = getInternals(gizmo)._intersections;
+    const after = gizmo.targets;
     expect(after).not.toBe(before);
-    expect(getInternals(gizmo)._options.up).toBe("x");
+    expect(gizmo.up.toArray()).toEqual([1, 0, 0]);
 
     gizmo.render();
-    expect(getInternals(gizmo)._intersections).toBe(after);
+    expect(gizmo.targets).toBe(after);
   });
 
   it("leaves an explicit up alone when the global changes", () => {
     const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5), gizmoOptions: { type: "cube", up: "y" } });
-    const before = getInternals(gizmo)._intersections;
+    const before = gizmo.targets;
 
     Object3D.DEFAULT_UP.set(0, 0, 1);
     gizmo.update();
     gizmo.render();
 
-    expect(getInternals(gizmo)._intersections).toBe(before);
-    expect(getInternals(gizmo)._options.up).toBe("y");
+    expect(gizmo.targets).toBe(before);
+    expect(gizmo.up.toArray()).toEqual([0, 1, 0]);
   });
 });

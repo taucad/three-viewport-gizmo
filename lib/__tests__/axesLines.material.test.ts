@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 function findLineTwo(gizmo: ViewportGizmo) {
-  return gizmo.children.find((child) => child.type === "Line2") ?? undefined;
+  return gizmo.root.children.find((child) => child.type === "Line2") ?? undefined;
 }
 
 describe("axesLines material branch", () => {

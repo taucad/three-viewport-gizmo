@@ -1,18 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PerspectiveCamera } from "three";
+import { PerspectiveCamera, Scene } from "three";
 import { ViewportGizmo } from "../ViewportGizmo.js";
 import { createStubRenderer, resetDefaultUp } from "./test-utils.js";
 
-function getDomElement(gizmo: ViewportGizmo): HTMLElement {
-  return (gizmo as unknown as { _domElement: HTMLElement })._domElement;
-}
-
-function getViewport(gizmo: ViewportGizmo): readonly number[] {
-  return (gizmo as unknown as { _viewport: number[] })._viewport;
-}
-
 afterEach(() => {
   resetDefaultUp();
+  vi.restoreAllMocks();
+  document.body.replaceChildren();
 });
 
 describe("domUpdate viewport Y", () => {
@@ -20,63 +14,55 @@ describe("domUpdate viewport Y", () => {
   camera.position.set(5, 5, 5);
   camera.lookAt(0, 0, 0);
 
-  it("stores bottom-origin Y when using legacy WebGL-style renderer", () => {
-    const renderer = createStubRenderer({ isWebGPURenderer: false });
+  /** The viewport `render()` draws the gizmo into, for a top-right 128 px gizmo on an 800 × 600 canvas. */
+  function renderedViewport(isWebGPURenderer: boolean) {
+    const renderer = createStubRenderer({ isWebGPURenderer });
     vi.spyOn(renderer.domElement, "getBoundingClientRect").mockReturnValue(
       DOMRect.fromRect({ x: 0, y: 0, width: 800, height: 600 })
     );
+    const container = document.createElement("div");
+    document.body.appendChild(container);
 
     const gizmo = new ViewportGizmo(camera, renderer, {
       type: "cube",
-      container: document.body,
+      container,
       placement: "top-right",
       size: 128,
       offset: { top: 0, right: 0, bottom: 0, left: 0 },
     });
 
-    const domEl = getDomElement(gizmo);
-    vi.spyOn(domEl, "getBoundingClientRect").mockReturnValue(
+    vi.spyOn(container.firstElementChild!, "getBoundingClientRect").mockReturnValue(
       DOMRect.fromRect({ x: 672, y: 0, width: 128, height: 128 })
     );
-
     gizmo.update(false);
 
-    const vp = getViewport(gizmo);
-    expect(vp[0]).toBe(672);
-    expect(vp[1]).toBe(472);
-    expect(vp[2]).toBe(128);
-    expect(vp[3]).toBe(128);
+    const setViewport = vi.spyOn(renderer, "setViewport");
+    gizmo.render();
+    return setViewport.mock.calls[0];
+  }
 
-    vi.restoreAllMocks();
+  it("draws at a bottom-origin Y when using legacy WebGL-style renderer", () => {
+    expect(renderedViewport(false)).toEqual([672, 472, 128, 128]);
   });
 
-  it("stores top-origin Y when using WebGPURenderer", () => {
-    const renderer = createStubRenderer({ isWebGPURenderer: true });
-    vi.spyOn(renderer.domElement, "getBoundingClientRect").mockReturnValue(
-      DOMRect.fromRect({ x: 0, y: 0, width: 800, height: 600 })
-    );
+  it("draws at a top-origin Y when using WebGPURenderer", () => {
+    expect(renderedViewport(true)).toEqual([672, 0, 128, 128]);
+  });
+});
 
-    const gizmo = new ViewportGizmo(camera, renderer, {
-      type: "cube",
-      container: document.body,
-      placement: "top-right",
-      size: 128,
-      offset: { top: 0, right: 0, bottom: 0, left: 0 },
-    });
+describe("root", () => {
+  it("keeps drawing after a host scene adopts its root (probe P3)", () => {
+    const renderer = createStubRenderer();
+    const draw = vi.spyOn(renderer, "render");
+    const camera = new PerspectiveCamera(50, 1, 0.1, 1000);
+    camera.position.set(5, 5, 5);
+    const gizmo = new ViewportGizmo(camera, renderer, { type: "cube" });
 
-    const domEl = getDomElement(gizmo);
-    vi.spyOn(domEl, "getBoundingClientRect").mockReturnValue(
-      DOMRect.fromRect({ x: 672, y: 0, width: 128, height: 128 })
-    );
+    new Scene().add(gizmo.root);
+    gizmo.render();
 
-    gizmo.update(false);
-
-    const vp = getViewport(gizmo);
-    expect(vp[0]).toBe(672);
-    expect(vp[1]).toBe(0);
-    expect(vp[2]).toBe(128);
-    expect(vp[3]).toBe(128);
-
-    vi.restoreAllMocks();
+    const [drawn] = draw.mock.calls[0]!;
+    expect(drawn.children).toEqual([gizmo.root]);
+    expect(gizmo.root.children.length).toBeGreaterThan(20);
   });
 });

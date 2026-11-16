@@ -1,5 +1,6 @@
 import {
   Camera,
+  EventDispatcher,
   Mesh,
   MeshBasicMaterial,
   Object3D,
@@ -22,6 +23,8 @@ import type {
   GizmoAxisName,
   GizmoFaceName,
   GizmoAxisObjectUserData,
+  GizmoTarget,
+  GizmoTargetName,
 } from "./types";
 import { optionsFallback, upAxisFromVector } from "./options/optionsFallback";
 import { orbitFrame, type OrbitFrame } from "./orbit/frame";
@@ -36,6 +39,13 @@ import { getDomElement } from "./render/getDomElement";
 import { renderInRect, saveViewport, viewportRect } from "./render/viewport";
 import { axesObjects } from "./scene/axesObjects";
 import { updateAxis } from "./scene/updateAxis";
+import { GIZMO_EPSILON } from "./utils/constants";
+
+// Composition: the class holds state and wires the modules; each concern is a function it calls.
+// orbit/ (frame, pose, transition), interaction/ (pointerSession, intersectedObjects, axisHover),
+// render/ (gizmoDomElement, viewport), options/ (optionsFallback), scene/ (axesObjects, updateAxis).
+// `targetsOf` and `disposeObjects` below are the target-list and scene-teardown seams until
+// O1 (`orbit/targets.ts`) and S1 (`scene/build.ts`) own them; controls wiring stays here until C1.
 
 function objectIdentity(object: GizmoAxisObject | null): {
   kind: GizmoTargetKind | null;
@@ -57,6 +67,90 @@ function objectIdentity(object: GizmoAxisObject | null): {
 
 const _pose: OrbitPose = { azimuth: 0, polar: 0 };
 
+/** The 2.3.0 label-frame front of each up axis: the face labelled Front looks along it. */
+const LABEL_FRONT = {
+  x: new Vector3(0, 1, 0),
+  y: new Vector3(0, 0, 1),
+  z: new Vector3(0, -1, 0),
+} as const;
+
+/** The name part for a signed component: `positive` above zero, `negative` below, none on the plane. */
+function namePart<T extends string>(component: number, positive: T, negative: T): T | null {
+  if (component > GIZMO_EPSILON) return positive;
+  if (component < -GIZMO_EPSILON) return negative;
+  return null;
+}
+
+/**
+ * Names each built target in the label frame of `options.up` and labels it with its drawn face labels.
+ *
+ * ponytail: derived from the built objects, so a disabled corner or edge kind is absent; O1's 26-target table
+ * replaces this and keeps hidden targets in the list.
+ */
+function targetsOf(objects: readonly GizmoAxisObject[], options: GizmoOptionsFallback, up: Vector3): GizmoTarget[] {
+  const front = LABEL_FRONT[options.up];
+  const right = new Vector3().crossVectors(up, front);
+  const named = objects.map((object) => {
+    const direction = object.position.clone().normalize();
+    const parts = [
+      namePart(direction.dot(up), "top", "bottom"),
+      namePart(direction.dot(front), "front", "back"),
+      namePart(direction.dot(right), "right", "left"),
+    ].filter((part): part is NonNullable<typeof part> => part !== null);
+    return { object, direction, parts };
+  });
+
+  const faceLabels = new Map<string, string>();
+  for (const { object, parts } of named) {
+    const { kind, axes }: GizmoAxisObjectUserData = object.userData;
+    if (kind === "face" && axes) faceLabels.set(parts[0], options[axes[0]].label);
+  }
+
+  return named.map(({ direction, parts }) => ({
+    name: parts.join("-") as GizmoTargetName,
+    kind: parts.length === 1 ? "face" : parts.length === 2 ? "edge" : "corner",
+    direction,
+    label: parts
+      .map((part) => faceLabels.get(part) ?? "")
+      .filter(Boolean)
+      .join(" "),
+  }));
+}
+
+/** Removes every child of `root` and disposes its materials, their maps and its geometry. */
+function disposeObjects(root: Object3D) {
+  // `remove` splices `children`; iterate a copy so no child is skipped.
+  for (const child of [...root.children]) {
+    root.remove(child);
+    const ud = child.userData as Partial<GizmoAxisObjectUserData>;
+
+    if (ud.idleMaterial && ud.hoverMaterial) {
+      ud.idleMaterial.map?.dispose();
+      ud.idleMaterial.dispose();
+
+      if (ud.hoverMaterial !== ud.idleMaterial) {
+        ud.hoverMaterial.map?.dispose();
+        ud.hoverMaterial.dispose();
+      }
+    } else {
+      const { material } = child as Mesh & { material?: MeshBasicMaterial | MeshBasicMaterial[] | unknown };
+      if (Array.isArray(material)) {
+        for (const mat of material) {
+          const m = mat as MeshBasicMaterial;
+          m.map?.dispose();
+          m.dispose();
+        }
+      } else if (material && typeof material === "object" && "dispose" in material) {
+        const mb = material as MeshBasicMaterial;
+        mb.map?.dispose();
+        mb.dispose();
+      }
+    }
+
+    (child as Mesh & { geometry?: { dispose: () => void } }).geometry?.dispose();
+  }
+}
+
 /**
  * ViewportGizmo is a 3D camera orientation controller that provides a visual interface
  * for changing the camera's viewing angle. It creates a widget that shows the current
@@ -69,9 +163,9 @@ const _pose: OrbitPose = { azimuth: 0, polar: 0 };
  * @fires ViewportGizmo#change - Fired during view changes
  * @fires ViewportGizmo#end - Fired when a view change interaction ends
  *
- * @extends Object3D
+ * It is a controller, not a scene object: it extends `EventDispatcher`, and its drawable is {@link root}.
  */
-export class ViewportGizmo extends Object3D<LegacyGizmoEventMap> {
+export class ViewportGizmo extends EventDispatcher<LegacyGizmoEventMap> {
   /** Whether the gizmo is currently active and responding to user input */
   enabled: boolean = true;
 
@@ -86,6 +180,15 @@ export class ViewportGizmo extends Object3D<LegacyGizmoEventMap> {
 
   /** The point around which the camera rotates */
   target = new Vector3();
+
+  /**
+   * The gizmo's scene object, drawn by {@link render} with the gizmo's own camera. Never add it to a host
+   * scene: `render()` takes it back into the gizmo's scene.
+   */
+  readonly root = new Object3D();
+
+  /** The label up axis as a unit vector. */
+  readonly up = new Vector3();
 
   /** Whether view changes should be animated */
   animated: boolean = true;
@@ -102,6 +205,7 @@ export class ViewportGizmo extends Object3D<LegacyGizmoEventMap> {
   animating = false;
 
   private _options!: GizmoOptionsFallback;
+  private _targets: readonly GizmoTarget[] = [];
   private _frame!: OrbitFrame;
   private _intersections!: GizmoAxisObject[];
   private _background: Mesh<any, MeshBasicMaterial> | null = null;
@@ -143,8 +247,13 @@ export class ViewportGizmo extends Object3D<LegacyGizmoEventMap> {
 
     this.camera = camera;
     this.renderer = renderer;
-    this._scene = new Scene().add(this);
+    this._scene = new Scene().add(this.root);
     this.set(options);
+  }
+
+  /** The targets in the label frame, as data. A new list after every {@link set}. */
+  get targets(): readonly GizmoTarget[] {
+    return this._targets;
   }
 
   /** Gets the current placement of the gizmo relative to its container. */
@@ -187,12 +296,13 @@ export class ViewportGizmo extends Object3D<LegacyGizmoEventMap> {
 
     const [axes, background, lines] = axesObjects(this._options, this.renderer);
 
-    if (background) this.add(background);
-    if (lines) this.add(lines);
-    this.add(...axes);
+    if (background) this.root.add(background);
+    if (lines) this.root.add(lines);
+    this.root.add(...axes);
 
     this._background = background;
     this._intersections = axes;
+    this._targets = targetsOf(axes, this._options, this.up);
 
     const { container, animated, speed } = this._options;
 
@@ -243,6 +353,8 @@ export class ViewportGizmo extends Object3D<LegacyGizmoEventMap> {
   render() {
     this._syncDefaultUp();
     if (this.animating) this._animate();
+    // ponytail: a host that parented `root` loses it here; without this its gizmo would draw nothing (probe P3).
+    if (this.root.parent !== this._scene) this._scene.add(this.root);
 
     renderInRect(
       this.renderer,
@@ -368,50 +480,15 @@ export class ViewportGizmo extends Object3D<LegacyGizmoEventMap> {
 
     this.detachControls();
 
-    // `remove` splices `children`; iterate a copy so no child is skipped.
-    for (const child of [...this.children]) {
-      this.remove(child);
-      const ud = child.userData as Partial<GizmoAxisObjectUserData>;
-
-      if (ud.idleMaterial && ud.hoverMaterial) {
-        ud.idleMaterial.map?.dispose();
-        ud.idleMaterial.dispose();
-
-        if (ud.hoverMaterial !== ud.idleMaterial) {
-          ud.hoverMaterial.map?.dispose();
-          ud.hoverMaterial.dispose();
-        }
-      } else {
-        const meshlike = child as Mesh & {
-          material?: MeshBasicMaterial | MeshBasicMaterial[] | unknown;
-          geometry?: { dispose: () => void };
-        };
-
-        const { material } = meshlike;
-        if (Array.isArray(material)) {
-          for (const mat of material) {
-            const m = mat as MeshBasicMaterial;
-            m.map?.dispose();
-            m.dispose();
-          }
-        } else if (material && typeof material === "object" && "dispose" in material) {
-          const mb = material as MeshBasicMaterial;
-          mb.map?.dispose();
-          mb.dispose();
-        }
-      }
-
-      const meshlike = child as Mesh & { geometry?: { dispose: () => void } };
-      meshlike.geometry?.dispose();
-    }
+    disposeObjects(this.root);
 
     this._domElement?.remove();
   }
 
   /** Turns the gizmo to mirror the camera and refreshes the sphere's depth fade. */
   private _updateOrientation() {
-    this.quaternion.copy(this.camera.quaternion).invert();
-    this.updateMatrixWorld();
+    this.root.quaternion.copy(this.camera.quaternion).invert();
+    this.root.updateMatrixWorld();
 
     updateAxis(this._options, this._intersections, this.camera);
   }

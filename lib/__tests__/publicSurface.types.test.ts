@@ -1,11 +1,12 @@
 // The 3.0 public contract (K3). `tsconfig.json` lists this file in `files`, so `:typecheck` checks every
 // `expectTypeOf` and `@ts-expect-error` here; `:test` runs the runtime half.
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { Vector3, type Color, type Texture, type Vector3Like } from "three";
+import { Vector3, type Color, type Object3D, type Scene, type Texture, type Vector3Like } from "three";
 import type CameraControls from "camera-controls";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { TrackballControls } from "three/addons/controls/TrackballControls.js";
 import {
+  ViewportGizmo,
   ViewportGizmoError,
   type GizmoAtTarget,
   type GizmoCause,
@@ -158,6 +159,22 @@ describe("public surface", () => {
     expectTypeOf<GizmoResolvedOptions["animated"]>().toEqualTypeOf<boolean>();
     expectTypeOf<GizmoViewport>().toEqualTypeOf<Readonly<{ x: number; y: number; width: number; height: number }>>();
     expectTypeOf<ViewportGizmoError["code"]>().toEqualTypeOf<GizmoErrorCode>();
+  });
+
+  it("is a controller whose drawable is its root, not a scene object (R9)", () => {
+    const adopt = (hostScene: Scene, gizmo: ViewportGizmo): void => {
+      // @ts-expect-error A gizmo is not an Object3D; a host scene cannot adopt it.
+      hostScene.add(gizmo);
+      // @ts-expect-error The root and the target list are read-only.
+      gizmo.root = gizmo.root;
+      // @ts-expect-error The root and the target list are read-only.
+      gizmo.targets = [];
+    };
+
+    expectTypeOf<ViewportGizmo>().not.toMatchTypeOf<Object3D>();
+    expectTypeOf<ViewportGizmo["root"]>().toEqualTypeOf<Object3D>();
+    expectTypeOf<ViewportGizmo["targets"]>().toEqualTypeOf<readonly GizmoTarget[]>();
+    expect(adopt).toBeTypeOf("function");
   });
 
   it("exports only the class and the error class at runtime", () => {
