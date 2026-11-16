@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Code } from "@site/components/Code";
-import { Sample } from "@site/components/Sample";
+import { assertReadmeQuickstart, Sample } from "@site/components/Sample";
 import { Stage } from "@site/components/Stage";
 import { PACKAGE } from "@site/components/site";
 
@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function Quickstart() {
+  assertReadmeQuickstart();
   return (
     <>
       <h1>Quickstart</h1>
