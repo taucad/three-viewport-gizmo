@@ -15,6 +15,7 @@ import { assertControls, holdControls, readControlsLimits, refreshCameraUp } fro
 import { ViewportGizmoError } from "./errors";
 import { attachPointer, forwardWheel, type PointerInput } from "./interaction/pointerSession";
 import { hitTest, sphereDiscs, type HitBox, type HitScene } from "./interaction/hitTest";
+import { attachKeyboard, type KeyboardInput } from "./interaction/keyboard";
 import { classifyChange } from "./options/changes";
 import { mergeOptions, resolveOptions, targetEnabled } from "./options/resolve";
 import { orbitFrameAbout, type OrbitFrame } from "./orbit/frame";
@@ -191,6 +192,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   private readonly _atSeen = new Quaternion(NaN, NaN, NaN, NaN);
   private readonly _input: PointerInput;
   private readonly _stopWheel: () => void;
+  private readonly _keys: KeyboardInput;
   private _disposed = false;
 
   /**
@@ -241,6 +243,16 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       hover: (event, rect) => this._onHover(event, rect),
     });
     this._stopWheel = forwardWheel(this.domElement, renderer.domElement);
+    this._keys = attachKeyboard(this.domElement, this, {
+      aim: () => {
+        if (this._active?.kind !== "flight") return this._current();
+        sample(this._active.flight, Infinity, _frame);
+        return _frame.quaternion;
+      },
+      orientation: () => this._current(),
+      lookFrom: (view) => this._lookFrom("key", view),
+      turn: (turn) => this._turn("key", turn),
+    });
 
     this._seen.copy(camera.quaternion);
     this._sync();
@@ -347,6 +359,10 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
    * @returns Resolves with the `end` payload; rejects only for a caller mistake (`UNKNOWN_VIEW`, `DISPOSED`)
    */
   lookFrom(view: GizmoView, options: GizmoLookFromOptions = {}): Promise<GizmoTurnEnd> {
+    return this._lookFrom("api", view, options);
+  }
+
+  private _lookFrom(cause: GizmoCause, view: GizmoView, options: GizmoLookFromOptions = {}): Promise<GizmoTurnEnd> {
     try {
       this._assertLive();
       if (typeof options !== "object" || options === null) {
@@ -360,7 +376,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       const flight = direction
         ? planView(context, direction, { reset: options.up === "reset" })
         : planHome(context);
-      return this._fly("api", flight);
+      return this._fly(cause, flight);
     } catch (error) {
       return Promise.reject(error);
     }
@@ -373,18 +389,22 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
    * @returns Resolves with the `end` payload; rejects only for a caller mistake (`INVALID_TURN`, `DISPOSED`)
    */
   turn(turn: GizmoTurn): Promise<GizmoTurnEnd> {
+    return this._turn("api", turn);
+  }
+
+  private _turn(cause: GizmoCause, turn: GizmoTurn): Promise<GizmoTurnEnd> {
     try {
       this._assertLive();
       assertTurn(turn);
       const flight = planTurn(this._context(turn.animated), turn);
       if (!flight) {
         return Promise.resolve({
-          cause: "api",
+          cause,
           pose: this._pose(),
           outcome: { status: "unavailable", reason: "roll-off" },
         });
       }
-      return this._fly("api", flight);
+      return this._fly(cause, flight);
     } catch (error) {
       return Promise.reject(error);
     }
@@ -481,6 +501,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this.detachControls();
     this._input.detach();
     this._stopWheel();
+    this._keys.detach();
     this._reset.removeFromParent();
     disposeScene(this._scene);
     this._three.remove(this.root);
@@ -696,6 +717,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
 
     const end: GizmoTurnEnd = { cause: run.cause, pose, outcome };
     this.dispatchEvent({ type: "end", ...end });
+    this._keys.ended(end);
     if (run.kind === "flight") run.resolve(end);
     if (!handover) this._invalidate();
   }
@@ -834,6 +856,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       at ? [at.target.name, ...SIDES.map((side) => at.sides?.[side].name)].join() : "";
     if (key(next) === key(this._atTarget)) return;
     this._atTarget = next;
+    this._keys.refresh(next?.target ?? null);
     this.dispatchEvent({ type: "attargetchange", atTarget: next });
   }
 
@@ -874,6 +897,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       dragging: this._active?.kind === "drag",
       disabled: !this._enabled,
     });
+    this._keys.refresh(this._atTarget?.target ?? null);
   }
 
   /** Turns the gizmo to mirror the camera, and the sphere's depth fade when the camera turned. Allocates nothing. */
