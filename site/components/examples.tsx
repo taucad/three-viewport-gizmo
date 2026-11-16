@@ -29,7 +29,7 @@ export function OrbitControlsEventsExample() {
   return (
     <Stage
       label="OrbitControls wired to the gizmo through events"
-      config={{ controller: "none", gizmo: { type: "cube" } }}
+      config={{ controller: "none", gizmo: { type: "cube", roll: false } }}
       setup={({ camera, renderer, gizmo, target }) => {
         if (!gizmo) return;
         const controls = new OrbitControls(camera, renderer.domElement);
@@ -199,6 +199,22 @@ export function UpAxisExample() {
         </div>
       </fieldset>
       <Stage label={`${name(up)} up scene with a cube gizmo`} config={{ up, controller: "orbit", gizmo: { type: "cube" } }} />
+    </>
+  );
+}
+
+export function RoundedCubeTriadExample() {
+  const [triad, setTriad] = useState(true);
+  return (
+    <>
+      <label style={{ display: "block", marginBottom: "0.75rem" }}>
+        <input type="checkbox" checked={triad} onChange={(event) => setTriad(event.target.checked)} /> Axis triad
+      </label>
+      <Stage
+        label="Rounded-cube gizmo with the axis triad"
+        config={{ controller: "orbit", gizmo: { type: "rounded-cube" } }}
+        options={{ triad: { enabled: triad } }}
+      />
     </>
   );
 }
