@@ -51,7 +51,6 @@ test.describe("mouse", () => {
   });
 
   test("I2 a right-button drag does nothing", async ({ open }) => {
-    test.fail(true, "I2: the class still accepts any button and emits start (2.3.0 behaviour; I2's session is in lib/interaction since #31, flips once K5 wires it)");
     const { page, centre, pose, events } = await setup(open);
     const before = await pose();
     await page.mouse.move(centre.x, centre.y);
@@ -74,7 +73,6 @@ test.describe("wheel (S R27 reproduction)", () => {
   });
 
   test("I2 a wheel over the gizmo reaches the host's controls", async ({ open }) => {
-    test.fail(true, "I2/K5: reproduced on 2.3.0, the gizmo element sits over the canvas and swallows the wheel");
     const { page, centre, pose } = await setup(open);
     const before = (await pose()).distance;
     await page.mouse.move(centre.x, centre.y);
@@ -88,7 +86,6 @@ test.describe("touch", () => {
   test.use({ hasTouch: true });
 
   test("E1 a one-finger drag orbits the camera and balances start and end", async ({ open }) => {
-    test.fail(true, "E1: 2.3.0 sets no touch-action, so Chromium takes the drag as a pan, cancels the pointer and no end follows");
     const { page, centre, pose, events } = await setup(open);
     const cdp = await page.context().newCDPSession(page);
     const before = await pose();
@@ -101,7 +98,6 @@ test.describe("touch", () => {
   });
 
   test("I2 a second finger does not turn the view", async ({ open }) => {
-    test.fail(true, "I2: 2.3.0 follows every pointer on the document, so another finger's move turns the camera");
     const { page, centre, rect, pose } = await setup(open);
     const cdp = await page.context().newCDPSession(page);
     const first = { ...centre, id: 1 };
@@ -116,7 +112,6 @@ test.describe("touch", () => {
   });
 
   test("I2 a cancelled touch ends the gesture", async ({ open }) => {
-    test.fail(true, "I2: 2.3.0 hears no pointercancel; the session keeps following the mouse and never emits end");
     const { page, centre, pose, events } = await setup(open);
     const cdp = await page.context().newCDPSession(page);
     await touch(cdp, "touchStart", [{ ...centre, id: 1 }]);
@@ -129,5 +124,22 @@ test.describe("touch", () => {
     await settle(page);
     const { start, end } = await events();
     expect({ end, turnedLater: turned(after, await pose()) }).toEqual({ end: start, turnedLater: false });
+  });
+});
+
+test.describe("render on demand (K5, P11)", () => {
+  test("a host that renders only on invalidate completes a click's turn and then stops drawing", async ({ open }) => {
+    const { page, P } = await open({ type: "cube" });
+    await P("demand([1, 0.5, 5])");
+    const rect = await P<Rect>("rect()");
+    await page.mouse.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    await expect.poll(async () => (await P<Events>("events()")).end, { timeout: 5_000 }).toBe(1);
+    const { position } = await P<Pose>("pose()");
+    expect(position[0]).toBeCloseTo(0, 3);
+    expect(position[1]).toBeCloseTo(0, 3);
+    const frames = await P<number>("demandFrames()");
+    expect(frames).toBeGreaterThan(2);
+    await settle(page);
+    expect(await P<number>("demandFrames()")).toBe(frames);
   });
 });

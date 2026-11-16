@@ -1,15 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PerspectiveCamera, Scene } from "three";
+import { PerspectiveCamera, Scene, Vector3 } from "three";
 import { ViewportGizmo } from "../ViewportGizmo.js";
-import { createStubRenderer, resetDefaultUp } from "./test-utils.js";
+import { createGizmo, createStubRenderer } from "./test-utils.js";
 
 afterEach(() => {
-  resetDefaultUp();
   vi.restoreAllMocks();
   document.body.replaceChildren();
 });
 
-describe("domUpdate viewport Y", () => {
+describe("viewport (R6: render() measures the rectangle)", () => {
   const camera = new PerspectiveCamera(50, 1, 0.1, 1000);
   camera.position.set(5, 5, 5);
   camera.lookAt(0, 0, 0);
@@ -34,10 +33,9 @@ describe("domUpdate viewport Y", () => {
     vi.spyOn(container.firstElementChild!, "getBoundingClientRect").mockReturnValue(
       DOMRect.fromRect({ x: 672, y: 0, width: 128, height: 128 })
     );
-    gizmo.update(false);
-
     const setViewport = vi.spyOn(renderer, "setViewport");
     gizmo.render();
+    expect(gizmo.viewport).toEqual({ x: 672, y: setViewport.mock.calls[0]![1], width: 128, height: 128 });
     return setViewport.mock.calls[0];
   }
 
@@ -52,17 +50,14 @@ describe("domUpdate viewport Y", () => {
 
 describe("root", () => {
   it("keeps drawing after a host scene adopts its root (probe P3)", () => {
-    const renderer = createStubRenderer();
-    const draw = vi.spyOn(renderer, "render");
-    const camera = new PerspectiveCamera(50, 1, 0.1, 1000);
-    camera.position.set(5, 5, 5);
-    const gizmo = new ViewportGizmo(camera, renderer, { type: "cube" });
+    const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5) });
+    const draw = vi.spyOn(gizmo.renderer, "render");
 
     new Scene().add(gizmo.root);
     gizmo.render();
 
     const [drawn] = draw.mock.calls[0]!;
     expect(drawn.children).toEqual([gizmo.root]);
-    expect(gizmo.root.children.length).toBeGreaterThan(20);
+    expect(gizmo.root.children[0]!.children.length).toBeGreaterThan(20);
   });
 });

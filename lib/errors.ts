@@ -1,5 +1,6 @@
 /**
  * The stable code of every caller-caused failure. Superseded, cancelled and refused turns are outcomes, not errors.
+ * - `DOCUMENT_MISSING`: constructed where there is no `document`, such as a worker or server render.
  * - `CONTAINER_MISSING`: no `container` and the canvas has no parent, or a selector matched nothing.
  * - `UNKNOWN_OPTION`: an option key the library does not know.
  * - `INVALID_OPTION`: a known option with the wrong type or out of range.
@@ -12,6 +13,7 @@
  * - `DISPOSED`: any method after `dispose()`.
  */
 export type GizmoErrorCode =
+  | "DOCUMENT_MISSING"
   | "CONTAINER_MISSING"
   | "UNKNOWN_OPTION"
   | "INVALID_OPTION"

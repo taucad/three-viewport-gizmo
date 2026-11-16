@@ -22,18 +22,8 @@ import { roundedBoxGeometry } from "./roundedBox";
 import { triad } from "./triad";
 import { restyleTargets, targetMaterials, targetOf } from "./update";
 
-type DeepRequired<T> = T extends (...args: never[]) => unknown
-  ? T
-  : T extends { isColor: true } | { isVector3: true }
-    ? T
-    : T extends object
-      ? { [Key in keyof T]-?: DeepRequired<Exclude<T[Key], undefined>> }
-      : T;
-
-// ponytail: local until lane K exports a deep-required `GizmoResolvedOptions` (N1's type request); then alias it.
-/** Resolved options as the scene reads them: every default filled by `resolveOptions`. */
-export type SceneOptions = DeepRequired<Omit<GizmoResolvedOptions, "container" | "onMaterial" | "resolution">> &
-  Pick<GizmoResolvedOptions, "onMaterial" | "resolution">;
+/** Resolved options as the scene reads them. */
+export type SceneOptions = GizmoResolvedOptions;
 
 /** One of the 26 targets as built. Hidden kinds and targets are built too, so `enabled` is a `visible` flag (U10). */
 export type SceneTarget = {

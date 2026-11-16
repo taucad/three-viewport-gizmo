@@ -51,14 +51,15 @@ const make = (opts = {}) => {
     h.render2 = () => h.render(renderer);
     return h;
   }
+  // `up` is a signed axis such as `+z`, `-x` or `y`; 3.0 takes the label up as a vector.
   const up = q.get('up');
-  const g = new ViewportGizmo(camera, renderer, { type, container: wrap, ...(up ? { up } : {}), ...opts });
+  const axis = up && new THREE.Vector3().setComponent('xyz'.indexOf(up.at(-1)), up.startsWith('-') ? -1 : 1);
+  const g = new ViewportGizmo(camera, renderer, { type, container: wrap, ...(axis ? { up: axis } : {}), ...opts });
   g.render2 = () => g.render();
   return g;
 };
-// ponytail: private fallbacks until K4 (root) and E1 (domElement) publish them; H1 removes the fallbacks.
 const rootOf = (g) => g.root ?? g;
-const elementOf = (g) => g.domElement ?? g._domElement;
+const elementOf = (g) => g.domElement;
 const inventory = (g) => {
   const geos = new Set(), mats = new Set(), texs = new Set(), srcs = new Set();
   let objects = 0, drawables = 0, tris = 0, atlas = null;
@@ -77,6 +78,8 @@ const inventory = (g) => {
 };
 
 let g = null;
+/** A structural set(): a new `onMaterial` rebuilds the scene with the same look (3.0 skips a set() that changes nothing). */
+const rebuild = (x) => x.set({ onMaterial: (material) => material });
 const fresh = (opts) => { if (g) g.dispose(); g = make(opts); for (let i = 0; i < 30; i++) g.render2(); return g; };
 const centre = () => { const r = elementOf(g).getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, size: r.width }; };
 const loop = async (n, body) => {
@@ -94,7 +97,7 @@ window.P = {
     let t = now(); g = make(); const constructMs = now() - t;
     const inv = inventory(g);
     let compileMs = null;
-    if (warm && type !== 'viewhelper') { t = now(); await renderer.compileAsync(g._scene, g._camera); compileMs = now() - t; } // ponytail: F2's public warm-up replaces this
+    if (warm && type !== 'viewhelper') { t = now(); await g.compile(); compileMs = now() - t; }
     renderer.info.reset(); t = now(); g.render2(); const firstRenderCpuMs = now() - t; await sync(); const firstRenderSyncedMs = now() - t;
     const afterFirst = snap();
     renderer.info.reset(); t = now(); g.render2(); const secondRenderCpuMs = now() - t; await sync();
@@ -102,7 +105,7 @@ window.P = {
     let hover = null;
     if (type !== 'viewhelper') {
       const { cx, cy, size } = centre(); let hit = false;
-      g.addEventListener('hoverchange', (e) => { if (e.object) hit = true; });
+      g.addEventListener('hoverchange', (e) => { if (e.hovered) hit = true; });
       for (let i = 0; i < 400 && !hit; i++) { const a = i * 0.37, r = (i / 400) * size * 0.45; elementOf(g).dispatchEvent(new PointerEvent('pointermove', { clientX: cx + r * Math.cos(a), clientY: cy + r * Math.sin(a) })); }
       t = now(); g.render2(); const firstHoverRenderCpuMs = now() - t; await sync(); const firstHoverRenderSyncedMs = now() - t;
       t = now(); g.render2(); const secondHoverRenderCpuMs = now() - t; await sync();
@@ -127,28 +130,28 @@ window.P = {
     renderer.autoClear = ac; renderer.autoClearColor = acc;
   }),
 
-  prepAnimating() { fresh(); g.speed = 1e-6; g.lookFrom(new THREE.Vector3(1, 0.2, 0.1), true); let c = 0; g.addEventListener('change', () => c++); g.__changes = () => c; },
+  prepAnimating() { fresh(); g.set({ speed: 1e-6, animated: true }); g.lookFrom(new THREE.Vector3(1, 0.2, 0.1)); let c = 0; g.addEventListener('change', () => c++); g.__changes = () => c; },
   animating: (n) => loop(n, () => g.render2()),
 
-  prepDragging() { fresh(); const { cx, cy } = centre(); elementOf(g).dispatchEvent(new PointerEvent('pointerdown', { clientX: cx, clientY: cy, pointerId: 1, button: 0, bubbles: true })); },
+  prepDragging() { fresh(); const { cx, cy } = centre(); elementOf(g).dispatchEvent(new PointerEvent('pointerdown', { clientX: cx, clientY: cy, pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0, bubbles: true })); },
   async dragging(n) {
     const { cx, cy } = centre(); const h = new Float64Array(n), r = new Float64Array(n);
     for (let i = 0; i < n; i++) {
-      const e = new PointerEvent('pointermove', { clientX: cx + 20 + (i % 40), clientY: cy + 15 + ((i >> 3) % 10), pointerId: 1, bubbles: true });
-      let t = now(); document.dispatchEvent(e); h[i] = now() - t;
+      const e = new PointerEvent('pointermove', { clientX: cx + 20 + (i % 40), clientY: cy + 15 + ((i >> 3) % 10), pointerId: 1, pointerType: 'mouse', isPrimary: true, bubbles: true });
+      let t = now(); elementOf(g).dispatchEvent(e); h[i] = now() - t;
       t = now(); g.render2(); r[i] = now() - t;
       if (i % 100 === 99) await sync();
     }
     return { handler: summarize(h), render: summarize(r) };
   },
-  endDragging() { document.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, bubbles: true })); },
+  endDragging() { elementOf(g).dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0, bubbles: true })); },
 
   prepHover() { fresh(); let c = 0; g.addEventListener('hoverchange', () => c++); g.__hc = () => c; },
   async hover(n) {
     const { cx, cy, size } = centre(); const h = new Float64Array(n), r = new Float64Array(n); const c0 = g.__hc();
     for (let i = 0; i < n; i++) {
       const a = i * 0.11, rad = size * (0.1 + 0.35 * ((i % 97) / 97));
-      const e = new PointerEvent('pointermove', { clientX: cx + rad * Math.cos(a), clientY: cy + rad * Math.sin(a), pointerId: 1 });
+      const e = new PointerEvent('pointermove', { clientX: cx + rad * Math.cos(a), clientY: cy + rad * Math.sin(a), pointerId: 1, pointerType: 'mouse', isPrimary: true });
       let t = now(); elementOf(g).dispatchEvent(e); h[i] = now() - t;
       t = now(); g.render2(); r[i] = now() - t;
       if (i % 100 === 99) await sync();
@@ -158,15 +161,17 @@ window.P = {
 
   prepUpdate() { fresh(); },
   update: (n) => loop(n, () => g.update()),
-  domUpdate: (n) => loop(n, () => g.domUpdate()),
-  cameraUpdate: (n) => loop(n, () => g.cameraUpdate()),
 
   async setCycle(n) {
     fresh(); await sync(); const before = snap(); const s = [], r = [];
-    for (let i = 0; i < n; i++) { let t = now(); g.set(g.options); s.push(now() - t); t = now(); g.render2(); r.push(now() - t); await sync(); }
+    for (let i = 0; i < n; i++) { let t = now(); rebuild(g); s.push(now() - t); t = now(); g.render2(); r.push(now() - t); await sync(); }
     const afterSets = snap();
     g.dispose(); g = null; renderer.render(scene, camera); await sync();
-    return { set: summarize(s), firstRenderAfterSet: summarize(r), before, afterSets, afterDispose: snap() };
+    // three's Sprite geometry is module-level and shared by every Sprite: the sphere's sprites upload it, nobody may
+    // dispose it (I6; 2.3.0 did, P Finding 1), so it is not the gizmo's to free.
+    const afterDispose = snap();
+    if (type === 'sphere') afterDispose.memory.geometries -= 1;
+    return { set: summarize(s), firstRenderAfterSet: summarize(r), before, afterSets, afterDispose };
   },
 
   async multi(k) {
@@ -237,7 +242,7 @@ Object.assign(window.P, {
   },
   step(name) {
     if (name === 'make') { g = make(); }
-    if (name === 'set') { g.set(g.options); }
+    if (name === 'set') { rebuild(g); }
     if (name === 'second') { window.g2 = make({ placement: 'bottom-left' }); window.g2.render2(); }
     if (name === 'disposeSecond') { window.g2.dispose(); }
     if (name === 'remake') { g.dispose(); g = make(); }
@@ -248,6 +253,7 @@ Object.assign(window.P, {
 
 // --- browser gate (tests/browser) ---
 const events = { start: 0, change: 0, end: 0 };
+let demandFrames = 0;
 Object.assign(window.P, {
   /** A gizmo that the gate drives with real input, an OrbitControls on the canvas, and event counts. */
   gate(position) {
@@ -260,6 +266,18 @@ Object.assign(window.P, {
     frame();
     return true;
   },
+  /** A render-on-demand host: no loop; one frame per `invalidate`, batched per animation frame (K5). */
+  demand(position) {
+    if (position) { camera.position.fromArray(position); camera.lookAt(0, 0, 0); }
+    g = make();
+    for (const type of Object.keys(events)) g.addEventListener(type, () => events[type]++);
+    let queued = false;
+    const draw = () => { queued = false; demandFrames++; renderer.render(scene, camera); g.render2(); };
+    g.addEventListener('invalidate', () => { if (!queued) { queued = true; requestAnimationFrame(draw); } });
+    draw();
+    return true;
+  },
+  demandFrames: () => demandFrames,
   rect: () => { const r = elementOf(g).getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; },
   canvasRect: () => { const r = renderer.domElement.getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; },
   events: () => ({ ...events }),
@@ -270,7 +288,7 @@ Object.assign(window.P, {
   hoverAll() {
     const { cx, cy, size } = centre();
     for (const d of [[1, 0.3, 0.2], [-1, 0.3, 0.2], [0.2, 1, 0.3], [0.2, -1, 0.3], [0.2, 0.3, 1], [0.2, 0.3, -1]]) {
-      g.lookFrom(new THREE.Vector3(...d), false); g.render2();
+      g.lookFrom(new THREE.Vector3(...d), { animated: false }); g.render2();
       for (let i = 0; i < 1200; i++) { const a = i * 0.11, r = size * 0.48 * ((i % 300) / 300); elementOf(g).dispatchEvent(new PointerEvent('pointermove', { clientX: cx + r * Math.cos(a), clientY: cy + r * Math.sin(a) })); if (i % 20 === 0) g.render2(); }
     }
     g.render2();

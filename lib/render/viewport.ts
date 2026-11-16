@@ -1,68 +1,61 @@
 import { Vector4, type Camera, type Scene } from "three";
-import type { GizmoViewportArray } from "../types";
+import type { GizmoViewport } from "../types";
 import { isWebGPURenderer, type GizmoRenderer } from "./backend";
 
-const _vec4 = /*@__PURE__*/ new Vector4();
+// The render path's one seam: F1's frame module (capture and restore, scissor, depth reset inside the rectangle only,
+// render-target rectangles) replaces `renderInRect` and this file. Until then this is the 2.3.0 path, depth cleared by
+// `autoClearDepth` (the F1 rows of the browser gate stay expected failures).
 
-/** Writes the renderer viewport covering `rect` (client pixels) to `out`, in the backend's origin convention. */
-export function viewportRect(renderer: GizmoRenderer, rect: DOMRect, out: GizmoViewportArray) {
+/** The gizmo's rectangle, written by {@link measureViewport}. */
+export type MutableViewport = { -readonly [Key in keyof GizmoViewport]: GizmoViewport[Key] };
+
+const _viewport = /*@__PURE__*/ new Vector4();
+const _scissor = /*@__PURE__*/ new Vector4();
+
+/**
+ * Measures `element` against the renderer's canvas and writes the rectangle in CSS pixels, in the renderer's
+ * `setViewport` convention: y from the top on `WebGPURenderer`, from the bottom on `WebGLRenderer` (issue #48).
+ *
+ * @returns `out`
+ */
+export function measureViewport(renderer: GizmoRenderer, element: HTMLElement, out: MutableViewport): MutableViewport {
   const canvas = renderer.domElement;
+  const rect = element.getBoundingClientRect();
   const canvasRect = canvas.getBoundingClientRect();
-  const yFromCanvasTop = rect.top - canvasRect.top;
-
-  // WebGPURenderer (and its WebGL fallback backend) takes a top-left origin;
-  // WebGLRenderer passes y to gl.viewport, which is bottom-left. See issue #48.
-  out[0] = rect.left - canvasRect.left;
-  out[1] = isWebGPURenderer(renderer)
-    ? yFromCanvasTop
-    : canvas.clientHeight - (yFromCanvasTop + rect.height);
-  out[2] = rect.width;
-  out[3] = rect.height;
-}
-
-/** Copies the renderer's current viewport, and its scissor when scissor test is on. */
-export function saveViewport(
-  renderer: GizmoRenderer,
-  viewport: GizmoViewportArray,
-  scissor: GizmoViewportArray
-) {
-  renderer.getViewport(_vec4).toArray(viewport);
-  if (renderer.getScissorTest()) renderer.getScissor(_vec4).toArray(scissor);
+  const top = rect.top - canvasRect.top;
+  out.x = rect.left - canvasRect.left;
+  out.y = isWebGPURenderer(renderer) ? top : canvas.clientHeight - (top + rect.height);
+  out.width = rect.width;
+  out.height = rect.height;
+  return out;
 }
 
 /**
- * Renders `scene` into `rect` over the existing frame, clearing depth only,
- * then restores the saved viewport, scissor and clear flags.
+ * Renders `scene` into `rect` over the host's frame, clearing depth only, and restores the host's viewport, scissor and
+ * clear flags in `finally`.
  */
-export function renderInRect(
-  renderer: GizmoRenderer,
-  scene: Scene,
-  camera: Camera,
-  rect: GizmoViewportArray,
-  viewport: GizmoViewportArray,
-  scissor: GizmoViewportArray
-) {
+export function renderInRect(renderer: GizmoRenderer, scene: Scene, camera: Camera, rect: GizmoViewport): void {
   const scissorTest = renderer.getScissorTest();
   const { autoClear, autoClearColor, autoClearDepth, autoClearStencil } = renderer;
+  const v = renderer.getViewport(_viewport);
+  const s = scissorTest ? renderer.getScissor(_scissor) : _scissor;
 
-  // Clear depth inline with the gizmo render pass instead of via renderer.clear().
-  // On the WebGPU common Renderer, renderer.clear() triggers an extra _renderOutput
-  // quad pass over the current sub-rect viewport (Renderer.js Renderer.clear), which
-  // rewrites the swap chain with a tone-mapped/linearToSRGB sample of the FB MSAA-
-  // resolved texture and produces a translucent halo. autoClear*-driven clearing
-  // happens inside the single subsequent render pass on both backends.
-  renderer.autoClear = true;
-  renderer.autoClearColor = false;
-  renderer.autoClearDepth = true;
-  renderer.autoClearStencil = false;
-
-  renderer.setViewport(...rect);
-  if (scissorTest) renderer.setScissor(...rect);
-
-  renderer.render(scene, camera);
-
-  renderer.setViewport(...viewport);
-  if (scissorTest) renderer.setScissor(...scissor);
-
-  Object.assign(renderer, { autoClear, autoClearColor, autoClearDepth, autoClearStencil });
+  try {
+    // Clear depth inside the render pass, not with renderer.clear(): on WebGPU that adds an output pass over the
+    // sub-rectangle and leaves a translucent halo.
+    renderer.autoClear = true;
+    renderer.autoClearColor = false;
+    renderer.autoClearDepth = true;
+    renderer.autoClearStencil = false;
+    renderer.setViewport(rect.x, rect.y, rect.width, rect.height);
+    if (scissorTest) renderer.setScissor(rect.x, rect.y, rect.width, rect.height);
+    renderer.render(scene, camera);
+  } finally {
+    renderer.setViewport(v.x, v.y, v.z, v.w);
+    if (scissorTest) renderer.setScissor(s.x, s.y, s.z, s.w);
+    renderer.autoClear = autoClear;
+    renderer.autoClearColor = autoClearColor;
+    renderer.autoClearDepth = autoClearDepth;
+    renderer.autoClearStencil = autoClearStencil;
+  }
 }

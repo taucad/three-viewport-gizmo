@@ -104,8 +104,7 @@ describe("import graph", () => {
     expect(reached.filter((line) => FORBIDDEN.test(line))).toEqual([]);
   });
 
-  // Once K5 lands: the whole library. Unskip when K5 deletes axesLines.ts, its material test and the line branch.
-  it.skip("keeps three/webgpu and Line2 out of the root entry (K5)", () => {
+  it("keeps three/webgpu and Line2 out of the root entry", () => {
     expect(externals("../index.ts").filter((line) => FORBIDDEN.test(line))).toEqual([]);
   });
 });

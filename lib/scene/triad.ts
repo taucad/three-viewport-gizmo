@@ -29,7 +29,7 @@ const LABEL_SIZE = 0.49;
 const LINE_WIDTH = 1.5;
 /** The scene's scale while the triad shows, as Tau draws it: the cube shrinks to give the axes and labels room. */
 export const TRIAD_SCENE_SCALE = 0.7;
-/** Tau's `axesHelperColors`. */
+/** Tau's `axesHelperColors`: the default of the `triad.colors` option. */
 export const TRIAD_COLORS = { x: "rgb(130, 41, 37)", y: "rgb(53, 122, 56)", z: "rgb(0, 70, 145)" } as const;
 
 const RADIAL_SEGMENTS = 8;
@@ -54,7 +54,7 @@ function drawLetter(canvas: HTMLCanvasElement, axis: (typeof GIZMO_MAIN_AXES)[nu
   ctx.font = `${o.font.weight} ${Math.floor((n * 88) / 128)}px ${o.font.family}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = TRIAD_COLORS[axis];
+  ctx.fillStyle = _color.set(o.triad.colors[axis]).getStyle();
   ctx.fillText(axis.toUpperCase(), n / 2, n / 2);
 }
 
@@ -83,12 +83,9 @@ export const triad: PartBuilder = (_, __, owned) => {
     const turned = ROTATIONS.map((rotation) => unit.clone().applyQuaternion(rotation));
     const geometry = mergeGeometries(turned);
     for (const g of [unit, ...turned]) g.dispose();
-    const colors = new BufferAttribute(new Float32Array(geometry.attributes.position.count * 3), 3);
-    GIZMO_MAIN_AXES.forEach((axis, i) => {
-      const { r, g, b } = _color.set(TRIAD_COLORS[axis]);
-      for (let k = 0; k < count; k++) colors.setXYZ(i * count + k, r, g, b);
-    });
-    meshAttributes(geometry.setAttribute("color", colors));
+    meshAttributes(
+      geometry.setAttribute("color", new BufferAttribute(new Float32Array(geometry.attributes.position.count * 3), 3))
+    );
     const white = whiteTexture(owned);
     const material = targetMaterial({ sprite: false, map: null, color: 0xffffff, opacity: 1 }, white);
     owned.add(geometry).add(material);
@@ -140,6 +137,12 @@ export const triad: PartBuilder = (_, __, owned) => {
         }
       });
       positions.needsUpdate = true;
+      const colors = lines!.geometry.attributes.color as BufferAttribute;
+      GIZMO_MAIN_AXES.forEach((axis, i) => {
+        const { r, g, b } = _color.set(o.triad.colors[axis]);
+        for (let k = 0; k < count; k++) colors.setXYZ(i * count + k, r, g, b);
+      });
+      colors.needsUpdate = true;
       // ponytail: redrawn on every update (three letters), so a font change applies; a late web font waits for one.
       GIZMO_MAIN_AXES.forEach((axis, i) => {
         drawLetter(letters[i].canvas, axis, o);

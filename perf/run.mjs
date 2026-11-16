@@ -87,7 +87,7 @@ for (const backend of backends) {
         await ev('P.prepAnimating()'); await ev(`P.animating(${WARM})`); T.animating = await ev(`P.animating(${N})`);
         await ev('P.prepDragging()'); await ev(`P.dragging(${WARM})`); T.dragging = await ev(`P.dragging(${N})`); await ev('P.endDragging()');
         await ev('P.prepHover()'); await ev(`P.hover(${WARM})`); T.hover = await ev(`P.hover(${N})`);
-        await ev('P.prepUpdate()'); await ev(`P.update(${WARM})`); T.update = await ev(`P.update(${N})`); T.domUpdate = await ev(`P.domUpdate(${N})`); T.cameraUpdate = await ev(`P.cameraUpdate(${N})`);
+        await ev('P.prepUpdate()'); await ev(`P.update(${WARM})`); T.update = await ev(`P.update(${N})`);
         out.setCycle = await ev('P.setCycle(20)');
       }
       out.multi = await ev('P.multi(4)');

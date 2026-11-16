@@ -13,10 +13,9 @@
     <div id="wrap"></div>
     <div id="pad"></div>
     <script type="module">
-      // Browser cases for lib/interaction/pointerSession.ts (I2). `#pad` stands in for the gizmo element until K5
-      // wires attachPointer into the class. `?gizmo=1` builds the 2.3.0 class over a canvas with OrbitControls for
-      // the wheel reproduction (S R27); `&forward=1` adds forwardWheel.
-      import { attachPointer, forwardWheel } from "/lib/interaction/pointerSession.ts";
+      // Browser cases for lib/interaction/pointerSession.ts (I2) on `#pad`. `?gizmo=1` builds the class over a canvas
+      // with OrbitControls for the wheel case (S R27), which the class forwards itself.
+      import { attachPointer } from "/lib/interaction/pointerSession.ts";
 
       const q = new URLSearchParams(location.search);
       const pad = document.getElementById("pad");
@@ -59,9 +58,7 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         const gizmo = new ViewportGizmo(camera, renderer, { container: wrap });
         gizmo.attachControls(controls);
-        // ponytail: the 2.3.0 class keeps its element private; E1 makes it public.
-        const element = gizmo._domElement;
-        if (q.get("forward") === "1") forwardWheel(element, renderer.domElement);
+        const element = gizmo.domElement;
         renderer.setAnimationLoop(() => {
           controls.update();
           renderer.render(scene, camera);
