@@ -42,9 +42,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { FontLoader, type Font } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 import CameraControls from "camera-controls";
-import { ViewportGizmo } from "@lib/ViewportGizmo";
-import type { GizmoOptions } from "@lib/types";
-import { fromYUp, type UpAxis, type Vec3 } from "./frames";
+import { ViewportGizmo, type GizmoOptions, type GizmoPose } from "@lib/index";
+import { cameraControls } from "@lib/controls/cameraControls";
+import { fromYUp, type Axis, type UpAxis, type Vec3 } from "./frames";
 
 export type RendererKind = "webgl" | "webgpu";
 export type ControllerKind = "orbit" | "camera-controls" | "none";
@@ -54,14 +54,27 @@ export type Backend = "webgl" | "webgpu" | "webgpu-fallback";
 
 export type StageConfig = {
   renderer?: RendererKind;
+  /** Default `+y`. */
   up?: UpAxis;
+  /** The axis the gizmo's Front faces. Default: the library's default for `up`. */
+  front?: Axis;
   projection?: Projection;
   controller?: ControllerKind;
   /** Gizmo options; `null` creates no gizmo (the example draws its own). */
-  gizmo?: Omit<GizmoOptions, "container" | "up"> | null;
+  gizmo?: Omit<GizmoOptions, "container" | "up" | "frontDirection"> | null;
 };
 
-export type Pose = { azimuth: number; polar: number; roll: number };
+/** What the camera shows, read through the public API only. */
+export type ViewReading = {
+  /** Unit vector from the orbit target to the camera. */
+  direction: Vec3;
+  /** `camera.up`. */
+  up: Vec3;
+  /** The label of the target the view rests on (`gizmo.atTarget`), or null between targets. */
+  atTarget: string | null;
+  /** Degrees between the camera's right vector and the plane perpendicular to the stage's up axis. */
+  roll: number;
+};
 
 export type StageHandle = {
   backend: Backend;
@@ -76,7 +89,7 @@ export type StageHandle = {
   target: Vector3;
   /** Maps a direction written in Y-up terms into this stage's up frame. */
   toWorld(v: Vec3): Vector3;
-  readPose(): Pose;
+  readView(): ViewReading;
   /** Calls `fn` on every gizmo or controller view change; returns an unsubscribe. */
   onViewChange(fn: () => void): () => void;
   dispose(): void;
@@ -106,7 +119,8 @@ export async function createStage(
 ): Promise<StageHandle | null> {
   const {
     renderer: kind = "webgl",
-    up: upAxis = "y",
+    up: upAxis = "+y",
+    front,
     projection = "perspective",
     controller = "orbit",
     gizmo: gizmoOptions = {},
@@ -133,7 +147,7 @@ export async function createStage(
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
 
-  const toWorld = (v: Vec3) => new Vector3(...fromYUp(v, upAxis));
+  const toWorld = (v: Vec3) => new Vector3(...fromYUp(v, upAxis, front));
   const up = toWorld([0, 1, 0]);
   const target = toWorld([0, 1, 0]);
 
@@ -189,7 +203,12 @@ export async function createStage(
   const gizmo =
     gizmoOptions === null
       ? null
-      : new ViewportGizmo(camera, renderer, { ...gizmoOptions, up: camera.up, container });
+      : new ViewportGizmo(camera, renderer, {
+          ...gizmoOptions,
+          up: camera.up,
+          frontDirection: toWorld([0, 0, 1]),
+          container,
+        });
   if (gizmo) gizmo.target.copy(target);
 
   let controls: OrbitControls | CameraControls | null = null;
@@ -213,25 +232,24 @@ export async function createStage(
       cameraControlsInstalled = true;
     }
     const cc = new CameraControls(camera, renderer.domElement);
-    cc.setLookAt(...camera.position.toArray(), ...target.toArray(), false);
-    cc.addEventListener("update", () => {
-      if (gizmo) {
-        cc.getTarget(gizmo.target);
-        gizmo.update();
-      }
-      notify();
-    });
-    if (gizmo) {
-      gizmo.addEventListener("start", () => (cc.enabled = false));
-      gizmo.addEventListener("end", () => (cc.enabled = true));
-      gizmo.addEventListener("change", () => cc.setPosition(...camera.position.toArray()));
-    }
+    void cc.setLookAt(...camera.position.toArray(), ...target.toArray(), false);
+    cc.addEventListener("update", notify);
+    // The adapter keeps camera-controls and the gizmo in step; the gizmo disables `cc` while it turns.
+    gizmo?.attachControls(cameraControls(cc));
     updateControls = () => {
-      if (cc.enabled && !gizmo?.animating) cc.update(timer.getDelta());
+      const delta = timer.getDelta();
+      if (cc.enabled) cc.update(delta);
     };
     controls = cc;
   }
-  gizmo?.addEventListener("change", notify);
+  if (gizmo) {
+    gizmo.addEventListener("change", ({ pose }) => {
+      // Controlled mode: the gizmo reports the pose and the host writes the camera.
+      if (gizmo.options.controlled) applyPose(camera, gizmo.target, pose);
+      notify();
+    });
+    gizmo.addEventListener("attargetchange", notify);
+  }
 
   const handle: StageHandle = {
     backend,
@@ -244,9 +262,9 @@ export async function createStage(
     up,
     target,
     toWorld,
-    readPose() {
+    readView() {
       const focus = gizmo?.target ?? (controls instanceof OrbitControls ? controls.target : target);
-      return pose(camera, focus, up, toWorld([1, 0, 0]), toWorld([0, 0, 1]));
+      return readView(camera, focus, up, gizmo?.atTarget?.target.label ?? null);
     },
     onViewChange(fn) {
       viewListeners.add(fn);
@@ -300,24 +318,24 @@ export async function createStage(
   return handle;
 }
 
-function pose(
+/** Writes a reported pose at the camera's current distance from `focus`: what a controlled-mode host does. */
+function applyPose(camera: PerspectiveCamera | OrthographicCamera, focus: Vector3, pose: GizmoPose) {
+  const distance = camera.position.distanceTo(focus);
+  camera.position.copy(pose.direction).multiplyScalar(distance).add(focus);
+  camera.up.copy(pose.up);
+  camera.lookAt(focus);
+}
+
+function readView(
   camera: PerspectiveCamera | OrthographicCamera,
   focus: Vector3,
   up: Vector3,
-  right: Vector3,
-  front: Vector3
-): Pose {
-  const offset = camera.position.clone().sub(focus);
-  const distance = offset.length() || 1;
+  atTarget: string | null
+): ViewReading {
+  const direction = camera.position.clone().sub(focus).normalize();
   const cameraRight = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-  const deg = (rad: number) => (rad * 180) / Math.PI;
-  const clamp = (v: number) => Math.min(1, Math.max(-1, v));
-  return {
-    azimuth: deg(Math.atan2(offset.dot(right), offset.dot(front))),
-    polar: deg(Math.acos(clamp(offset.dot(up) / distance))),
-    // Angle between the camera's right vector and the plane perpendicular to up.
-    roll: deg(Math.asin(clamp(cameraRight.dot(up)))),
-  };
+  const roll = (Math.asin(Math.min(1, Math.max(-1, cameraRight.dot(up)))) * 180) / Math.PI;
+  return { direction: direction.toArray(), up: camera.up.toArray(), atTarget, roll };
 }
 
 function loadFont() {

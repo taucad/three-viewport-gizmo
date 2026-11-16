@@ -2,20 +2,26 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import type { GizmoFaceName, GizmoLimits, GizmoOptions } from "@lib/index";
 import { Stage } from "@site/components/Stage";
-import { VIEWS } from "@site/components/frames";
-import type { Pose, StageConfig, StageHandle } from "@site/components/stage-runtime";
+import { AXES, defaultFront, frontsFor, type Axis, type Vec3 } from "@site/components/frames";
+import type { StageConfig, StageHandle, ViewReading } from "@site/components/stage-runtime";
+
+const axisLabel = (axis: Axis) => `${axis[0] === "-" ? "−" : "+"}${axis[1].toUpperCase()}`;
+const axisChoices = (axes: readonly Axis[]) => axes.map((axis) => [axis, axisLabel(axis)] as const);
+
+const LIMITS: Record<"none" | "horizon" | "front-half", GizmoLimits | undefined> = {
+  none: undefined,
+  horizon: { maxPolarAngle: Math.PI / 2 },
+  "front-half": { minAzimuthAngle: -Math.PI / 2, maxAzimuthAngle: Math.PI / 2 },
+};
 
 const CHOICES = {
   renderer: [
     ["webgl", "WebGL"],
     ["webgpu", "WebGPU"],
   ],
-  up: [
-    ["x", "X"],
-    ["y", "Y"],
-    ["z", "Z"],
-  ],
+  up: axisChoices(AXES),
   type: [
     ["sphere", "Sphere"],
     ["cube", "Cube"],
@@ -30,6 +36,15 @@ const CHOICES = {
     ["perspective", "Perspective"],
     ["orthographic", "Orthographic"],
   ],
+  limits: [
+    ["none", "None"],
+    ["horizon", "Stay above the horizon"],
+    ["front-half", "Front half only"],
+  ],
+  poleEntry: [
+    ["front", "From the front"],
+    ["nearest", "Nearest side"],
+  ],
 } as const;
 
 type Choice = keyof typeof CHOICES;
@@ -41,33 +56,50 @@ const LABELS: Record<Choice, string> = {
   type: "Gizmo type",
   controller: "Controller",
   projection: "Projection",
+  limits: "Limits",
+  poleEntry: "Turning to Top or Bottom",
 };
 
 const DEFAULTS: Values = {
   renderer: "webgl",
-  up: "y",
+  up: "+y",
   type: "cube",
   controller: "orbit",
   projection: "perspective",
+  limits: "none",
+  poleEntry: "front",
 };
 
+const FACES: readonly GizmoFaceName[] = ["front", "back", "left", "right", "top", "bottom"];
+
+// A `+` typed into a query string reads back as a space.
+const param = (params: URLSearchParams, key: string) => params.get(key)?.replace(/^ /, "+") ?? null;
+
 function pick<K extends Choice>(params: URLSearchParams, key: K): Values[K] {
-  const value = params.get(key);
+  const value = param(params, key);
   const allowed = CHOICES[key].map(([v]) => v) as readonly string[];
   return (value !== null && allowed.includes(value) ? value : DEFAULTS[key]) as Values[K];
 }
+
+const vector = (v: Vec3) => v.map((n) => (Math.abs(n) < 5e-4 ? 0 : n).toFixed(3)).join(", ");
 
 export function Playground() {
   const params = useSearchParams();
   const values = Object.fromEntries(
     (Object.keys(CHOICES) as Choice[]).map((key) => [key, pick(params, key)])
   ) as Values;
+  const fronts = frontsFor(values.up);
+  const frontParam = param(params, "front") as Axis | null;
+  const front = frontParam && fronts.includes(frontParam) ? frontParam : defaultFront(values.up);
   const speedParam = Number(params.get("speed"));
   const speed = speedParam > 0 && speedParam <= 4 ? speedParam : 1;
   const animated = params.get("animated") !== "false";
+  const triad = params.get("triad") === "true";
+  const controlled = params.get("controlled") === "true";
+  const hasTriad = values.type !== "sphere";
 
   const [stage, setStage] = useState<StageHandle | null>(null);
-  const [pose, setPose] = useState<Pose | null>(null);
+  const [view, setView] = useState<ViewReading | null>(null);
 
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -79,76 +111,86 @@ export function Playground() {
   const onStage = useCallback((next: StageHandle | null) => setStage(next), []);
 
   useEffect(() => {
-    if (!stage) return setPose(null);
-    const read = () => setPose(stage.readPose());
+    if (!stage) return setView(null);
+    const read = () => setView(stage.readView());
     read();
     return stage.onViewChange(read);
   }, [stage]);
 
+  // Changing any of these rebuilds the stage.
   const config: StageConfig = {
     renderer: values.renderer,
     up: values.up,
+    front,
     projection: values.projection,
     controller: values.controller,
-    gizmo: { type: values.type },
+    gizmo: {},
+  };
+
+  // These go to the running gizmo through `gizmo.set()`.
+  const options: GizmoOptions = {
+    type: values.type,
+    animated,
+    speed,
+    controlled,
+    poleEntry: values.poleEntry,
+    limits: LIMITS[values.limits],
+    triad: { enabled: hasTriad && triad },
   };
 
   const gizmo = stage?.gizmo;
-  const canLookFrom = !!gizmo && typeof (gizmo as { lookFrom?: unknown }).lookFrom === "function";
 
   return (
     <div className="playground">
       <div>
         <Stage
           config={config}
-          animated={animated}
-          speed={speed}
+          options={options}
           onStage={onStage}
-          label={`Playground viewport: ${values.renderer}, ${values.up.toUpperCase()}-up, ${values.type} gizmo, ${values.controller} controller, ${values.projection} camera`}
+          label={`Playground viewport: ${values.renderer}, ${axisLabel(values.up)} up, Front ${axisLabel(front)}, ${values.type} gizmo, ${values.controller} controller, ${values.projection} camera`}
         />
+
+        {/* Turns. Roll controls and the turn API (turn, heading, home) join this group after K7. */}
         <div className="views" role="group" aria-label="Look from">
-          {VIEWS.map(({ name, dir }) => (
+          {FACES.map((face) => (
             <button
-              key={name}
+              key={face}
               type="button"
               className="button"
-              disabled={!canLookFrom}
-              onClick={() => {
-                if (!stage?.gizmo || !canLookFrom) return;
-                void stage.gizmo.lookFrom(stage.toWorld([...dir]).normalize(), { animated });
-              }}
+              disabled={!gizmo}
+              onClick={() => void gizmo?.lookFrom(face)}
             >
-              {name}
+              {face[0].toUpperCase() + face.slice(1)}
             </button>
           ))}
         </div>
-        {stage && !canLookFrom && (
-          <p className="muted">
-            View buttons call <code>gizmo.lookFrom()</code>, which this build of the library does
-            not have yet.
-          </p>
-        )}
       </div>
 
       <div className="controls">
-        {(Object.keys(CHOICES) as Choice[]).map((key) => (
-          <fieldset key={key}>
-            <legend>{LABELS[key]}</legend>
-            <div className="segmented">
-              {CHOICES[key].map(([value, label]) => (
-                <label key={value}>
-                  <input
-                    type="radio"
-                    name={key}
-                    value={value}
-                    checked={values[key] === value}
-                    onChange={() => update(key, value)}
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+        {(["renderer", "up"] as const).map((key) => (
+          <Segmented key={key} name={key} values={values} update={update} />
+        ))}
+
+        <fieldset>
+          <legend>Front faces</legend>
+          <div className="segmented">
+            {axisChoices(fronts).map(([value, label]) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  name="front"
+                  value={value}
+                  checked={front === value}
+                  onChange={() => update("front", value)}
+                />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {(["type", "controller", "projection", "limits", "poleEntry"] as const).map((key) => (
+          <Segmented key={key} name={key} values={values} update={update} />
         ))}
 
         <div>
@@ -176,6 +218,25 @@ export function Playground() {
           Animated
         </label>
 
+        <label>
+          <input
+            type="checkbox"
+            checked={hasTriad && triad}
+            disabled={!hasTriad}
+            onChange={(e) => update("triad", String(e.target.checked))}
+          />{" "}
+          Axis triad{hasTriad ? "" : " (cube types only)"}
+        </label>
+
+        <label>
+          <input
+            type="checkbox"
+            checked={controlled}
+            onChange={(e) => update("controlled", String(e.target.checked))}
+          />{" "}
+          Controlled: the page writes the camera from each <code>change</code>
+        </label>
+
         <div>
           <div className="control-label" id="readout-label">
             Camera
@@ -183,19 +244,52 @@ export function Playground() {
           <dl className="readout" aria-labelledby="readout-label">
             <dt>backend</dt>
             <dd>{stage?.backend ?? "…"}</dd>
-            <dt>azimuth</dt>
-            <dd>{pose ? `${pose.azimuth.toFixed(1)}°` : "…"}</dd>
-            <dt>polar</dt>
-            <dd>{pose ? `${pose.polar.toFixed(1)}°` : "…"}</dd>
+            <dt>direction</dt>
+            <dd>{view ? vector(view.direction) : "…"}</dd>
+            <dt>up</dt>
+            <dd>{view ? vector(view.up) : "…"}</dd>
+            <dt>at target</dt>
+            <dd>{view ? (view.atTarget ?? "none") : "…"}</dd>
             <dt>roll</dt>
-            <dd>{pose ? `${pose.roll.toFixed(1)}°` : "…"}</dd>
+            <dd>{view ? `${(Math.abs(view.roll) < 0.05 ? 0 : view.roll).toFixed(1)}°` : "…"}</dd>
           </dl>
           <p className="muted">
-            Roll is the angle between the camera&apos;s right vector and the plane perpendicular to
-            the up axis. It should read 0.0° in every view.
+            Direction points from the orbit target to the camera. Roll is the angle between the
+            camera&apos;s right vector and the plane perpendicular to the up axis; it reads 0.0° in
+            every view until the view is rolled.
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+function Segmented({
+  name,
+  values,
+  update,
+}: {
+  name: Choice;
+  values: Values;
+  update: (key: string, value: string) => void;
+}) {
+  return (
+    <fieldset>
+      <legend>{LABELS[name]}</legend>
+      <div className="segmented">
+        {CHOICES[name].map(([value, label]) => (
+          <label key={value}>
+            <input
+              type="radio"
+              name={name}
+              value={value}
+              checked={values[name] === value}
+              onChange={() => update(name, value)}
+            />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
