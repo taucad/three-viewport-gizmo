@@ -148,10 +148,17 @@ describe("cameraUpRefusal (ruling A, roll Finding 5)", () => {
   });
 });
 
+// three 0.168 ships the turn as the private `_rotateLeft`; later revisions make it public as `rotateLeft`.
+function orbitLeft(controls: OrbitControls, angle: number): void {
+  const turn = controls as unknown as { rotateLeft?: (angle: number) => void; _rotateLeft?: (angle: number) => void };
+  if (turn.rotateLeft) turn.rotateLeft(angle);
+  else turn._rotateLeft!(angle);
+}
+
 describe("refreshCameraUp (L5)", () => {
   // A horizontal drag is `rotateLeft` on OrbitControls and `rotate(azimuth, 0)` on camera-controls: a turn about the
   // orbit up. About the rolled up (-1, 0, 0) the camera's x stays 0; about the stale (0, 1, 0) its y stays 0.
-  // `rotateLeft` and the cached up are OrbitControls members from three 0.168.
+  // The cached up is an OrbitControls member from three 0.168; `orbitLeft` reaches the turn on every revision.
   it.runIf(ORBIT_TAKES_UP)("makes a horizontal OrbitControls drag after a roll orbit the new up", () => {
     const camera = cameraAt(0, 0, 5);
     const controls = new OrbitControls(camera, document.body);
@@ -161,7 +168,7 @@ describe("refreshCameraUp (L5)", () => {
     expect(camera.position.distanceTo(new Vector3(0, 0, 5))).toBeLessThan(1e-9);
     expect(camera.up.x).toBeCloseTo(-1, 9);
 
-    controls.rotateLeft(0.5);
+    orbitLeft(controls, 0.5);
     controls.update();
     expect(camera.position.x).toBeCloseTo(0, 9);
     expect(Math.abs(camera.position.y)).toBeGreaterThan(1);
@@ -172,7 +179,7 @@ describe("refreshCameraUp (L5)", () => {
     const camera = cameraAt(0, 0, 5);
     const controls = new OrbitControls(camera, document.body);
     roll90(camera);
-    controls.rotateLeft(0.5);
+    orbitLeft(controls, 0.5);
     controls.update();
     expect(camera.position.y).toBeCloseTo(0, 9);
     expect(Math.abs(camera.position.x)).toBeGreaterThan(1);
