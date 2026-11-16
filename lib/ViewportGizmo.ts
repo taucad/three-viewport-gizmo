@@ -557,11 +557,12 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     const o = this._options;
     let flight: Flight | null = null;
 
-    if (double && o.roll !== false) {
-      // Roll ruling 3: a double-click returns to upright on the view the first click turned to, never to the opposite.
+    if (double && (o.roll !== false || grabbed)) {
+      // Roll ruling 3: a double-click returns to upright on the view the first click turned to, never to the opposite
+      // and never back. With roll off there is no up to reset: the second click keeps the first one's turn.
       const direction =
         grabbed?.heading.pose.direction ?? this._atTarget?.target.direction ?? this._pose().direction;
-      flight = planView(this._context(undefined), direction, { reset: true });
+      flight = planView(this._context(undefined), direction, { reset: o.roll !== false });
     } else if (press.pressed && targetEnabled(o, press.pressed)) {
       flight = planView(this._context(undefined), press.pressed.direction, {
         oppositeOnRepeat: o.oppositeOnRepeat && !double,
