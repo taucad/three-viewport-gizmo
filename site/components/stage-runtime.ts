@@ -189,7 +189,7 @@ export async function createStage(
   const gizmo =
     gizmoOptions === null
       ? null
-      : new ViewportGizmo(camera, renderer, { ...gizmoOptions, up: upAxis, container });
+      : new ViewportGizmo(camera, renderer, { ...gizmoOptions, up: camera.up, container });
   if (gizmo) gizmo.target.copy(target);
 
   let controls: OrbitControls | CameraControls | null = null;

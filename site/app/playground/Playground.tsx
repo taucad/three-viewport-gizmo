@@ -115,7 +115,7 @@ export function Playground() {
               disabled={!canLookFrom}
               onClick={() => {
                 if (!stage?.gizmo || !canLookFrom) return;
-                stage.gizmo.lookFrom(stage.toWorld([...dir]).normalize(), animated);
+                void stage.gizmo.lookFrom(stage.toWorld([...dir]).normalize(), { animated });
               }}
             >
               {name}
