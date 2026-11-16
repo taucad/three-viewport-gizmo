@@ -5,9 +5,8 @@ import dts from "vite-plugin-dts";
 export default defineConfig({
   build: {
     lib: {
-      entry: "./lib/index",
+      entry: { "three-viewport-gizmo": "./lib/index", "camera-controls": "./lib/controls/cameraControls" },
       formats: ["es"],
-      fileName: "three-viewport-gizmo",
     },
     rollupOptions: {
       // Externalize every `three` subpath (`three`, `three/webgpu`, `three/addons/...`,
