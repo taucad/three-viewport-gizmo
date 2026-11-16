@@ -21,9 +21,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPixelatedPass } from "three/addons/postprocessing/RenderPixelatedPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { ViewportGizmo } from "@lib/ViewportGizmo";
+import { ViewportGizmo } from "@lib/index";
 import { Stage } from "./Stage";
-import type { UpAxis } from "./frames";
+import { AXES, type UpAxis } from "./frames";
 
 export function OrbitControlsEventsExample() {
   return (
@@ -183,21 +183,22 @@ export function PostProcessingExample() {
 }
 
 export function UpAxisExample() {
-  const [up, setUp] = useState<UpAxis>("z");
+  const [up, setUp] = useState<UpAxis>("+z");
+  const name = (axis: UpAxis) => `${axis[0] === "-" ? "−" : "+"}${axis[1].toUpperCase()}`;
   return (
     <>
       <fieldset style={{ marginBottom: "0.75rem" }}>
         <legend>Up axis</legend>
         <div className="segmented">
-          {(["x", "y", "z"] as const).map((axis) => (
+          {AXES.map((axis) => (
             <label key={axis}>
               <input type="radio" name="up-axis" checked={up === axis} onChange={() => setUp(axis)} />
-              <span>{axis.toUpperCase()}-up</span>
+              <span>{name(axis)} up</span>
             </label>
           ))}
         </div>
       </fieldset>
-      <Stage label={`${up.toUpperCase()}-up scene with a cube gizmo`} config={{ up, controller: "orbit", gizmo: { type: "cube" } }} />
+      <Stage label={`${name(up)} up scene with a cube gizmo`} config={{ up, controller: "orbit", gizmo: { type: "cube" } }} />
     </>
   );
 }
