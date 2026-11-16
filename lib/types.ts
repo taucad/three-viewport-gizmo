@@ -5,7 +5,6 @@ import type {
   Material,
   Mesh,
   MeshBasicMaterial,
-  Object3DEventMap,
   Sprite,
   SpriteMaterial,
   Texture,
@@ -499,7 +498,7 @@ export interface GizmoAxisObjectUserData extends Record<string, unknown> {
 export type GizmoAxisObject = Mesh<BufferGeometry, MeshBasicMaterial> | Sprite;
 
 /** 2.3.0 runtime: The events the class still dispatches. */
-export interface LegacyGizmoEventMap extends Object3DEventMap {
+export interface LegacyGizmoEventMap {
   start: {};
   end: {};
   change: {

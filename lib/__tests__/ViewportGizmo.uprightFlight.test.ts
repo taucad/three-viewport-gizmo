@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Intersection } from "three";
 import { Vector3 } from "three";
 import type { GizmoAxisObject } from "../types.js";
-import { createGizmo, resetDefaultUp } from "./test-utils.js";
+import { createGizmo, resetDefaultUp, targetObject } from "./test-utils.js";
 
 const intersectedObjects = vi.fn();
 vi.mock("../interaction/intersectedObjects.js", () => ({
@@ -24,11 +24,8 @@ describe("click flight", () => {
       cameraPosition: new Vector3(1, 1, 1).multiplyScalar(10),
       gizmoOptions: { type: "cube", container },
     });
-    // `userData.face` names the Y-up option key; the Z-up Top face is the +Z face.
-    const top = gizmo.children.find((child) => {
-      const { kind, axes } = (child as GizmoAxisObject).userData;
-      return kind === "face" && axes?.[0] === "z";
-    }) as GizmoAxisObject;
+    const top = targetObject(gizmo, "top");
+    expect(top.position.z).toBeGreaterThan(0);
     intersectedObjects.mockReturnValue({ object: top, distance: 1 } as Intersection<GizmoAxisObject>);
 
     let now = 0;

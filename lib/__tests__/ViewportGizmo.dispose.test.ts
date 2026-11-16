@@ -10,7 +10,7 @@ afterEach(() => {
 describe("dispose", () => {
   it("removes and disposes every child", () => {
     const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5) });
-    const children = [...gizmo.children] as Mesh<BufferGeometry, Material>[];
+    const children = [...gizmo.root.children] as Mesh<BufferGeometry, Material>[];
     expect(children.length).toBeGreaterThan(20);
     // Faces, edges and corners share geometries; spy on each one once.
     const geometries = new Set(children.map((child) => child.geometry));
@@ -18,17 +18,17 @@ describe("dispose", () => {
 
     gizmo.dispose();
 
-    expect(gizmo.children).toHaveLength(0);
+    expect(gizmo.root.children).toHaveLength(0);
     for (const spy of disposed) expect(spy).toHaveBeenCalled();
   });
 
   it("leaves only the regenerated children after set()", () => {
     const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5) });
-    const count = gizmo.children.length;
+    const count = gizmo.root.children.length;
 
     gizmo.set({ type: "cube" });
 
-    expect(gizmo.children).toHaveLength(count);
+    expect(gizmo.root.children).toHaveLength(count);
   });
 
   it("stops a press in progress, ending it once, and no longer follows the pointer", () => {

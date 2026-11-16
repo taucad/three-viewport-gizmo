@@ -1,22 +1,23 @@
 import { vi } from "vitest";
-import type { LegacyGizmoOptions, GizmoOptionsFallback, GizmoAxisObject } from "../types.js";
+import type { GizmoTargetName } from "../index.js";
+import type { LegacyGizmoOptions, GizmoAxisObject } from "../types.js";
 import { ViewportGizmo } from "../ViewportGizmo.js";
 import type { WebGLRenderer } from "three";
-import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Object3D, PerspectiveCamera, Vector3, Vector4 } from "three";
-export type ViewportGizmoInternals = {
-  _focus: GizmoAxisObject | null;
-  _intersections: GizmoAxisObject[];
-  _handleHover: (e: PointerEvent) => void;
-  _handleClick: (e: PointerEvent) => void;
-  _onPointerDown: (e: PointerEvent) => void;
-  _onPointerLeave: () => void;
-  _options: GizmoOptionsFallback;
-  _controls?: OrbitControls;
-};
 
-export function getInternals(gizmo: ViewportGizmo): ViewportGizmoInternals {
-  return gizmo as unknown as ViewportGizmoInternals;
+/** The object `gizmo.root` draws for the target `name`: the child placed along the target's direction. */
+export function targetObject(gizmo: ViewportGizmo, name: GizmoTargetName): GizmoAxisObject {
+  const target = gizmo.targets.find((candidate) => candidate.name === name);
+  const object = gizmo.root.children.find(
+    (child) => child.userData.kind && target && child.position.clone().normalize().distanceTo(target.direction) < 1e-9
+  );
+  if (!object) throw new Error(`no object for target ${name}`);
+  return object as GizmoAxisObject;
+}
+
+/** The objects `gizmo.root` draws for its targets, in `gizmo.targets` order. */
+export function targetObjects(gizmo: ViewportGizmo): GizmoAxisObject[] {
+  return gizmo.targets.map((target) => targetObject(gizmo, target.name));
 }
 
 export type StubRendererOptions = {
@@ -82,6 +83,26 @@ export function createGizmo({
   camera.position.copy(cameraPosition);
   camera.lookAt(0, 0, 0);
   return new ViewportGizmo(camera, createStubRenderer(), gizmoOptions);
+}
+
+/**
+ * Creates a gizmo in a fresh container whose element measures as a 128 px square at the page origin.
+ *
+ * @returns The gizmo, its element and the container, which the caller removes
+ */
+export function mountGizmo({ gizmoOptions = { type: "cube" }, ...options }: CreateGizmoOptions) {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const gizmo = createGizmo({ ...options, gizmoOptions: { ...gizmoOptions, container } });
+  const element = container.firstElementChild as HTMLElement;
+  element.getBoundingClientRect = () => DOMRect.fromRect({ x: 0, y: 0, width: 128, height: 128 });
+  gizmo.update();
+  return { gizmo, element, container };
+}
+
+/** A pointer event at (20, 20) for the element's `on*` handlers, which jsdom does not route dispatched events to. */
+export function pointer(type: string): PointerEvent {
+  return new MouseEvent(type, { clientX: 20, clientY: 20 }) as PointerEvent;
 }
 
 export function resetDefaultUp(): void {
