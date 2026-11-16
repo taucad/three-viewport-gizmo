@@ -38,7 +38,6 @@ test.describe("F1 owns P Finding 2: depth outside the gizmo's rectangle is kept"
       // Precondition, outside the expected failure: without the gizmo the box hides the far quad.
       expect(probe.centreWithoutGizmo, "the probe read back the box colour").toEqual([68, 136, 204]);
       // WebGL clears obey the scissor, so a host with scissor on is already safe; WebGPU clears the attachment.
-      test.fail(!(info.project.name === "webgl" && scissor), "F1: 2.3.0 clears the depth of the whole canvas");
       expect(probe.centreWithGizmo).toEqual(probe.centreWithoutGizmo);
     });
   }

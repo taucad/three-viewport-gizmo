@@ -25,7 +25,8 @@ import { sample, type Flight, type FlightFrame } from "./orbit/transition";
 import { planHome, planTurn, planView, restsOn, snapCardinal, TARGET_TOLERANCE, type TurnContext } from "./orbit/turn";
 import { createGizmoElement, resolveContainer, updateGizmoElement, writeGizmoState, type GizmoElementOptions } from "./render/dom";
 import { createInternalCamera, setFieldOfView } from "./render/internalCamera";
-import { measureViewport, renderInRect, type MutableViewport } from "./render/viewport";
+import { createDepthReset, renderInRect, type DepthReset } from "./render/frame";
+import { measureViewport, type MutableViewport } from "./render/rect";
 import { warmUp } from "./render/warmUp";
 import { buildScene, disposeScene, type GizmoScene, type SceneTarget } from "./scene/build";
 import { roundedCubeBox } from "./scene/roundedBox";
@@ -157,6 +158,8 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   private _hit!: HitScene;
   private _camera: PerspectiveCamera | OrthographicCamera;
   private readonly _three = new Scene();
+  /** F1's depth-reset quad: a sibling of `root` in the gizmo's scene, owned by the gizmo scene. */
+  private _reset!: DepthReset;
   private readonly _viewport: MutableViewport = { x: 0, y: 0, width: 0, height: 0 };
   /** The orbit up `w` (L1, L2): the label up until a roll; mirrored to `camera.up` by every pose write. */
   private readonly _up = new Vector3();
@@ -177,6 +180,8 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   private _syncing = false;
   /** The camera orientation `update()` last saw; a change asks for a frame. */
   private readonly _seen = new Quaternion();
+  /** The camera orientation `_sync` last mirrored; NaN after a scene change, so the next sync applies. */
+  private readonly _faded = new Quaternion(NaN, NaN, NaN, NaN);
   /** The camera orientation the at-target state was last computed for. */
   private readonly _atSeen = new Quaternion(NaN, NaN, NaN, NaN);
   private readonly _input: PointerInput;
@@ -217,6 +222,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._up.copy(this._label.up);
     this._camera = createInternalCamera(o.type === "sphere", o.fieldOfView);
     this._three.add(this.root);
+    this._adoptReset();
     this._adoptScene();
 
     this.domElement = createGizmoElement(elementOptions(o));
@@ -444,7 +450,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     // ponytail: a host that parented `root` loses it here; without this its gizmo would draw nothing (probe P3).
     if (this.root.parent !== this._three) this._three.add(this.root);
     measureViewport(this.renderer, this.domElement, this._viewport);
-    renderInRect(this.renderer, this._three, this._camera, this._viewport);
+    renderInRect(this.renderer, this._three, this._camera, this._viewport, this._reset);
   }
 
   /** Compiles the gizmo's own scene and camera for the renderer's current render target (P6). */
@@ -470,6 +476,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this.detachControls();
     this._input.detach();
     this._stopWheel();
+    this._reset.removeFromParent();
     disposeScene(this._scene);
     this._three.remove(this.root);
     this.domElement.remove();
@@ -850,10 +857,13 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     });
   }
 
-  /** Turns the gizmo to mirror the camera, and the sphere's depth fade. Allocates nothing. */
+  /** Turns the gizmo to mirror the camera, and the sphere's depth fade when the camera turned. Allocates nothing. */
   private _sync(): void {
-    this.root.quaternion.copy(this.camera.quaternion).invert();
-    fadeScene(this._scene, this.camera.quaternion);
+    const { quaternion } = this.camera;
+    if (this._faded.equals(quaternion)) return;
+    this._faded.copy(quaternion);
+    this.root.quaternion.copy(quaternion).invert();
+    fadeScene(this._scene, quaternion);
   }
 
   private _pose(): GizmoPose {
@@ -882,8 +892,10 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       this._input.release();
       this._press = null;
       this._setHover(null);
+      this._reset.removeFromParent();
       disposeScene(this._scene);
       this._scene = buildScene(next);
+      this._adoptReset();
       this._camera = createInternalCamera(next.type === "sphere", next.fieldOfView);
       const label = this._scene.frame;
       if (!label.up.equals(this._label.up) || !label.front.equals(this._label.front)) this._up.copy(label.up);
@@ -895,6 +907,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       setFieldOfView(this._camera, next.fieldOfView);
     }
     this._adoptScene();
+    this._faded.set(NaN, NaN, NaN, NaN);
 
     updateGizmoElement(this.domElement, elementOptions(next), elementOptions(previous));
     if (next.container !== previous.container) {
@@ -905,6 +918,12 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._rehover();
     this._writeState();
     this._invalidate();
+  }
+
+  /** Creates the depth reset for the current scene, freed with it, and puts it beside `root` (F1). */
+  private _adoptReset(): void {
+    this._reset = createDepthReset(this._scene.owned);
+    this._three.add(this._reset);
   }
 
   /** Puts the scene under `root` and builds what reads it: the target list, the hit scene and the redraw signal. */

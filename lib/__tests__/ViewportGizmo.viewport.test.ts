@@ -57,7 +57,7 @@ describe("root", () => {
     gizmo.render();
 
     const [drawn] = draw.mock.calls[0]!;
-    expect(drawn.children).toEqual([gizmo.root]);
+    expect(drawn.children).toContain(gizmo.root);
     expect(gizmo.root.children[0]!.children.length).toBeGreaterThan(20);
   });
 });
