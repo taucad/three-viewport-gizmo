@@ -84,7 +84,7 @@ const options: Entry[] = [
   ["limits", "{ minPolarAngle?, maxPolarAngle?, minAzimuthAngle?, maxAzimuthAngle? }", "Radians in the orbit frame, narrowed by attached controls' limits."],
   ["controlled", "boolean", <>Report the pose in <code>change</code> and write no camera. Default false. See <Link href="/docs/controlled-mode/">Controlled mode</Link>.</>],
   ["fieldOfView", "number", "Vertical field of view of the gizmo's own camera, in radians, in (0, 100°]; the cube keeps its apparent size. No effect on the sphere, which is drawn orthographic. Default 26°."],
-  ["navigation", "GizmoNavigationOptions", "Built-in navigation buttons. Off by default; documented in the Navigation guide."],
+  ["navigation", "GizmoNavigationOptions", <>Built-in navigation buttons. Off by default. See <Link href="/docs/navigation/">Navigation buttons</Link>.</>],
   ["triad", "{ enabled?, colors?: { x?, y?, z? } }", <>The axis triad for the cube types. Default off. See <Link href="/docs/rounded-cube/">Rounded cube and triad</Link>.</>],
   ["onMaterial", "(material, use: GizmoMaterialUse) => GizmoMaterial", "Replaces each target material the gizmo builds, on every build."],
   ["resolution", "number", <>Side of every label texture in texels. Default: each label sized from <code>size</code> and the device pixel ratio.</>],

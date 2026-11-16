@@ -14,6 +14,7 @@ export const GUIDES = [
   { slug: "hover-events", title: "Hover events" },
   { slug: "styling", title: "Styling and state" },
   { slug: "keyboard", title: "Keyboard and accessibility" },
+  { slug: "navigation", title: "Navigation buttons" },
   { slug: "limits", title: "Limits, pole entry and opposite click" },
   { slug: "rounded-cube", title: "Rounded cube and triad" },
   { slug: "render-on-demand", title: "Render on demand and warm-up" },
