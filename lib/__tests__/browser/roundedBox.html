@@ -94,6 +94,12 @@
           root.add(inside);
           const pieces = await draw();
           const red = count(pieces, (p, i) => p[i] > 128 && p[i + 1] < 128);
+          // The same red inside under the one merged mesh: red there is the rasteriser, not a crack between pieces.
+          scene.group.visible = false;
+          root.add(merged);
+          const redMerged = count(await draw(), (p, i) => p[i] > 128 && p[i + 1] < 128);
+          root.remove(merged);
+          scene.group.visible = true;
           root.remove(inside);
           const lit = count(pieces, (p, i) => p[i + 3] > 0);
           scene.group.visible = false;
@@ -155,7 +161,7 @@
               else disagree++;
             }
           }
-          views.push({ name, lit, red, differ, mask, changed, outside, interior, agree, disagree });
+          views.push({ name, lit, red, redMerged, differ, mask, changed, outside, interior, agree, disagree });
         }
         const triangles = meshes.reduce((sum, m) => sum + m.geometry.getAttribute("position").count / 3, 0);
         return { backend, triangles, views };

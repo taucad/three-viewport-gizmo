@@ -141,7 +141,9 @@
         scene.labels.onRedraw = () => frames++;
         const canvas = scene.labels.texture("z", "idle").image;
         const ink = canvas.toDataURL();
-        const face = new FontFace("S2LateFont", 'local("Courier New"), local("Courier")');
+        // A file the gate's server holds, not a local() font: CI runners have no Courier. A url() source (not an
+        // ArrayBuffer, which is parsed before it joins the set) loads through document.fonts, so `loadingdone` fires.
+        const face = new FontFace("S2LateFont", "url(/tests/browser/fixtures/geist-latin.woff2)", { weight: "100 900" });
         document.fonts.add(face);
         await face.load();
         await new Promise((r) => setTimeout(r, 50)); // `loadingdone` follows the load's promise

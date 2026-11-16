@@ -113,7 +113,7 @@
         const up = UPS[upName];
         const world = new THREE.Scene();
         const camera = createInternalCamera(false);
-        const scene = buildScene(resolve({ type, triad: { enabled: true } }, up));
+        const scene = buildScene(resolve({ type, triad: { enabled: true }, font: FONT }, up));
         for (const { object } of scene.targets) object.visible = false;
         scene.parts.background.object.visible = false;
         scene.parts.lines.object.visible = false;
@@ -157,13 +157,20 @@
         }
         const world = new THREE.Scene();
         const camera = createInternalCamera(false);
-        const scene = buildScene(resolve({ type, triad: { enabled: true } }, up));
+        const scene = buildScene(resolve({ type, triad: { enabled: true }, font: FONT }, up));
         world.add(scene.group);
         turn(scene, [4, 3, 5], up);
         renderer.setClearColor(0xffffff, 1);
         renderer.render(world, camera);
         disposeScene(scene);
       };
+
+      // The labels draw with a font the gate serves, not the host's `sans-serif`: a GitHub Linux runner's default face
+      // draws a thinner "X" than macOS does, which no GPU difference explains.
+      const FONT = { family: "GateFont" };
+      const face = new FontFace(FONT.family, "url(/tests/browser/fixtures/geist-latin.woff2)", { weight: "100 900" });
+      document.fonts.add(face);
+      await face.load();
 
       window.T = { toggle, labels, show, backend: () => (renderer.backend?.isWebGPUBackend ? "webgpu" : "webgl") };
       window.READY = true;
