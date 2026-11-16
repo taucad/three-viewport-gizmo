@@ -1,13 +1,10 @@
 import {
-  BackSide,
   BufferAttribute,
   Color,
   CylinderGeometry,
   Group,
-  Matrix4,
   Mesh,
   MeshBasicMaterial,
-  SphereGeometry,
   Sprite,
   Vector3,
   type BufferGeometry,
@@ -15,11 +12,11 @@ import {
   type Object3D,
   type SpriteMaterial,
 } from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { labelFrame, type AxisEnd, type LabelFrame } from "../orbit/labelFrame";
 import { targetTable, type TargetEntry } from "../orbit/targets";
 import type { GizmoResolvedOptions, GizmoTarget, GizmoTargetKind } from "../types";
 import { GIZMO_AXES, GIZMO_SPHERE_AXES_DISTANCE } from "../utils/constants";
+import { background } from "./background";
 import { cornerGeometry, placeCorner } from "./corners";
 import { edgeGeometry, placeEdge } from "./edges";
 import { atlasLabels, faceGeometry, placeFace, type LabelProvider, type LabelTextures, type Placement } from "./faces";
@@ -136,37 +133,6 @@ const axisLines: PartBuilder = (_, { frame }, owned) => {
         for (let i = 0; i < colors.count; i++) colors.setXYZ(i, r, g, b);
         colors.needsUpdate = true;
       }
-    },
-  };
-};
-
-/**
- * The 2.3.0 background: on the sphere a back-facing sphere, on the cubes the faces merged at 0.9 scale. Its colour
- * follows the pointer being over the gizmo.
- */
-// ponytail: S4's camera-facing disc replaces the sphere's 8,000-triangle sphere.
-const background: PartBuilder = (o, { targets }, owned) => {
-  const material = new MeshBasicMaterial({ side: BackSide, transparent: true, depthWrite: false, toneMapped: false });
-  const scale = new Vector3().setScalar(0.9);
-  const geometry =
-    o.type === "sphere"
-      ? new SphereGeometry(1.8, 64, 64)
-      : mergeGeometries(
-          targets
-            .filter(({ end }) => end)
-            .map(({ object }) =>
-              (object as Mesh).geometry.clone().applyMatrix4(new Matrix4().compose(object.position, object.quaternion, scale))
-            )
-        );
-  owned.add(material).add(geometry);
-  const object = new Mesh(geometry, material);
-  return {
-    object,
-    update(o, over) {
-      const { enabled, color, opacity, hover } = o.background;
-      object.visible = enabled;
-      material.color.set(over ? hover.color : color);
-      material.opacity = over ? hover.opacity : opacity;
     },
   };
 };
