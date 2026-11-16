@@ -1,4 +1,4 @@
-import { Mesh, MeshBasicMaterial, Vector3, type BufferGeometry, type Object3D } from "three";
+import { Color, Mesh, MeshBasicMaterial, Vector3, type BufferGeometry, type Object3D } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { classifyChange } from "../options/changes";
 import { resolveOptions } from "../options/resolve";
@@ -94,7 +94,7 @@ describe("triad", () => {
     const contexts = getContext.mock.results.map((r) => r.value as CanvasRenderingContext2D).slice(-3);
     contexts.forEach((ctx, i) => {
       const axis = (["x", "y", "z"] as const)[i];
-      expect(ctx.fillStyle).toBe(TRIAD_COLORS[axis]);
+      expect(ctx.fillStyle).toBe(new Color(TRIAD_COLORS[axis]).getStyle());
       expect(ctx.font).toMatch(/^500 \d+px serif$/);
       expect(ctx.fillText).toHaveBeenCalledWith(axis.toUpperCase(), expect.any(Number), expect.any(Number));
     });

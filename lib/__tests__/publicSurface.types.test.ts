@@ -66,6 +66,7 @@ const targetNames = [
 ] as const satisfies readonly GizmoTargetName[];
 
 const errorCodes = [
+  "DOCUMENT_MISSING",
   "CONTAINER_MISSING",
   "UNKNOWN_OPTION",
   "INVALID_OPTION",
@@ -125,7 +126,7 @@ describe("public surface", () => {
     expectTypeOf<GizmoAtTarget["sides"]>().toEqualTypeOf<Readonly<Record<GizmoSide, GizmoTarget>> | null>();
     expectTypeOf<GizmoView>().toMatchTypeOf<GizmoTargetName | "home" | Readonly<{ x: number; y: number; z: number }>>();
 
-    expectTypeOf<ViewportGizmoEventMap["press"]>().toEqualTypeOf<Readonly<{ target: GizmoTarget | null }>>();
+    expectTypeOf<ViewportGizmoEventMap["press"]>().toEqualTypeOf<Readonly<{ pressed: GizmoTarget | null }>>();
     expectTypeOf<ViewportGizmoEventMap["start"]>().toEqualTypeOf<
       Readonly<{ cause: GizmoCause; heading: GizmoHeading | null }>
     >();
@@ -133,7 +134,9 @@ describe("public surface", () => {
       Readonly<{ cause: GizmoCause; heading: GizmoHeading | null; pose: GizmoPose }>
     >();
     expectTypeOf<ViewportGizmoEventMap["end"]>().toEqualTypeOf<GizmoTurnEnd>();
-    expectTypeOf<ViewportGizmoEventMap["hoverchange"]>().toEqualTypeOf<Readonly<{ target: GizmoTarget | null }>>();
+    expectTypeOf<ViewportGizmoEventMap["hoverchange"]>().toEqualTypeOf<Readonly<{ hovered: GizmoTarget | null }>>();
+    // three's EventDispatcher writes the dispatcher to `event.target`, so no payload may name a field `target`.
+    expectTypeOf<ViewportGizmoEventMap[keyof ViewportGizmoEventMap]>().not.toHaveProperty("target");
     expectTypeOf<ViewportGizmoEventMap["attargetchange"]>().toEqualTypeOf<
       Readonly<{ atTarget: GizmoAtTarget | null }>
     >();
@@ -147,7 +150,11 @@ describe("public surface", () => {
     expectTypeOf<GizmoOptions["front"]>().toEqualTypeOf<GizmoTargetOptions | undefined>();
     expectTypeOf<GizmoOptions["frontDirection"]>().toEqualTypeOf<Readonly<Vector3Like> | undefined>();
     expectTypeOf<GizmoResolvedOptions["frontDirection"]>().toEqualTypeOf<Readonly<Vector3>>();
-    expectTypeOf<GizmoResolvedOptions["front"]>().toEqualTypeOf<GizmoTargetOptions | undefined>();
+    // Deep-required, and the face aliases are merged into their axis ends and dropped (N1).
+    expectTypeOf<GizmoResolvedOptions>().not.toHaveProperty("front");
+    expectTypeOf<GizmoResolvedOptions["x"]["hover"]["color"]>().toEqualTypeOf<NonNullable<GizmoTargetOptions["color"]>>();
+    expectTypeOf<GizmoResolvedOptions["limits"]["maxPolarAngle"]>().toEqualTypeOf<number>();
+    expectTypeOf<GizmoResolvedOptions["font"]["size"]>().toEqualTypeOf<number | undefined>();
     expectTypeOf<GizmoOptions["roll"]>().toEqualTypeOf<boolean | "free" | undefined>();
     expectTypeOf<NonNullable<GizmoOptions["onMaterial"]>>().parameter(1).toEqualTypeOf<GizmoMaterialUse>();
     expectTypeOf<NonNullable<GizmoOptions["onMaterial"]>>().returns.toEqualTypeOf<GizmoMaterial>();

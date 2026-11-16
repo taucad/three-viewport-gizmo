@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Matrix4, Quaternion, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { optionsFallback } from "../options/optionsFallback";
+import { resolveOptions } from "../options/resolve";
 import { labelFrame } from "../orbit/labelFrame";
 import { targetTable, type TargetEntry } from "../orbit/targets";
 import { createInternalCamera } from "../render/internalCamera";
@@ -49,7 +49,7 @@ function sceneFor(variant: string, up: Up, orientation: Quaternion): HitScene {
   const frame = labelFrame(upVector(up));
   const targets = targetTable(frame);
   const isSphere = variant.startsWith("sphere");
-  const options = optionsFallback({ type: isSphere ? "sphere" : (variant as "cube" | "rounded-cube"), up });
+  const options = resolveOptions({ type: isSphere ? "sphere" : (variant as "cube" | "rounded-cube") }, { up: upVector(up) });
   const shape = isSphere
     ? sphereDiscs(targets, (target) =>
         target.kind === "face"

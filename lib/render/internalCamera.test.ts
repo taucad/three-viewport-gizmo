@@ -12,8 +12,8 @@ import {
 } from "three";
 import { createStubRenderer } from "../__tests__/test-utils";
 import { ViewportGizmoError } from "../errors";
-import { optionsFallback } from "../options/optionsFallback";
-import { axesObjects } from "../scene/axesObjects";
+import { resolveOptions } from "../options/resolve";
+import { buildScene } from "../scene/build";
 import {
   DEFAULT_FIELD_OF_VIEW,
   createInternalCamera,
@@ -115,14 +115,10 @@ describe("setFieldOfView", () => {
     "rebuilds no geometry or material and compiles nothing new for a %s",
     async (type) => {
       const renderer = createStubRenderer();
-      const options = optionsFallback({ type });
-      const root = new Object3D();
-      const [axes, background, lines] = axesObjects(options, renderer);
-      root.add(...axes);
-      if (background) root.add(background);
-      if (lines) root.add(lines);
+      const options = resolveOptions({ type }, { up: new Vector3(0, 1, 0) });
+      const root = new Object3D().add(buildScene(options).group);
       const scene = new Scene().add(root);
-      const camera = createInternalCamera(options.isSphere);
+      const camera = createInternalCamera(type === "sphere");
 
       const resources = resourcesOf(root);
       expect(resources.length).toBeGreaterThan(0);

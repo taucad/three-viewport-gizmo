@@ -84,7 +84,9 @@ export function orbitTransition(
 ): OrbitTransition {
   const azimuth = azimuthChange(from.azimuth, to.azimuth, limits);
   const polar = to.polar - from.polar;
-  const roll = wrapAngle(from.roll ?? 0);
+  // A residual below EPSILON is read-back noise, not a roll: the flight stays on the orbit up (L2).
+  const residual = wrapAngle(from.roll ?? 0);
+  const roll = Math.abs(residual) < EPSILON ? 0 : residual;
   const duration = durationOf(Math.max(Math.abs(azimuth), Math.abs(polar), Math.abs(roll)), speed);
 
   return { from: { azimuth: from.azimuth, polar: from.polar, roll }, azimuth, polar, roll, duration };

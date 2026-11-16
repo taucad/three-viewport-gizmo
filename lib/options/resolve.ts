@@ -1,5 +1,7 @@
 import type { Vector3Like } from "three";
 import { ViewportGizmoError } from "../errors";
+import { cameraUpRefusal } from "../controls/contract";
+import { TRIAD_COLORS } from "../scene/triad";
 import { axisEndOf, labelFrame, type AxisEnd, type LabelFrame } from "../orbit/labelFrame";
 import { DEFAULT_FIELD_OF_VIEW } from "../render/internalCamera";
 import type {
@@ -85,13 +87,10 @@ export function resolveOptions(options: GizmoOptions, context: ResolveContext): 
   const radius = options.radius ?? (isSphere ? 1 : isRounded ? 0.3 : 0.2);
 
   const { controls } = context;
-  const controlsTakeUp = !controls || typeof controls.updateCameraUp === "function";
-  if (options.roll && !controlsTakeUp) {
-    throw new ViewportGizmoError(
-      "ROLL_UNSUPPORTED",
-      "`roll` is on, but the attached controls have no `updateCameraUp()` to take a new up. Pass `roll: false`."
-    );
-  }
+  // Ruling A: roll defaults on when no controls are attached or the attached ones can take a new up.
+  const refusal = cameraUpRefusal(controls);
+  const controlsTakeUp = refusal === null;
+  if (options.roll && refusal) throw new ViewportGizmoError("ROLL_UNSUPPORTED", refusal);
 
   const limits = fill(options.limits, {
     minPolarAngle: 0,
@@ -116,6 +115,7 @@ export function resolveOptions(options: GizmoOptions, context: ResolveContext): 
 
   const { top, bottom, front, back, right, left, ...rest } = options;
 
+  // `fill` fills every key it is given defaults for, at every depth; the options tests check the result.
   return {
     ...rest,
     type,
@@ -134,7 +134,7 @@ export function resolveOptions(options: GizmoOptions, context: ResolveContext): 
     controlled,
     fieldOfView: options.fieldOfView ?? DEFAULT_FIELD_OF_VIEW,
     navigation: fill(options.navigation, { enabled: false, sides: true, roll: true, home: true, reveal: "hover" }),
-    triad: fill(options.triad, { enabled: false }),
+    triad: fill(options.triad, { enabled: false, colors: TRIAD_COLORS }),
     lineWidth: options.lineWidth ?? 4,
     font: fill(options.font, { family: "sans-serif", weight: 900 }),
     background: fill(options.background, {
@@ -165,7 +165,7 @@ export function resolveOptions(options: GizmoOptions, context: ResolveContext): 
     radius,
     smoothness: options.smoothness ?? 18,
     ...targets,
-  };
+  } as GizmoResolvedOptions;
 }
 
 /**

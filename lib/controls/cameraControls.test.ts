@@ -3,15 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import { PerspectiveCamera, Vector3 } from "three";
 import CameraControls from "camera-controls";
-import { createGizmo, resetDefaultUp } from "../__tests__/test-utils";
+import { createGizmo } from "../__tests__/test-utils";
 import { cameraControls } from "./cameraControls";
 import { assertControls, cameraUpRefusal, readControlsLimits, refreshCameraUp } from "./contract";
 
 CameraControls.install({ THREE });
 
 afterEach(() => {
-  resetDefaultUp();
   vi.restoreAllMocks();
+  document.body.replaceChildren();
 });
 
 const setup = () => {
@@ -63,7 +63,7 @@ describe("cameraControls (U11)", () => {
   it("attaches, and a gizmo turn survives the next camera-controls update", () => {
     const { gizmo, camera, raw, controls } = setup();
     gizmo.attachControls(controls);
-    gizmo.lookFrom(new Vector3(1, 0, 0), false);
+    void gizmo.lookFrom(new Vector3(1, 0, 0), { animated: false });
     expect(camera.position.x).toBeCloseTo(5, 6);
 
     raw.update(1 / 60);
@@ -100,7 +100,7 @@ describe("cameraControls (U11)", () => {
     const update = vi.spyOn(gizmo, "update");
     const reenter = vi.fn(() => controls.update());
     controls.addEventListener("change", reenter);
-    gizmo.lookFrom(new Vector3(0, 1, 0), false);
+    void gizmo.lookFrom(new Vector3(0, 1, 0), { animated: false });
     controls.update();
     gizmo.update();
     expect(reenter).not.toHaveBeenCalled();

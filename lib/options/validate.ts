@@ -174,7 +174,7 @@ const RULES = {
     }
   },
   navigation: shape({ enabled: bool, sides: bool, roll: bool, home: bool, reveal: oneOf("hover", "always") }),
-  triad: shape({ enabled: bool }),
+  triad: shape({ enabled: bool, colors: shape({ x: color, y: color, z: color }) }),
   onMaterial: fn,
   lineWidth: nonNegative,
   id: text,

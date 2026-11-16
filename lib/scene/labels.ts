@@ -113,7 +113,7 @@ function drawLabel(canvas: HTMLCanvasElement, look: Look, o: SceneOptions, texel
   }
   if (!look.label) return;
 
-  const { family, weight, size: fontSize } = o.font;
+  const { family, weight, size: fontSize = 0 } = o.font;
   // The sphere's text fits the square inside its 0.7 circle.
   const square = o.type === "sphere" ? (n * 0.7) / Math.SQRT2 : n;
   let px = fontSize > 0 ? fontSize * texelsPerCss : square;

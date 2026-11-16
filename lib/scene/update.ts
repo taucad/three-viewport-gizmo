@@ -1,4 +1,4 @@
-import { MathUtils, Vector3, type Material, type Quaternion } from "three";
+import { Vector3, type Material, type Quaternion } from "three";
 import type { AxisEnd, LabelFrame } from "../orbit/labelFrame";
 import type { TargetEntry } from "../orbit/targets";
 import type { GizmoResolvedOptions, GizmoTarget } from "../types";
@@ -121,13 +121,19 @@ const _view = /*@__PURE__*/ new Vector3();
 export function fadeScene(scene: GizmoScene, quaternion: Readonly<Quaternion>): void {
   if (scene.options.type !== "sphere") return;
   _view.set(0, 0, 1).applyQuaternion(quaternion);
-  for (const { end, idle, hover } of scene.targets) {
+  const { targets, options } = scene;
+  // An indexed loop with no destructuring or string slicing: it runs every flight frame (perf budget `alloc`).
+  for (let i = 0; i < targets.length; i++) {
+    const { end, idle, hover } = targets[i];
     if (!end) continue;
-    const { opacity, hover: hovered } = scene.options[end];
-    const value = _view[end.at(-1) as "x" | "y" | "z"];
+    const { opacity, hover: hovered } = options[end];
+    const value = end === "x" || end === "nx" ? _view.x : end === "y" || end === "ny" ? _view.y : _view.z;
     const near = end.length === 1 ? value >= 0 : value < 0;
-    const base = MathUtils.clamp(near ? opacity : opacity / 2, 0, 1);
-    if (idle !== hover) idle.opacity = base;
-    hover.opacity = MathUtils.clamp(base * (hovered.opacity / (opacity > 0 ? opacity : 1)), 0, 1);
+    // Inline, and written only on change: a double handed to a call or stored anew is boxed (perf budget `alloc`).
+    const base = near ? opacity : opacity / 2;
+    const raised = base * (hovered.opacity / (opacity > 0 ? opacity : 1));
+    const lit = raised > 1 ? 1 : raised < 0 ? 0 : raised;
+    if (idle !== hover && idle.opacity !== base) idle.opacity = base;
+    if (hover.opacity !== lit) hover.opacity = lit;
   }
 }

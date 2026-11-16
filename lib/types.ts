@@ -1,17 +1,13 @@
 import type {
-  BufferGeometry,
   Color,
   ColorRepresentation,
   Material,
-  Mesh,
   MeshBasicMaterial,
-  Sprite,
   SpriteMaterial,
   Texture,
   Vector3,
   Vector3Like,
 } from "three";
-import type { GIZMO_AXES } from "./utils/constants.js";
 
 // The 3.0 public contract. Everything above the "Internal" section is exported from `lib/index.ts`, and the root
 // `.d.ts` imports only `three`. "Target" replaces 2.x "axis" in every public name (R15).
@@ -272,10 +268,16 @@ export type GizmoOptions = {
   /** Animation speed multiplier. Default `1` */
   speed?: number;
 
-  /** The texture resolution. Default `64` for a `sphere`, `128` for the cubes */
+  /**
+   * The side of every label texture in texels. Default: unset, each label sized from `size` and the device pixel
+   * ratio. Texture sizes are fixed when the scene is built, so a later `size` change keeps them until a rebuild.
+   */
   resolution?: number;
 
-  /** Label up. Default: `camera.up` at construction (R12). Must be within 1e-6 of a signed axis. */
+  /**
+   * Label up. Must be within 1e-6 of a signed axis. Default: `camera.up` at construction (R12), snapped to the nearest
+   * signed axis.
+   */
   up?: Readonly<Vector3Like>;
 
   /** Direction the Front label faces, perpendicular to `up` (U8). Default: the 2.x front for that up. */
@@ -310,7 +312,11 @@ export type GizmoOptions = {
   navigation?: GizmoNavigationOptions;
 
   /** The built-in axis triad for the cube types (OD3). Default off. */
-  triad?: { enabled?: boolean };
+  triad?: {
+    enabled?: boolean;
+    /** Line and label colour of each world axis. Default: Tau's dark red, green and blue. */
+    colors?: { x?: ColorRepresentation; y?: ColorRepresentation; z?: ColorRepresentation };
+  };
 
   /** Called for each target material the gizmo builds, on build and on every rebuild; returns its replacement. */
   onMaterial?: (material: MeshBasicMaterial | SpriteMaterial, use: GizmoMaterialUse) => GizmoMaterial;
@@ -419,14 +425,35 @@ export type GizmoOptions = {
   left?: GizmoTargetOptions;
 };
 
-/** The options as resolved: every default filled, `up` and `frontDirection` as vectors, `roll`, `animated` decided. */
+/** Every key required, recursively; functions, colours and vectors kept whole. */
+type DeepRequired<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends { isColor: true } | { isVector3: true }
+    ? T
+    : T extends object
+      ? { [Key in keyof T]-?: DeepRequired<Exclude<T[Key], undefined>> }
+      : T;
+
+/** The face-name style keys: merged into the axis end of the face they name, then dropped. */
+type FaceAliasKey = "top" | "bottom" | "front" | "back" | "right" | "left";
+
+/** Options that stay optional once resolved: they have no default. */
+type UnfilledKey = "container" | "resolution" | "onMaterial" | "id" | "className";
+
+/**
+ * The options as resolved: every default filled at every depth, `up` and `frontDirection` as vectors, `roll` and
+ * `animated` decided. The face aliases (`top` to `left`) are merged into the axis end they name and are not kept.
+ * `container`, `resolution`, `onMaterial`, `id`, `className` and `font.size` have no default and stay optional.
+ */
 export type GizmoResolvedOptions = Readonly<
-  Omit<GizmoOptions, "up" | "frontDirection" | "roll" | "animated"> & {
-    up: Readonly<Vector3>;
-    frontDirection: Readonly<Vector3>;
-    roll: boolean | "free";
-    animated: boolean;
-  }
+  DeepRequired<Omit<GizmoOptions, FaceAliasKey | UnfilledKey | "up" | "frontDirection" | "roll" | "animated" | "font">> &
+    Pick<GizmoOptions, UnfilledKey> & {
+      up: Readonly<Vector3>;
+      frontDirection: Readonly<Vector3>;
+      roll: boolean | "free";
+      animated: boolean;
+      font: Readonly<{ family: string; weight: string | number; size?: number }>;
+    }
 >;
 
 // --- Frame (R6, R11) -------------------------------------------------------------------------------------------------
@@ -438,8 +465,11 @@ export type GizmoViewport = Readonly<{ x: number; y: number; width: number; heig
 
 /** The events of a `ViewportGizmo`. Every payload is fresh per event. */
 export type ViewportGizmoEventMap = {
-  /** Every accepted press on the element, whether or not a turn follows. */
-  press: Readonly<{ target: GizmoTarget | null }>;
+  /**
+   * Every accepted press on the element, whether or not a turn follows. The field is not named `target`: three's
+   * `EventDispatcher` writes the dispatcher to `event.target`.
+   */
+  press: Readonly<{ pressed: GizmoTarget | null }>;
   /** A turn or drag began. Never for a press that turns nothing. `heading` is null for a drag. */
   start: Readonly<{ cause: GizmoCause; heading: GizmoHeading | null }>;
   /** Every flight frame and every drag step. */
@@ -447,82 +477,9 @@ export type ViewportGizmoEventMap = {
   /** Balanced with `start` under cancel, dispose, `set()` and `enabled = false`. */
   end: GizmoTurnEnd;
   /** Pointer hover changed, including after the view turns under a still pointer. Never for touch. */
-  hoverchange: Readonly<{ target: GizmoTarget | null }>;
+  hoverchange: Readonly<{ hovered: GizmoTarget | null }>;
   /** The target the view rests on changed. */
   attargetchange: Readonly<{ atTarget: GizmoAtTarget | null }>;
   /** The gizmo needs a frame: a flight step, hover, pose or option change (P11). */
   invalidate: Readonly<Record<never, never>>;
 };
-
-// --- Internal: the 2.3.0 runtime's shapes ----------------------------------------------------------------------------
-// Never exported from `lib/index.ts`. They keep the 2.3.0 class compiling until K4, K5, N1, O1 and S1 replace it.
-
-/** 2.3.0 runtime: A world up axis (the 2.x `up` option). */
-export type GizmoUpAxis = "x" | "y" | "z";
-
-/** 2.3.0 runtime: A world axis end. */
-export type GizmoAxisName = (typeof GIZMO_AXES)[number];
-
-/** 2.3.0 runtime: The options the class still reads: the 3.0 options less the 3.0-only keys, with 2.x `up`. */
-export type LegacyGizmoOptions = Omit<
-  GizmoOptions,
-  | "up"
-  | "frontDirection"
-  | "roll"
-  | "poleEntry"
-  | "oppositeOnRepeat"
-  | "drag"
-  | "limits"
-  | "controlled"
-  | "fieldOfView"
-  | "navigation"
-  | "triad"
-  | "onMaterial"
-> & {
-  up?: GizmoUpAxis;
-};
-
-/** 2.3.0 runtime: Optional userData fields on the target meshes and sprites. */
-export interface GizmoAxisObjectUserData extends Record<string, unknown> {
-  intersectionOrder?: number;
-  kind?: GizmoTargetKind;
-  axes?: readonly GizmoAxisName[];
-  face?: GizmoFaceName;
-  /** Present on hoverable target meshes and sprites. */
-  idleMaterial?: MeshBasicMaterial | SpriteMaterial;
-  /** Paired hover material, selected at runtime instead of mutating atlas UV offsets (WebGPU). */
-  hoverMaterial?: MeshBasicMaterial | SpriteMaterial;
-}
-
-/** 2.3.0 runtime: A target mesh or sprite. */
-export type GizmoAxisObject = Mesh<BufferGeometry, MeshBasicMaterial> | Sprite;
-
-/** 2.3.0 runtime: The events the class still dispatches. */
-export interface LegacyGizmoEventMap {
-  start: {};
-  end: {};
-  change: {
-    kind: GizmoTargetKind | null;
-    axes: readonly GizmoAxisName[] | null;
-    face: GizmoFaceName | null;
-    direction: Vector3 | null;
-  };
-  hoverchange: LegacyGizmoEventMap["change"] & { object: GizmoAxisObject | null };
-}
-
-/** Every key required, recursively; functions kept. The library's own replacement for `utility-types`. */
-type DeepRequired<T> = T extends (...args: any[]) => any
-  ? T
-  : T extends readonly (infer Item)[]
-    ? DeepRequired<Item>[]
-    : T extends object
-      ? { [Key in keyof T]-?: DeepRequired<Exclude<T[Key], undefined>> }
-      : T;
-
-/** 2.3.0 runtime: The options with every default filled. */
-export type GizmoOptionsFallback = DeepRequired<LegacyGizmoOptions> & {
-  isSphere: boolean;
-};
-
-/** 2.3.0 runtime: A viewport rectangle as `[x, y, width, height]`. */
-export type GizmoViewportArray = [x: number, y: number, width: number, height: number];

@@ -44,6 +44,8 @@ export type HitScene = Readonly<{
   targets: readonly TargetEntry[];
   /** Per-kind and per-target gating (U10). A target it refuses is never hit. Default: all enabled. */
   enabled?: (target: TargetEntry) => boolean;
+  /** The gizmo's uniform scale, read on every call: 0.7 while the cube types show the triad (S6). Default 1. */
+  scale?: number;
 }>;
 
 /**
@@ -129,6 +131,8 @@ export function hitTest(x: number, y: number, scene: HitScene): TargetEntry | nu
   _origin.set(x, y, -1).applyMatrix4(camera.projectionMatrixInverse);
   _direction.set(x, y, 1).applyMatrix4(camera.projectionMatrixInverse).sub(_origin).normalize();
   _origin.add(camera.position);
+  // A uniform scale commutes with the rotation: shrinking the ray's origin by it equals growing the shape.
+  if (scene.scale !== undefined && scene.scale !== 1) _origin.divideScalar(scene.scale);
   return shape.type === "box" ? hitBox(shape, scene) : hitDiscs(shape, scene);
 }
 

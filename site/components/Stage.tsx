@@ -73,8 +73,7 @@ export function Stage({ config, animated = true, speed = 1, setup, onStage, labe
   const gizmo = status.state === "ready" ? status.stage.gizmo : null;
   useEffect(() => {
     if (!gizmo) return;
-    gizmo.animated = animated;
-    gizmo.speed = speed;
+    gizmo.set({ animated, speed });
   }, [gizmo, animated, speed]);
 
   const fallback =

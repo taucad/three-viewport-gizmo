@@ -155,14 +155,9 @@ test.describe("wheel (S R27)", () => {
     return { before, after: await p.evaluate<number>("T.distance()") };
   };
 
-  test("reproduction: the 2.3.0 element swallows a wheel over the gizmo", async ({ page: p }) => {
+  // 2.3.0's element swallowed it (reproduced by I2); the class now forwards it with `forwardWheel` (K5).
+  test("the gizmo hands a wheel over it to the host's controls", async ({ page: p }) => {
     await open(p, "?gizmo=1");
-    const { before, after } = await wheelOverGizmo(p);
-    expect(after).toBeCloseTo(before, 6);
-  });
-
-  test("forwardWheel hands a wheel over the gizmo to the host's controls", async ({ page: p }) => {
-    await open(p, "?gizmo=1&forward=1");
     const { before, after } = await wheelOverGizmo(p);
     expect(after).toBeGreaterThan(before);
     expect(await p.evaluate("scrollY")).toBe(0);

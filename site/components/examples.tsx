@@ -33,12 +33,16 @@ export function OrbitControlsEventsExample() {
       setup={({ camera, renderer, gizmo, target }) => {
         if (!gizmo) return;
         const controls = new OrbitControls(camera, renderer.domElement);
-        // The gizmo and the controls share one target.
-        gizmo.target = controls.target.copy(target);
+        // The gizmo keeps its own copy of the controls' target.
+        controls.target.copy(target);
+        gizmo.target.copy(target);
         controls.update();
         gizmo.addEventListener("start", () => (controls.enabled = false));
         gizmo.addEventListener("end", () => (controls.enabled = true));
-        controls.addEventListener("change", () => gizmo.update(false));
+        controls.addEventListener("change", () => {
+          gizmo.target.copy(controls.target);
+          gizmo.update();
+        });
         return { dispose: () => controls.dispose() };
       }}
     />
@@ -56,12 +60,13 @@ export function HoverEventsExample() {
         label="Rounded-cube gizmo reporting hover and change events"
         config={{ controller: "orbit", gizmo: { type: "rounded-cube" } }}
         setup={({ gizmo }) => {
-          gizmo?.addEventListener("hoverchange", ({ kind, axes, face, direction }) =>
-            setHover({ kind, axes, face, direction: direction?.toArray().map(round) ?? null })
+          gizmo?.addEventListener("hoverchange", ({ hovered }) =>
+            setHover(hovered && { name: hovered.name, kind: hovered.kind, direction: hovered.direction.toArray().map(round) })
           );
-          gizmo?.addEventListener("change", ({ kind, axes, face, direction }) => {
-            // Drag and animation frames carry no identity; keep the last click.
-            if (kind) setChange({ kind, axes, face, direction: direction?.toArray().map(round) ?? null });
+          gizmo?.addEventListener("change", ({ cause, heading }) => {
+            // Drag frames head nowhere; keep the last turn to a target.
+            const target = heading?.target;
+            if (target) setChange({ cause, name: target.name, kind: target.kind, direction: target.direction.toArray().map(round) });
           });
         }}
       />

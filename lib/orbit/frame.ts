@@ -1,5 +1,4 @@
 import { Vector3, type Vector3Like } from "three";
-import type { GizmoUpAxis } from "../types";
 
 /**
  * Right-handed frame `(e1, e2, u)` about an up axis `u`. Azimuth is measured
@@ -13,28 +12,10 @@ export type OrbitFrame = {
   readonly frontAzimuth: number;
 };
 
-const X = new Vector3(1, 0, 0);
-const Y = new Vector3(0, 1, 0);
-const Z = new Vector3(0, 0, 1);
-
-/**
- * Cyclic permutations of the world axes, one per 2.x up axis.
- *
- * ponytail: the class still calls {@link orbitFrame}; K5 moves it to {@link orbitFrameAbout} and deletes both.
- */
-const FRAMES: Record<GizmoUpAxis, OrbitFrame> = {
-  y: { e1: Z, e2: X, u: Y, frontAzimuth: 0 },
-  z: { e1: X, e2: Y, u: Z, frontAzimuth: -Math.PI / 2 },
-  x: { e1: Y, e2: Z, u: X, frontAzimuth: 0 },
-};
-
-/** The orbit frame for an up axis. */
-export const orbitFrame = (up: GizmoUpAxis): OrbitFrame => FRAMES[up];
+const AXES = [new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1)] as const;
 
 /** Below this squared length the reference, projected off the up, has no direction. */
 const DEGENERATE = 1e-12;
-
-const AXES = [X, Y, Z] as const;
 
 /**
  * The orbit frame about any unit vector `up` (R12, U8): `e1` is `reference` projected off `up`, so the reference sits

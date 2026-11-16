@@ -1,9 +1,17 @@
 import { PerspectiveCamera, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { orbitFrame, orbitFrameAbout, type OrbitFrame } from "./frame";
+import { orbitFrameAbout, type OrbitFrame } from "./frame";
 import { labelFrame } from "./labelFrame";
 import { targetPose, writePose } from "./pose";
 import { targetTable } from "./targets";
+
+/** 2.3.0's frame per up axis, the reference `orbitFrameAbout` must reproduce. */
+const V = (x: number, y: number, z: number) => new Vector3(x, y, z);
+const FRAMES_2_3: Record<"x" | "y" | "z", OrbitFrame> = {
+  y: { e1: V(0, 0, 1), e2: V(1, 0, 0), u: V(0, 1, 0), frontAzimuth: 0 },
+  z: { e1: V(1, 0, 0), e2: V(0, 1, 0), u: V(0, 0, 1), frontAzimuth: -Math.PI / 2 },
+  x: { e1: V(0, 1, 0), e2: V(0, 0, 1), u: V(1, 0, 0), frontAzimuth: 0 },
+};
 
 const expectOrthonormalRightHanded = ({ e1, e2, u }: OrbitFrame) => {
   expect(e1.length()).toBeCloseTo(1, 12);
@@ -44,7 +52,7 @@ describe("orbitFrameAbout", () => {
       const up = new Vector3();
       up[axis] = 1;
       const label = labelFrame(up);
-      const before = orbitFrame(axis);
+      const before = FRAMES_2_3[axis];
       const after = orbitFrameAbout(label.up, label.front);
       const target = new Vector3();
       const a = new PerspectiveCamera();

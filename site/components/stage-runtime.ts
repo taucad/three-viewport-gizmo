@@ -43,7 +43,7 @@ import { FontLoader, type Font } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 import CameraControls from "camera-controls";
 import { ViewportGizmo } from "@lib/ViewportGizmo";
-import type { LegacyGizmoOptions as GizmoOptions } from "@lib/types";
+import type { GizmoOptions } from "@lib/types";
 import { fromYUp, type UpAxis, type Vec3 } from "./frames";
 
 export type RendererKind = "webgl" | "webgpu";
@@ -189,7 +189,7 @@ export async function createStage(
   const gizmo =
     gizmoOptions === null
       ? null
-      : new ViewportGizmo(camera, renderer, { ...gizmoOptions, up: upAxis, container });
+      : new ViewportGizmo(camera, renderer, { ...gizmoOptions, up: camera.up, container });
   if (gizmo) gizmo.target.copy(target);
 
   let controls: OrbitControls | CameraControls | null = null;

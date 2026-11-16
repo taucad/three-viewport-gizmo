@@ -95,8 +95,9 @@ function same(a: unknown, b: unknown): boolean {
 export function classifyChange(previous: GizmoResolvedOptions, next: GizmoResolvedOptions): ChangeClass | null {
   let result: ChangeClass | null = null;
   for (const [key, classes] of Object.entries(OPTION_CHANGES)) {
-    const before = previous[key as keyof GizmoOptions];
-    const after = next[key as keyof GizmoOptions];
+    // The face aliases are merged away at resolution, so they compare equal here.
+    const before = (previous as Record<string, unknown>)[key];
+    const after = (next as Record<string, unknown>)[key];
     const changes =
       typeof classes === "string"
         ? same(before, after)
