@@ -34,7 +34,7 @@ export const OPTION_CHANGES = {
   controlled: "cheap",
   fieldOfView: "cheap",
   navigation: "cheap",
-  triad: "structural",
+  triad: "cheap",
   onMaterial: "structural",
   lineWidth: "cheap",
   id: "cheap",

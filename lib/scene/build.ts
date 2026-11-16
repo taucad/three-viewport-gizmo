@@ -19,6 +19,7 @@ import { faceGeometry, placeFace, type LabelProvider, type LabelTextures, type P
 import { canvasLabels } from "./labels";
 import type { Owned } from "./materials";
 import { roundedBoxGeometry } from "./roundedBox";
+import { triad } from "./triad";
 import { restyleTargets, targetMaterials, targetOf } from "./update";
 
 type DeepRequired<T> = T extends (...args: never[]) => unknown
@@ -97,10 +98,7 @@ const cubeGeometry: GeometryProvider = (o, frame, owned) => {
   return (entry) => ({ geometry: geometry[entry.kind], ...PARTS[entry.kind](entry, frame) });
 };
 
-/** An empty slot for S6's axis triad. */
-const triad: PartBuilder = () => ({ object: new Group(), update() {} });
-
-/** The 2.3.0 look on the new build, with S2's labels: S3 to S6 replace one builder each. */
+/** The 3.0 look: S2's labels, S3's lines, S4's background, S5's rounded box and S6's triad. */
 export const DEFAULT_BUILDERS: SceneBuilders = {
   labels: canvasLabels,
   geometry: { cube: cubeGeometry, "rounded-cube": roundedBoxGeometry },
@@ -111,7 +109,7 @@ export const DEFAULT_BUILDERS: SceneBuilders = {
 
 /**
  * Builds the gizmo scene for resolved options (P1, P8): all 26 targets in the label frame, the background, the axis
- * lines and the triad slot. Every material, geometry and texture it creates is listed in `owned`.
+ * lines and the triad. Every material, geometry and texture it creates is listed in `owned`.
  *
  * @param options - From `resolveOptions`
  * @param builders - Replace a default part; later tasks fill these seams
