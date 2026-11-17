@@ -158,7 +158,8 @@ describe("navigation option", () => {
     expect(style).toContain("var(--viewport-gizmo-button-ring, #112233)");
     gizmo.set({ front: { color: 0xaabbcc } });
     expect(button(gizmo, "home").innerHTML).toContain("var(--viewport-gizmo-button-ring, #aabbcc)");
-    expect(button(gizmo, "home").style.cursor).toBe("var(--viewport-gizmo-button-cursor, pointer)");
+    // No cursor of its own: the default arrow, as over the cube, unless the host styles `[data-navigation]`.
+    expect(button(gizmo, "home").style.cursor).toBe("");
     button(gizmo, "home").dispatchEvent(pointer("pointerenter"));
     expect(button(gizmo, "home").hasAttribute("data-hovered")).toBe(true);
     expect(button(gizmo, "home").innerHTML).toContain("--viewport-gizmo-button-ring-hover");

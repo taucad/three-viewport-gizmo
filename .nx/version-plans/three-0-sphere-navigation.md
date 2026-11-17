@@ -6,4 +6,4 @@ The navigation buttons are easier to reach. On the sphere, the corner buttons (H
 
 The button grid follows the element's measured height after each render, so a gizmo resized from CSS keeps its buttons clear of it.
 
-The buttons' cursor reads `--viewport-gizmo-button-cursor` (default `pointer`), so a host can restyle every built-in style the library writes through a custom property, never `!important`.
+The buttons no longer set `cursor: pointer`: they show the default cursor, like the cube, and a host can style `[data-navigation]` buttons without `!important`.

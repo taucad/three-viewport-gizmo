@@ -43,7 +43,6 @@ const VARIABLES: [name: string, fallback: string][] = [
   ["--viewport-gizmo-button-ring-hover", "The Front face's hover colour (sphere: the up axis's colour, darker)"],
   ["--viewport-gizmo-button-color", "The Front face's label colour"],
   ["--viewport-gizmo-button-focus-ring", "The Front face's hover colour (sphere: the up axis's colour, darker)"],
-  ["--viewport-gizmo-button-cursor", "pointer"],
 ];
 
 export default function NavigationGuide() {

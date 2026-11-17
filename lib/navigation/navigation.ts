@@ -145,7 +145,6 @@ export function attachNavigation(element: HTMLElement, gizmo: NavigationGizmo, a
       border: "0",
       borderRadius: "50%",
       background: "none",
-      cursor: "var(--viewport-gizmo-button-cursor, pointer)",
       outline: "none",
     });
     button.innerHTML =
