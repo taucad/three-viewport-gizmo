@@ -25,6 +25,27 @@ export function blocking(report, allowed = ALLOWED) {
   return [...found.values()];
 }
 
+/**
+ * What fails the gate for one `npm audit --json` run (a `spawnSync` result): a spawn error, output that is not a
+ * report, or an npm error payload fails closed; otherwise the blocking advisories. npm exits nonzero whenever it finds
+ * any vulnerability, so the exit status alone decides nothing.
+ */
+export function failures({ error, status, stdout }, allowed = ALLOWED) {
+  if (error) return [`npm audit did not run: ${error.message}`];
+  let report;
+  try {
+    report = JSON.parse(stdout);
+  } catch {
+    return [`npm audit printed no JSON report (exit ${status})`];
+  }
+  if (report?.error) return [`npm audit failed (exit ${status}): ${report.error.summary ?? JSON.stringify(report.error)}`];
+  const { vulnerabilities } = report ?? {};
+  if (typeof vulnerabilities !== 'object' || vulnerabilities === null || Array.isArray(vulnerabilities)) {
+    return [`npm audit report has no vulnerabilities object (exit ${status})`];
+  }
+  return blocking(report, allowed);
+}
+
 /** Whether this module is the process entrypoint, by real path (a space in a checkout path is `%20` in the URL). */
 function isMain() {
   if (!process.argv[1]) return false;
@@ -36,9 +57,8 @@ function isMain() {
 }
 
 if (isMain()) {
-  const { stdout } = spawnSync('npm', ['audit', '--json'], { encoding: 'utf8' });
-  const found = blocking(JSON.parse(stdout));
+  const found = failures(spawnSync('npm', ['audit', '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
   for (const line of found) console.error(line);
-  console.log(`npm audit: ${found.length} blocking high or critical advisories; allowlisted: ${Object.keys(ALLOWED).join(', ')}`);
+  console.log(`npm audit: ${found.length} blocking findings; allowlisted: ${Object.keys(ALLOWED).join(', ')}`);
   process.exit(found.length ? 1 : 0);
 }

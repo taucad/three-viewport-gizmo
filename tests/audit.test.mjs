@@ -6,12 +6,13 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { blocking } from '../scripts/audit.mjs';
+import { blocking, failures } from '../scripts/audit.mjs';
 
 const report = (...advisories) => ({
   vulnerabilities: { pkg: { via: ['other-pkg', ...advisories] } },
 });
 const advisory = (id, severity) => ({ url: `https://github.com/advisories/${id}`, severity, name: 'pkg', title: 't' });
+const run = (stdout, status = 1) => ({ status, stdout: typeof stdout === 'string' ? stdout : JSON.stringify(stdout) });
 
 test('an allowlisted advisory does not block', () => {
   assert.deepEqual(blocking(report(advisory('GHSA-fc5q-39xc-vjpf', 'high'))), []);
@@ -20,6 +21,33 @@ test('an allowlisted advisory does not block', () => {
 test('any other high or critical advisory blocks; moderate does not', () => {
   const found = blocking(report(advisory('GHSA-aaaa', 'high'), advisory('GHSA-bbbb', 'critical'), advisory('GHSA-cccc', 'moderate')));
   assert.equal(found.length, 2);
+});
+
+test('a nonzero npm exit with only the allowlisted advisory passes; a clean report passes', () => {
+  assert.deepEqual(failures(run(report(advisory('GHSA-fc5q-39xc-vjpf', 'high')), 1)), []);
+  assert.deepEqual(failures(run({ vulnerabilities: {} }, 0)), []);
+  assert.equal(failures(run(report(advisory('GHSA-aaaa', 'critical')), 1)).length, 1);
+});
+
+test('fails closed when npm does not run', () => {
+  const found = failures({ error: new Error('spawn npm ENOENT'), status: null, stdout: undefined });
+  assert.match(found.join(), /did not run: spawn npm ENOENT/);
+});
+
+test('fails closed on output that is not JSON', () => {
+  assert.match(failures(run('npm ERR! something', 1)).join(), /no JSON report \(exit 1\)/);
+  assert.match(failures(run('', 1)).join(), /no JSON report/);
+});
+
+test('fails closed on an npm error payload', () => {
+  const found = failures(run({ error: { code: 'ENOAUDIT', summary: 'Your configured registry does not support audit requests.' } }));
+  assert.match(found.join(), /npm audit failed \(exit 1\): Your configured registry/);
+});
+
+test('fails closed on a report without a vulnerabilities object', () => {
+  for (const body of [{}, { vulnerabilities: null }, { vulnerabilities: [] }, null, 42]) {
+    assert.match(failures(run(body)).join(), /no vulnerabilities object/, JSON.stringify(body));
+  }
 });
 
 // The entrypoint, run from a checkout path with a space, against a stub `npm` on PATH.
