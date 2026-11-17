@@ -38,6 +38,8 @@ export type Navigation = {
   refresh(): void;
   /** Writes the cube's colours and the grid anchor from the options. */
   restyle(): void;
+  /** Rewrites the anchor when it changed, as after CSS resizes the element: call it after each measure. */
+  place(): void;
   /** Removes the buttons and their listeners, and the anchor property. */
   detach(): void;
 };
@@ -83,7 +85,7 @@ const isSide = (button: NavigationButton): button is GizmoSide =>
  *
  * @param camera - The gizmo's own camera, looking down -z at the origin
  * @param scale - The cube's scale in the gizmo's scene (0.7 with the triad)
- * @param size - The gizmo's `size` in CSS pixels
+ * @param size - The gizmo's height in CSS pixels: as measured once rendered, else its `size` option
  */
 export function navigationAnchor(
   camera: PerspectiveCamera | OrthographicCamera,
@@ -201,6 +203,7 @@ export function attachNavigation(element: HTMLElement, gizmo: NavigationGizmo, a
   element.addEventListener("focusin", focusin);
   element.addEventListener("focusout", focusout);
 
+  let placed: NavigationAnchor = { side: Number.NaN, corner: Number.NaN };
   const handle: Navigation = {
     refresh() {
       const o = gizmo.options.navigation;
@@ -256,15 +259,20 @@ export function attachNavigation(element: HTMLElement, gizmo: NavigationGizmo, a
       for (const key of Object.keys(paint) as (keyof typeof paint)[]) {
         paint[key] = `var(--viewport-gizmo-button-${key}, ${hex(cube[key])})`;
       }
-      const anchor = actions.anchor();
-      element.style.setProperty("--viewport-gizmo-anchor", `${anchor.side}px`);
-      element.style.setProperty("--viewport-gizmo-anchor-corner", `${anchor.corner}px`);
+      handle.place();
       for (const { button, chip, ring } of buttons) {
         button.style.color = paint.color;
         chip.style.background = paint.background;
         ring(button.hasAttribute("data-hovered"));
         if (button.style.outline !== "none") button.style.outline = `2px solid ${paint["focus-ring"]}`;
       }
+    },
+    place() {
+      const anchor = actions.anchor();
+      if (anchor.side === placed.side && anchor.corner === placed.corner) return;
+      placed = anchor;
+      element.style.setProperty("--viewport-gizmo-anchor", `${anchor.side}px`);
+      element.style.setProperty("--viewport-gizmo-anchor-corner", `${anchor.corner}px`);
     },
     detach() {
       clearTimeout(linger);

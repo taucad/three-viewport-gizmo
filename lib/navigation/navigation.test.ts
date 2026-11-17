@@ -177,6 +177,19 @@ describe("sphere buttons", () => {
   });
 });
 
+describe("anchor from the measured size", () => {
+  it("moves the buttons when CSS resizes the element, and only rewrites the anchor when it changes", () => {
+    const gizmo = make(undefined, { type: "sphere", size: 128 });
+    const style = gizmo.domElement.style;
+    expect(style.getPropertyValue("--viewport-gizmo-anchor")).toBe("83px");
+    gizmo.domElement.getBoundingClientRect = () => new DOMRect(0, 0, 256, 256);
+    gizmo.render();
+    expect(style.getPropertyValue("--viewport-gizmo-anchor")).toBe("147px");
+    expect(parseFloat(style.getPropertyValue("--viewport-gizmo-anchor-corner"))).toBeCloseTo(147 / Math.SQRT2);
+    gizmo.dispose();
+  });
+});
+
 describe("navigationAnchor", () => {
   it("puts the G0 grid at 42 px for Tau's 96 px cube with the triad, and clears the silhouette", () => {
     const camera = createInternalCamera(false) as PerspectiveCamera;

@@ -81,6 +81,19 @@ function analyticGrid({ variant, up, quaternion }: View) {
   return hits;
 }
 
+/** The signed axis direction a code names, each component -1, 0 or 1. */
+const direction = (cell: string) => {
+  const index = CODES.indexOf(cell);
+  return [Math.floor(index / 9) - 1, (Math.floor(index / 3) % 3) - 1, (index % 3) - 1];
+};
+
+/** Whether `side` is one of the three faces or three edges that meet at `corner`. */
+const borders = (corner: string, side: string) => {
+  if (side === "." || kindOf(side) === "corner") return false;
+  const [c, d] = [direction(corner), direction(side)];
+  return d.every((component, axis) => component === 0 || component === c[axis]);
+};
+
 /** Whether a fixture cell within the tolerance of `cell` says `value`. */
 function nearby(expected: string, cell: number, value: string) {
   const row = Math.floor(cell / grid);
@@ -119,7 +132,7 @@ describe("hitTest against the recorded 2.3.0 raycaster", () => {
         // The rounded cube's corners are exactly its rounded corner patches, without 2.3.0's corner-over-face priority
         // band (that band cut a square notch out of every drawn face and edge): 2.3.0's corner cells next to them
         // now name the face or edge.
-        else if (variant === "rounded-cube" && kindOf(want) === "corner" && kindOf(got) !== "corner") tally.ceded++;
+        else if (variant === "rounded-cube" && want !== "." && kindOf(want) === "corner" && borders(want, got)) tally.ceded++;
         else tally.beyond++;
       }
     }
