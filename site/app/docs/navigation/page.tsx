@@ -132,7 +132,8 @@ export default function NavigationGuide() {
         The library injects no stylesheet. Set these custom properties on the element (or any ancestor); each falls
         back to the cube&apos;s own style, so a restyled cube restyles its buttons. A hovered button has{" "}
         <code>data-hovered</code>, and the element carries <code>--viewport-gizmo-anchor</code>, the distance in CSS
-        pixels from its centre to the button grid.
+        pixels from its centre to the side buttons, and <code>--viewport-gizmo-anchor-corner</code>, the corner
+        buttons&apos; distance along each axis (the same on a cube, closer on the round sphere).
       </p>
       <table>
         <thead>
