@@ -41,7 +41,7 @@ const roundedBox = (radius: number): HitBox => ({
   type: "box",
   radius,
   flat: 1 - radius,
-  corner: 1 - radius - PRIORITY_DEPTH,
+  corner: 1 - radius,
 });
 
 /** The hit scene K5 would build for a fixture variant from 2.3.0's default options. */
@@ -103,7 +103,7 @@ describe("hitTest against the recorded 2.3.0 raycaster", () => {
   });
 
   it.each(variants)("should classify the %s grid within the edge tolerance", (variant) => {
-    const tally = { cells: 0, exact: 0, nearby: 0, holes: 0, beyond: 0, fills: 0, rims: 0 };
+    const tally = { cells: 0, exact: 0, nearby: 0, holes: 0, beyond: 0, fills: 0, rims: 0, ceded: 0 };
     for (const view of fixture.views.filter((candidate) => candidate.variant === variant)) {
       const actual = analyticGrid(view);
       const present = new Set(view.hits);
@@ -116,6 +116,10 @@ describe("hitTest against the recorded 2.3.0 raycaster", () => {
         // 2.3.0's cube is separate tiles, and an edge's or corner's tile seen edge-on draws nothing: where the view
         // shows that target nowhere, the closed box's rim still names it.
         else if (want === "." && variant === "cube" && kindOf(got) !== "face" && !present.has(got)) tally.rims++;
+        // The rounded cube's corners are exactly its rounded corner patches, without 2.3.0's corner-over-face priority
+        // band (that band cut a square notch out of every drawn face and edge): 2.3.0's corner cells next to them
+        // now name the face or edge.
+        else if (variant === "rounded-cube" && kindOf(want) === "corner" && kindOf(got) !== "corner") tally.ceded++;
         else tally.beyond++;
       }
     }
@@ -123,6 +127,7 @@ describe("hitTest against the recorded 2.3.0 raycaster", () => {
     expect(tally.holes).toBe(0);
     expect(tally.beyond).toBe(0);
     if (variant !== "cube") expect(tally.rims).toBe(0);
+    if (variant !== "rounded-cube") expect(tally.ceded).toBe(0);
   });
 });
 
