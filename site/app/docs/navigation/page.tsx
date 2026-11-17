@@ -39,10 +39,11 @@ const SWITCHES: [key: string, effect: ReactNode][] = [
 
 const VARIABLES: [name: string, fallback: string][] = [
   ["--viewport-gizmo-button-background", "The edge colour when edges are drawn, else background.color"],
-  ["--viewport-gizmo-button-ring", "The Front face's colour"],
-  ["--viewport-gizmo-button-ring-hover", "The Front face's hover colour"],
+  ["--viewport-gizmo-button-ring", "The Front face's colour (sphere: the up axis's colour)"],
+  ["--viewport-gizmo-button-ring-hover", "The Front face's hover colour (sphere: the up axis's colour, darker)"],
   ["--viewport-gizmo-button-color", "The Front face's label colour"],
-  ["--viewport-gizmo-button-focus-ring", "The Front face's hover colour"],
+  ["--viewport-gizmo-button-focus-ring", "The Front face's hover colour (sphere: the up axis's colour, darker)"],
+  ["--viewport-gizmo-button-cursor", "pointer"],
 ];
 
 export default function NavigationGuide() {
