@@ -164,8 +164,9 @@ export function attachNavigation(element: HTMLElement, gizmo: NavigationGizmo, a
     button.addEventListener("pointerdown", (event) => event.stopPropagation());
     button.addEventListener("pointerenter", () => ring(true));
     button.addEventListener("pointerleave", () => ring(false));
-    button.addEventListener("focus", () => focusRing(button, chip));
-    button.addEventListener("blur", () => focusRing(button, chip));
+    // A key pressed on a button focused by the pointer makes it `:focus-visible` (Chromium) with no new focus event.
+    const syncRing = () => focusRing(button, chip);
+    for (const type of ["focus", "blur", "keydown", "keyup"]) button.addEventListener(type, syncRing);
     button.addEventListener("click", () => {
       const name = spec.button;
       if (name === "home") void actions.lookFrom("home");

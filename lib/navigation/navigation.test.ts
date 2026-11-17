@@ -188,6 +188,26 @@ describe("focus ring", () => {
     expect(chip.style.outline).toBe("");
     gizmo.dispose();
   });
+  it("rings a pointer-focused button once a key makes it :focus-visible, with no new focus event", () => {
+    const gizmo = make();
+    document.body.appendChild(gizmo.domElement);
+    const home = button(gizmo, "home");
+    const chip = home.firstElementChild as HTMLElement;
+    // Focused by a click: focused, but not `:focus-visible`.
+    let visible = false;
+    const matches = home.matches.bind(home);
+    home.matches = (selector: string) => (selector === ":focus-visible" ? visible : matches(selector));
+    home.focus();
+    expect(chip.style.outline).toBe("");
+    // The browser switches to keyboard modality on the key press; only the key event reaches the button.
+    visible = true;
+    home.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", bubbles: true }));
+    expect(chip.style.outline).toBe("2px solid var(--viewport-gizmo-button-focus-ring, #93d3eb)");
+    visible = false;
+    home.blur();
+    expect(chip.style.outline).toBe("");
+    gizmo.dispose();
+  });
 });
 
 describe("sphere buttons", () => {
