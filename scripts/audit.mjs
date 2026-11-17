@@ -2,6 +2,9 @@
 // `npm audit --audit-level=high` with a short allowlist for advisories that have no patched release and reach dev
 // tooling only. Each entry says why and when; remove it once a fix ships (an `overrides` pin then takes its place).
 import { spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const ALLOWED = {
   // Operator ruling 2026-11-17. picomatch ReDoS via repeated extglobs: every version (<= 4.0.7) affected, none patched.
@@ -22,7 +25,17 @@ export function blocking(report, allowed = ALLOWED) {
   return [...found.values()];
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+/** Whether this module is the process entrypoint, by real path (a space in a checkout path is `%20` in the URL). */
+function isMain() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(path.resolve(process.argv[1]));
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) {
   const { stdout } = spawnSync('npm', ['audit', '--json'], { encoding: 'utf8' });
   const found = blocking(JSON.parse(stdout));
   for (const line of found) console.error(line);
