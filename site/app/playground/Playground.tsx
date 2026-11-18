@@ -13,6 +13,7 @@ import type {
 import { Stage } from "@site/components/Stage";
 import { AXES, defaultFront, frontsFor, type Axis, type Vec3 } from "@site/components/frames";
 import type { StageConfig, StageHandle, ViewReading } from "@site/components/stage-runtime";
+import "./playground.css";
 import { attachHitRegions, HIT_REGION_COLORS, isSamplingHitRegions, type HitRegions } from "./hitRegions";
 
 const axisLabel = (axis: Axis) => `${axis[0] === "-" ? "−" : "+"}${axis[1].toUpperCase()}`;
@@ -212,6 +213,19 @@ export function Playground() {
   const [resolved, setResolved] = useState<GizmoResolvedOptions | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const hitRegions = useRef<HitRegions | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+
+  // The stage column sticks below the site's sticky header, whose height changes as its links wrap.
+  useEffect(() => {
+    const header = document.querySelector<HTMLElement>(".site-header");
+    const element = root.current;
+    if (!header || !element) return;
+    const measure = () => element.style.setProperty("--playground-top", `${header.offsetHeight}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
 
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -310,8 +324,8 @@ export function Playground() {
   const canRoll = view?.canRoll ?? false;
 
   return (
-    <div className="playground">
-      <div>
+    <div className="playground" ref={root}>
+      <div className="playground-stage-column">
         <Stage
           config={config}
           options={options}
