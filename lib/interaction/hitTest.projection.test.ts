@@ -42,6 +42,9 @@ const CONVENTIONS: readonly Convention[] = [
  */
 const FIELDS_OF_VIEW = [0.1, 1, 5, 10, 20, 25, 25.57, 26.07, 30, 45, 75, 100];
 
+/** The camera each stub renderer last drew with: the gizmo's own, observed where the renderer receives it. */
+const drawnWith = new WeakMap<WebGLRenderer, PerspectiveCamera | OrthographicCamera>();
+
 /** A renderer stub that does to the camera what three does when it draws with it. */
 function rendererFor({ coordinateSystem, reversedDepth, webgpu }: Convention): WebGLRenderer {
   const renderer = createStubRenderer({ isWebGPURenderer: webgpu });
@@ -49,6 +52,7 @@ function rendererFor({ coordinateSystem, reversedDepth, webgpu }: Convention): W
     reversedDepthBuffer: reversedDepth,
     capabilities: { reversedDepthBuffer: reversedDepth },
     render: (_scene: unknown, camera: Camera) => {
+      drawnWith.set(renderer, camera as PerspectiveCamera | OrthographicCamera);
       const stamped = camera as Camera & { _reversedDepth: boolean; updateProjectionMatrix(): void };
       stamped.coordinateSystem = coordinateSystem;
       stamped._reversedDepth = reversedDepth;
@@ -119,7 +123,7 @@ function drawnPoint(type: Type, target: GizmoTarget, eye: Vector3, rotation: Qua
 
 /** The targets facing the viewer, and the target the pointer hovers over where each is drawn. */
 function hoverDrawn(gizmo: ViewportGizmo, type: Type): { expected: string[]; hovered: string[] } {
-  const camera = (gizmo as unknown as { _camera: PerspectiveCamera | OrthographicCamera })._camera;
+  const camera = drawnWith.get(gizmo.renderer as WebGLRenderer)!;
   const group = gizmo.root.children[0]!;
   gizmo.root.updateMatrixWorld(true);
   camera.updateMatrixWorld();

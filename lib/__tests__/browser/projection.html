@@ -31,6 +31,13 @@
       const scene = new THREE.Scene();
       scene.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()));
       const camera = new THREE.PerspectiveCamera(50, 800 / 600, 0.1, 100);
+      // The camera the gizmo draws with, as the renderer receives it: every draw that is not the host's is the gizmo's.
+      let own = null;
+      const draw = renderer.render.bind(renderer);
+      renderer.render = (drawn, drawnCamera) => {
+        if (drawn !== scene) own = drawnCamera;
+        return draw(drawn, drawnCamera);
+      };
       const gizmo = new ViewportGizmo(camera, renderer, { container: wrap, type: "cube", navigation: { enabled: false } });
       const frame = () => {
         renderer.render(scene, camera);
@@ -48,13 +55,11 @@
         camera.lookAt(0, 0, 0);
         gizmo.update();
         await frames(2);
-        const own = gizmo._camera;
         return { coordinateSystem: own.coordinateSystem, reversedDepth: own.reversedDepth, near: own.near, far: own.far };
       };
 
       /** Where each target facing the eye well is drawn, in client pixels, through the camera as the renderer left it. */
       const points = (type) => {
-        const own = gizmo._camera;
         const group = gizmo.root.children[0];
         const rect = gizmo.domElement.getBoundingClientRect();
         const radius = type === "rounded-cube" ? gizmo.options.corners.radius : 0;
