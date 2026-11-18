@@ -421,6 +421,7 @@ export function Playground() {
                   type="checkbox"
                   checked={auto}
                   disabled={!hasTriad}
+                  aria-label={`${label}: Auto (default)`}
                   onChange={(e) =>
                     update(key, e.target.checked ? "auto" : (effective ?? (kind === "edges" ? 0.3 : 0.35)).toFixed(2))
                   }
