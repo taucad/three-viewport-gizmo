@@ -101,8 +101,9 @@ describe("renderInRect", () => {
       camera.position.z = z;
       renderInRect(renderer, scene, camera, rect, reset);
       const e = reset.matrix.elements;
-      expect(e[14]).toBeCloseTo(z - 9.9);
-      expect(e[0]).toBeGreaterThan(2 * 9.9 * Math.tan((13 * Math.PI) / 180));
+      // 99 % of the way from near (5) to far (10).
+      expect(e[14]).toBeCloseTo(z - 9.95);
+      expect(e[0]).toBeGreaterThan(2 * 9.95 * Math.tan((13 * Math.PI) / 180));
     }
   });
 
