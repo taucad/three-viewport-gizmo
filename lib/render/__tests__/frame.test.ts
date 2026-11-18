@@ -1,6 +1,7 @@
-import { AlwaysDepth, NeverDepth, PerspectiveCamera, RenderTarget, REVISION, Scene, Vector4 } from "three";
+import { AlwaysDepth, MathUtils, NeverDepth, PerspectiveCamera, RenderTarget, REVISION, Scene, Vector4 } from "three";
 import { describe, expect, it } from "vitest";
 import { createDepthReset, renderInRect } from "../frame";
+import { createInternalCamera } from "../internalCamera";
 import { measureViewport, targetRect, type MutableViewport } from "../rect";
 import type { GizmoRenderer } from "../backend";
 
@@ -103,6 +104,17 @@ describe("renderInRect", () => {
       expect(e[14]).toBeCloseTo(z - 9.9);
       expect(e[0]).toBeGreaterThan(2 * 9.9 * Math.tan((13 * Math.PI) / 180));
     }
+  });
+
+  it.each([0.1, 0.5, 1, 5, 26, 45, 100])("keeps the quad behind the whole gizmo and inside the clip range at %s°", (degrees) => {
+    const { reset, scene } = setup();
+    const camera = createInternalCamera(false, degrees * MathUtils.DEG2RAD) as PerspectiveCamera;
+    renderInRect(fakeRenderer().renderer, scene, camera, rect, reset);
+    const distance = camera.position.z - reset.matrix.elements[14]!;
+    // The gizmo reaches √3 from its origin (a corner at scale 1); the quad must be drawn, so before the far plane.
+    expect(distance).toBeGreaterThan(camera.position.z + Math.sqrt(3));
+    expect(distance).toBeGreaterThan(camera.near);
+    expect(distance).toBeLessThan(camera.far);
   });
 });
 
