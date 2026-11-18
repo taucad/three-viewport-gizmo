@@ -52,13 +52,22 @@ describe("hit sizes", () => {
       expect(invalidated).toBeGreaterThan(0);
       expect(parts(gizmo.root)).toEqual(before);
       expect(parts(gizmo.root).every((part, i) => part === before[i])).toBe(true);
-      expect(scan(gizmo, element, [1, -1]).indexOf("corner")).toBeLessThan(diagonal);
-      expect(scan(gizmo, element, [0, -1]).indexOf("edge")).toBeLessThan(side);
+      // indexOf is -1 when the scan finds no corner or edge at all: require one before comparing.
+      const widerDiagonal = scan(gizmo, element, [1, -1]).indexOf("corner");
+      const widerSide = scan(gizmo, element, [0, -1]).indexOf("edge");
+      expect(widerDiagonal).toBeGreaterThanOrEqual(0);
+      expect(widerSide).toBeGreaterThanOrEqual(0);
+      expect(widerDiagonal).toBeLessThan(diagonal);
+      expect(widerSide).toBeLessThan(side);
 
       // Back to the defaults: the bands return.
       gizmo.set({ corners: { hitSize: undefined }, edges: { hitSize: undefined } });
-      expect(scan(gizmo, element, [1, -1]).indexOf("corner")).toBe(diagonal);
-      expect(scan(gizmo, element, [0, -1]).indexOf("edge")).toBe(side);
+      const restoredDiagonal = scan(gizmo, element, [1, -1]).indexOf("corner");
+      const restoredSide = scan(gizmo, element, [0, -1]).indexOf("edge");
+      expect(restoredDiagonal).toBeGreaterThanOrEqual(0);
+      expect(restoredSide).toBeGreaterThanOrEqual(0);
+      expect(restoredDiagonal).toBe(diagonal);
+      expect(restoredSide).toBe(side);
       gizmo.dispose();
     }
   );
