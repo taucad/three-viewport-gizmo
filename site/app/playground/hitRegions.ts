@@ -19,6 +19,27 @@ const MAX_WAIT = 500;
 
 let sampling = false;
 
+/**
+ * The real pointer's last position and the element under it, from trusted events since this module loaded (with the
+ * playground, before any stage mounts), so an overlay enabled under a still mouse knows where to put the hover back.
+ * Null before the first move and after the pointer leaves the window.
+ */
+let lastPointer: { x: number; y: number; target: EventTarget | null; touch: boolean } | null = null;
+if (typeof document !== "undefined") {
+  const track = (e: PointerEvent) => {
+    if (e.isTrusted) lastPointer = { x: e.clientX, y: e.clientY, target: e.target, touch: e.pointerType === "touch" };
+  };
+  document.addEventListener("pointermove", track, { capture: true, passive: true });
+  document.addEventListener("pointerdown", track, { capture: true, passive: true });
+  document.addEventListener(
+    "pointerout",
+    (e) => {
+      if (e.isTrusted && e.relatedTarget === null) lastPointer = null;
+    },
+    { capture: true, passive: true }
+  );
+}
+
 /** True while the overlay is sampling: the gizmo's `hoverchange` events then come from its probes, not the user. */
 export const isSamplingHitRegions = () => sampling;
 
@@ -39,7 +60,7 @@ export type HitRegions = {
  * @param stage - The running stage; its container receives the overlay canvas
  * @returns Controls to redraw and to remove the overlay
  */
-export function attachHitRegions(stage: StageHandle): HitRegions {
+export function attachHitRegions(stage: StageHandle, onSampled?: () => void): HitRegions {
   const gizmo = stage.gizmo;
   if (!gizmo) return { schedule() {}, dispose() {} };
   const element = gizmo.domElement;
@@ -52,23 +73,13 @@ export function attachHitRegions(stage: StageHandle): HitRegions {
   stage.container.appendChild(canvas);
   const ctx = canvas.getContext("2d")!;
 
-  // The real pointer, from trusted events only, so the probe can put the hover back where the user left it.
-  let real: { x: number; y: number } | null = null;
   let pressed = false;
-  const onMove = (e: PointerEvent) => {
-    if (e.isTrusted && e.pointerType !== "touch") real = { x: e.clientX, y: e.clientY };
-  };
-  const onLeave = (e: PointerEvent) => {
-    if (e.isTrusted) real = null;
-  };
   const onDown = (e: PointerEvent) => {
     if (e.isTrusted) pressed = true;
   };
   const onUp = (e: PointerEvent) => {
     if (e.isTrusted) pressed = false;
   };
-  element.addEventListener("pointermove", onMove);
-  element.addEventListener("pointerleave", onLeave);
   element.addEventListener("pointerdown", onDown);
   window.addEventListener("pointerup", onUp);
   window.addEventListener("pointercancel", onUp);
@@ -110,11 +121,16 @@ export function attachHitRegions(stage: StageHandle): HitRegions {
         }
       }
     } finally {
-      // Put the hover back as the user left it, inside the same task.
-      if (real) probe(gizmo, real.x, real.y);
+      // Put the hover back as the user left it, inside the same task: a move where the real mouse is when the element
+      // last heard it (its own listener would have), else a leave, since the pointer is outside or never moved.
+      const real = lastPointer;
+      const over = real && !real.touch && real.target instanceof Node && element.contains(real.target);
+      if (over) probe(gizmo, real.x, real.y);
       else element.dispatchEvent(new PointerEvent("pointerleave", { pointerType: "mouse", isPrimary: true }));
       sampling = false;
     }
+    // The probes' hover events are filtered out; the restored hover is the user's and goes out now.
+    onSampled?.();
   };
 
   const schedule = () => {
@@ -138,8 +154,6 @@ export function attachHitRegions(stage: StageHandle): HitRegions {
       clearTimeout(timer);
       stopView();
       observer.disconnect();
-      element.removeEventListener("pointermove", onMove);
-      element.removeEventListener("pointerleave", onLeave);
       element.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);

@@ -214,6 +214,11 @@ export function Playground() {
   const [hovered, setHovered] = useState<string | null>(null);
   const hitRegions = useRef<HitRegions | null>(null);
   const root = useRef<HTMLDivElement>(null);
+  /** Shows the gizmo's current hover in the readout. */
+  const publishHover = useCallback(() => {
+    const target = stage?.gizmo?.hovered;
+    setHovered(target ? `${target.kind}: ${target.label}` : null);
+  }, [stage]);
 
   // The stage column sticks below the site's sticky header, whose height changes as its links wrap.
   useEffect(() => {
@@ -244,11 +249,10 @@ export function Playground() {
     // Clicks and drags on the gizmo end here; refused turns fire no event and are caught from their promise below.
     const onEnd = (end: GizmoTurnEnd) => setLastEnd(describeEnd(end));
     stage.gizmo?.addEventListener("end", onEnd);
-    // The hit-region overlay probes through hover; its probes are not the user's.
+    // The hit-region overlay probes through hover: its probes are not the user's, but the hover it restores is, and
+    // it publishes that through `publishHover` once it is done.
     const onHover = () => {
-      if (isSamplingHitRegions()) return;
-      const target = stage.gizmo?.hovered;
-      setHovered(target ? `${target.kind}: ${target.label}` : null);
+      if (!isSamplingHitRegions()) publishHover();
     };
     stage.gizmo?.addEventListener("hoverchange", onHover);
     return () => {
@@ -257,18 +261,18 @@ export function Playground() {
       stage.gizmo?.removeEventListener("hoverchange", onHover);
       setHovered(null);
     };
-  }, [stage]);
+  }, [stage, publishHover]);
 
   // The overlay redraws itself on view changes and resizes; option changes reach it below.
   useEffect(() => {
     if (!stage || !showHitRegions) return;
-    const current = attachHitRegions(stage);
+    const current = attachHitRegions(stage, publishHover);
     hitRegions.current = current;
     return () => {
       current.dispose();
       hitRegions.current = null;
     };
-  }, [stage, showHitRegions]);
+  }, [stage, showHitRegions, publishHover]);
 
   // The host camera's field of view changes in place, without a rebuild, as a host app would change it.
   useEffect(() => {
