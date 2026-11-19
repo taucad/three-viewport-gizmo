@@ -285,8 +285,8 @@ export type GizmoOptions = {
 
   /**
    * Whether the view may roll (L4). Default inferred: on when the gizmo writes the camera or the attached controls can
-   * take a new up; off in controlled mode and for free-tumble controls. `'free'`: every click, side triangle and roll
-   * is the single shortest rotation (Tumble).
+   * take a new up; off in controlled mode and for free-orbit controls. `'free'`: every click, side triangle and roll
+   * is the single shortest rotation (free orbit, trackball-style).
    */
   roll?: boolean | "free";
 
