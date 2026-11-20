@@ -1014,7 +1014,10 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     }
     this._navigate();
     this._sync();
-    if (!this._active) this._refreshAtTarget(false);
+    // Mid-turn the at-target state is null and is not observed until the turn ends, so name the view from the rebuilt
+    // targets here; otherwise observe the pose as usual.
+    if (this._active) this._keys.name(null);
+    else this._refreshAtTarget(false);
     this._rehover();
     this._writeState();
     this._invalidate();

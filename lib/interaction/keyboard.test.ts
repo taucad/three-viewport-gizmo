@@ -385,4 +385,19 @@ describe("the name follows the pose the gizmo observes (F3)", () => {
     expect(changes).not.toHaveBeenCalled();
     gizmo.dispose();
   });
+
+  it("set() that relabels the nearest face during a turn renames the view before the turn ends", () => {
+    // Animated, so the turn is still in flight: the camera has not moved before the first frame, and the name
+    // written at the start of the turn is "Near" the face it starts from.
+    const gizmo = createGizmo({
+      cameraPosition: axis(0.1, 0.05, 1).multiplyScalar(5),
+      gizmoOptions: { type: "cube", animated: true },
+    });
+    void gizmo.lookFrom("top");
+    expect(gizmo.atTarget).toBeNull();
+    expect(name(gizmo)).toBe(`Near ${target(gizmo, "front").label}`);
+    gizmo.set({ front: { label: "Face A" } });
+    expect(name(gizmo)).toBe("Near Face A");
+    gizmo.dispose();
+  });
 });
