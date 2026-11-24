@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- A phone page: without a viewport meta a mobile browser lays out at 980 px and zooms out. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>P13 touch</title>
+    <style>
+      body { margin: 0; }
+      /* Tall enough to scroll: a touch drag on the gizmo must not scroll the page (E1). */
+      body.tall { height: 3000px; }
+      #wrap { position: relative; width: 100vw; height: 420px; }
+    </style>
+  </head>
+  <body>
+    <div id="wrap"></div>
+    <script type="module">
+      // P13 emulated-touch cases at phone size: `?backend=webgl|webgpu&type=cube|rounded-cube|sphere&reveal=hover|always
+      // &tall=1`. A real renderer draws a host scene, steps a host OrbitControls and draws the gizmo every frame, with the
+      // navigation buttons on (Tau's 96 px cube with the triad by default).
+      const q = new URLSearchParams(location.search);
+      const backend = q.get("backend") ?? "webgl";
+      const type = q.get("type") ?? "cube";
+      if (q.get("tall") === "1") document.body.classList.add("tall");
+      const THREE = backend === "webgpu" ? await import("three/webgpu") : await import("three");
+      const { ViewportGizmo } = await import("/lib/index.ts");
+      const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
+
+      const wrap = document.getElementById("wrap");
+      const width = wrap.clientWidth;
+      const height = wrap.clientHeight;
+      const renderer = backend === "webgpu" ? new THREE.WebGPURenderer() : new THREE.WebGLRenderer();
+      if (renderer.init) await renderer.init();
+      renderer.setPixelRatio(devicePixelRatio);
+      renderer.setSize(width, height);
+      wrap.appendChild(renderer.domElement);
+      const scene = new THREE.Scene();
+      scene.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()));
+      const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
+      camera.position.set(3, 2, 4);
+      camera.lookAt(0, 0, 0);
+      const controls = new OrbitControls(camera, renderer.domElement);
+
+      const extra = type === "sphere" ? { edges: { enabled: true }, corners: { enabled: true } } : {};
+      const gizmo = new ViewportGizmo(camera, renderer, {
+        container: wrap,
+        type,
+        size: Number(q.get("size") ?? 96),
+        offset: { top: 40, right: 40 },
+        speed: 30,
+        triad: { enabled: q.get("triad") !== "false" },
+        navigation: { enabled: true, reveal: q.get("reveal") ?? "hover" },
+        ...extra,
+      });
+      gizmo.attachControls(controls);
+      renderer.setAnimationLoop(() => {
+        controls.update();
+        renderer.render(scene, camera);
+        gizmo.render();
+      });
+
+      const ends = [];
+      gizmo.addEventListener("end", (e) => ends.push({ cause: e.cause, status: e.outcome.status }));
+      const back = () => new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion).toArray();
+      const frames = (n) => new Promise((done) => { const tick = () => (n-- > 0 ? requestAnimationFrame(tick) : done()); tick(); });
+      const buttons = () => [...gizmo.domElement.querySelectorAll("[data-navigation]")];
+      const state = () => ({
+        at: gizmo.atTarget?.target.name ?? null,
+        sides: gizmo.atTarget?.sides ? Object.fromEntries(Object.entries(gizmo.atTarget.sides).map(([k, t]) => [k, t.name])) : null,
+        shown: buttons().filter((b) => !b.hidden).map((b) => b.dataset.navigation),
+        back: back(),
+        animating: gizmo.animating,
+        hovered: gizmo.hovered?.name ?? null,
+        ends: ends.length,
+        last: ends.at(-1) ?? null,
+        scrollY,
+      });
+      const settled = () =>
+        new Promise((resolve) => {
+          const check = () => (gizmo.animating ? requestAnimationFrame(check) : resolve(state()));
+          requestAnimationFrame(check);
+        });
+
+      /** Looks from 2° off a target, so the target sits under the element's centre; returns the centre in client px. */
+      const aim = async (name) => {
+        const target = gizmo.targets.find((t) => t.name === name);
+        const side = Math.abs(target.direction.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+        const off = side.cross(target.direction).normalize().multiplyScalar(Math.tan(THREE.MathUtils.degToRad(2)));
+        await gizmo.lookFrom(off.add(target.direction).normalize(), { animated: false, up: "reset" });
+        await frames(2);
+        const r = gizmo.domElement.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      };
+      const look = async (name) => {
+        await gizmo.lookFrom(name, { up: "reset", animated: false });
+        await frames(2);
+        return state();
+      };
+      const rect = (name) => (name ? gizmo.domElement.querySelector(`[data-navigation="${name}"]`) : gizmo.domElement).getBoundingClientRect().toJSON();
+
+      window.T = {
+        names: () => gizmo.targets.map((t) => t.name),
+        hoverNone: () => matchMedia("(hover: none)").matches,
+        pointerCoarse: () => matchMedia("(pointer: coarse)").matches,
+        aim,
+        look,
+        rect,
+        state,
+        settled,
+        frames,
+      };
+      window.READY = true;
+    </script>
+  </body>
+</html>

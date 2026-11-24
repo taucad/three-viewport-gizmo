@@ -1,0 +1,191 @@
+name: Cross-browser
+
+# P13: coverage the required browser gate (ci.yml, Chromium on SwiftShader) never had: Firefox and WebKit, emulated
+# touch, axe-core and the accessibility tree, real Safari and Chrome on a macOS runner's Metal GPU, and a VoiceOver
+# smoke. A separate workflow whose jobs are not in ci.yml's required set: a failure here is evidence, never a release
+# block. Runbook: tests/browser/cross/README.md.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-browser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Exact versions of the tools installed with --no-save; none of them is a dependency of the package.
+  AXE_CORE: axe-core@4.11.0
+  GUIDEPUP: '@guidepup/guidepup@0.40.0 @guidepup/playwright@0.21.0'
+  GUIDEPUP_SETUP: '@guidepup/setup@0.29.3'
+
+jobs:
+  linux:
+    # The H1 functional specs (26 targets by mouse, both turn kinds, keyboard, navigation buttons, focus ring, input)
+    # on WebGL in Playwright's Firefox and WebKit, the adapter probe and the accessibility-tree checks.
+    name: linux ${{ matrix.browser }}
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [firefox, webkit]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GIZMO_BROWSER: ${{ matrix.browser }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '26.7.0'
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npx playwright test -c tests/browser/cross.config.ts --project=webgl
+      - if: always()
+        run: node tests/browser/cross/summary.mjs "Linux ${{ matrix.browser }}" test-results/cross
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cross-linux-${{ matrix.browser }}
+          path: test-results/cross
+          if-no-files-found: ignore
+          retention-days: 14
+
+  touch-a11y:
+    # Emulated touch on WebKit as iPhone 15 and Chromium as Pixel 7; axe-core on the built docs site and the gizmo pages;
+    # Chromium's own accessibility tree.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '26.7.0'
+      - run: npm install --no-save --ignore-scripts "$AXE_CORE"
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npx nx run three-viewport-gizmo:docs
+      - name: Touch and axe
+        env:
+          GIZMO_RUN: touch-axe
+        run: npx playwright test -c tests/browser/cross.config.ts --project=touch-iphone --project=touch-android --project=axe
+      - name: Chromium accessibility tree and adapter
+        if: success() || failure()
+        env:
+          GIZMO_BROWSER: chromium
+          GIZMO_GPU: swiftshader
+        run: npx playwright test -c tests/browser/cross.config.ts --project=webgl tests/browser/cross/
+      - if: always()
+        run: node tests/browser/cross/summary.mjs "Touch and accessibility" test-results/cross
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cross-touch-a11y
+          path: test-results/cross
+          if-no-files-found: ignore
+          retention-days: 14
+
+  macos-chrome-metal:
+    # Chromium on the runner's GPU through Metal (gpu.mjs `metal`): the adapter it gets, then the browser gate's specs on
+    # both backends, the WebGPU specs included. The screenshot matrix is left out: its metal-darwin references come from
+    # the reference Mac's GPU, not a runner's.
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      GIZMO_GPU: metal
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '26.7.0'
+      - run: npx playwright install chromium
+      - run: system_profiler SPDisplaysDataType
+      - name: Adapter probe (Chromium, Metal)
+        env:
+          GIZMO_BROWSER: chromium
+          GIZMO_RUN: macos-chromium
+        run: npx playwright test -c tests/browser/cross.config.ts --project=webgl tests/browser/cross/adapter.cross.ts
+      - name: Browser gate specs on Metal (WebGL and WebGPU)
+        if: success() || failure()
+        run: >-
+          npx playwright test -c tests/browser
+          tests/browser/views.spec.ts tests/browser/gate.spec.ts tests/browser/input.spec.ts tests/browser/baseline.spec.ts
+          lib/__tests__/browser/
+      - if: always()
+        run: node tests/browser/cross/summary.mjs "macOS Chromium on Metal" test-results/cross perf/out/browser.json
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cross-macos-chrome-metal
+          path: |
+            test-results
+            perf/out/browser.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  macos-safari:
+    # Real Safari through safaridriver (W3C WebDriver), then Playwright's WebKit on macOS with the functional specs.
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '26.7.0'
+      - run: sudo safaridriver --enable
+      - name: Safari (safaridriver)
+        run: node tests/browser/cross/safari.mjs
+      - run: npx playwright install webkit
+      - name: Playwright WebKit on macOS
+        if: success() || failure()
+        env:
+          GIZMO_BROWSER: webkit
+          GIZMO_RUN: macos-webkit
+        run: npx playwright test -c tests/browser/cross.config.ts --project=webgl
+      - if: always()
+        run: node tests/browser/cross/summary.mjs "macOS Safari and WebKit" test-results/cross
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cross-macos-safari
+          path: test-results/cross
+          if-no-files-found: ignore
+          retention-days: 14
+
+  voiceover:
+    # VoiceOver over headed Playwright WebKit, driven by Guidepup (setup per guidepup.dev's CI guide).
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '26.7.0'
+      - run: npm install --no-save --ignore-scripts $GUIDEPUP
+      - run: npx --yes "$GUIDEPUP_SETUP" setup --ci --macos-record
+      - run: npx --yes "$GUIDEPUP_SETUP" install voiceover
+      - run: npx playwright install webkit
+      - run: npx playwright test -c tests/browser/voiceover.config.ts
+      - if: always()
+        run: node tests/browser/cross/summary.mjs "VoiceOver" test-results/cross/voiceover
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cross-voiceover
+          path: |
+            test-results/cross/voiceover
+            recordings
+          if-no-files-found: ignore
+          retention-days: 14
