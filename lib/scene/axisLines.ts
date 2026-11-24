@@ -1,5 +1,5 @@
 import { BufferAttribute, Color, CylinderGeometry, Mesh, Quaternion, Vector3 } from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { mergeGeometries } from "./merge";
 import { fieldOfViewDistance } from "../render/internalCamera";
 import { GIZMO_AXES, GIZMO_SPHERE_AXES_DISTANCE } from "../utils/constants";
 import type { PartBuilder, SceneOptions } from "./build";
