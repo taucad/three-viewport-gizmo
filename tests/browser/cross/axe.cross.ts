@@ -66,15 +66,17 @@ for (const [title, path] of gizmoPages) {
 
 const sitePages = ["/", "/playground/", "/docs/", "/docs/keyboard/", "/docs/navigation/", "/docs/quickstart/"];
 
-for (const path of sitePages) {
-  test(`axe: docs site ${path}`, async ({ page }, info) => {
+for (const path of sitePages) for (const scheme of ["light", "dark"] as const) {
+  test(`axe: docs site ${path}${scheme === "dark" ? " (dark)" : ""}`, async ({ page }, info) => {
     test.skip(!axePath, "npm install --no-save axe-core first");
     test.skip(!site, "Build the docs site first (:docs writes site/out)");
+    // The code blocks take one of two Shiki themes per colour scheme, so both are scanned.
+    await page.emulateMedia({ colorScheme: scheme });
     await page.goto(`http://127.0.0.1:${sitePort}/three-viewport-gizmo${path}`);
     await page.waitForLoadState("networkidle");
     // Live examples mount their gizmo after hydration.
     await page.waitForTimeout(1_000);
-    const summary = record(info, `site ${path}`, await scan(page));
+    const summary = record(info, `site ${path} (${scheme})`, await scan(page));
     const gizmos = await page.getByRole("application").count();
     info.annotations.push({ type: "gizmos", description: String(gizmos) });
     expect(summary.violations).toEqual([]);
