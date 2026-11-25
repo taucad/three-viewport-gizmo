@@ -44,8 +44,9 @@ export type ViewportWatch = {
  * number (12 B), so a gizmo at a subpixel offset measured on every frame allocated 76 to 82 B a frame, over the
  * 64 B idle budget, whatever the library does with the numbers.
  *
- * Instead, each frame compares eight whole-pixel layout values of the element and the canvas (offsets and sizes, read
- * as small integers, which allocate nothing) with the last measurement's; the rectangle is measured exactly, with
+ * Instead, each frame compares the whole-pixel positions and sizes of the element and the canvas (offsets summed up each
+ * `offsetParent` chain, so a positioned ancestor that moves only one of them counts, read as small integers, which
+ * allocate nothing) with the last measurement's; the rectangle is measured exactly, with
  * {@link measureViewport}, when one of them changed or a signal arrived since: a window `resize` (also zoom), a `scroll`
  * of anything (captured, since it does not bubble), a subpixel size change of either box (`ResizeObserver`, from the
  * next frame) or {@link ViewportWatch.invalidate}. Resize, scroll, a canvas resize and any move or resize of a pixel or
@@ -89,14 +90,26 @@ export function watchViewport(renderer: GizmoRenderer, element: HTMLElement): Vi
   };
 }
 
-/** Whether a whole-pixel offset or size of `element` or `canvas` differs from `seen`; records the new values. */
+/**
+ * Whether the whole-pixel position or size of `element` or `canvas` differs from `seen`; records the new values. A
+ * position is the sum of `offsetLeft` and `offsetTop` up the `offsetParent` chain, so a positioned ancestor that moves
+ * one box and not the other counts, not only the box's offset in its own container.
+ */
 function moved(seen: Int32Array, element: HTMLElement, canvas: HTMLCanvasElement): boolean {
-  const a = element.offsetLeft;
-  const b = element.offsetTop;
+  let a = 0;
+  let b = 0;
+  for (let node: HTMLElement | null = element; node; node = node.offsetParent as HTMLElement | null) {
+    a += node.offsetLeft;
+    b += node.offsetTop;
+  }
+  let e = 0;
+  let f = 0;
+  for (let node: HTMLElement | null = canvas; node; node = node.offsetParent as HTMLElement | null) {
+    e += node.offsetLeft;
+    f += node.offsetTop;
+  }
   const c = element.offsetWidth;
   const d = element.offsetHeight;
-  const e = canvas.offsetLeft;
-  const f = canvas.offsetTop;
   const g = canvas.clientWidth;
   const h = canvas.clientHeight;
   if (seen[0] === a && seen[1] === b && seen[2] === c && seen[3] === d && seen[4] === e && seen[5] === f && seen[6] === g && seen[7] === h)

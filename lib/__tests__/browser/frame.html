@@ -314,6 +314,8 @@
           scroller.append(tall);
           tall.append(element);
           rows.reparent = await frame();
+          scroller.style.right = "40.5px"; // the positioned container moves; the element's own offsets do not change
+          rows.containerMove = await frame();
           scroller.scrollTop = 10.5;
           rows.scroll = await frame();
           wrap.append(element);

@@ -62,6 +62,23 @@ describe("watchViewport (I4: no layout read while nothing moved, R6: no call aft
     watch.detach();
   });
 
+  it("remeasures on the same frame when a positioned container moves the element and not the canvas", () => {
+    const { element, elementRect, renderer, out, reads } = setup();
+    // The element's offsets are relative to its container, which moves; none of the element's own values change.
+    const container = document.createElement("div");
+    let left = 0;
+    Object.defineProperty(container, "offsetLeft", { configurable: true, get: () => left });
+    Object.defineProperty(element, "offsetParent", { configurable: true, get: () => container });
+    const watch = watchViewport(renderer, element);
+    reads(watch);
+    left = 100;
+    elementRect.mockReturnValue(new DOMRect(763.7, 8.4, 128, 128));
+    expect(reads(watch)).toBe(2);
+    expect(out.x).toBe(763.7);
+    expect(reads(watch)).toBe(0);
+    watch.detach();
+  });
+
   it("remeasures after invalidate(), for an option change that moves or resizes the element", () => {
     const { element, renderer, reads } = setup();
     const watch = watchViewport(renderer, element);

@@ -93,7 +93,7 @@ for (const backend of backends) {
     });
   }
 
-  test(`${backend}: the rectangle follows container, element and canvas resizes, moves, pixel ratio and scroll on the same frame (R6)`, async ({ page }) => {
+  test(`${backend}: the rectangle follows container, element and canvas resizes, moves (also of a positioned container), pixel ratio and scroll on the same frame (R6)`, async ({ page }) => {
     const { F, errors } = await open(page, { backend, type: "cube", subpixel: "1" });
     const rows = await F<Record<string, { drawn: Record<string, number>; fresh: Record<string, number> }>>("follows()");
     annotate("follows", rows);
