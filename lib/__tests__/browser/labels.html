@@ -146,19 +146,35 @@
         const before = await draw();
         const t0 = performance.now();
         const probe = document.createElement("canvas").getContext("2d");
-        const usable = () => {
-          probe.font = "100px S2LateFont, serif";
-          const width = probe.measureText("Front Back Top").width;
-          probe.font = "100px serif";
-          return width !== probe.measureText("Front Back Top").width;
+        /** Runs one diagnostic step: its value, or `{ error }` in the trace rather than a throw (Safari threw one). */
+        const safe = (fn) => {
+          try {
+            return fn();
+          } catch (error) {
+            return { error: `${error?.name}: ${error?.message}` };
+          }
         };
+        const usable = () =>
+          safe(() => {
+            probe.font = "100px S2LateFont, serif";
+            const width = probe.measureText("Front Back Top").width;
+            probe.font = "100px serif";
+            return width !== probe.measureText("Front Back Top").width;
+          });
         // A file the gate's server holds, not a local() font: CI runners have no Courier. A url() source (not an
         // ArrayBuffer, which is parsed before it joins the set) loads through document.fonts, so `loading` fires.
         // WebKit fires no `loadingdone` for it.
         const face = new FontFace("S2LateFont", "url(/tests/browser/fixtures/geist-latin.woff2)", { weight: "100 900" });
         const trace = [];
-        const note = (step, extra) =>
-          trace.push({ step, at: Math.round(performance.now() - t0), set: document.fonts.status, face: face.status, usable: usable(), ...extra });
+        const note = (step, extra = () => ({})) =>
+          trace.push({
+            step,
+            at: Math.round(performance.now() - t0),
+            set: safe(() => document.fonts.status),
+            face: safe(() => face.status),
+            usable: usable(),
+            ...safe(extra),
+          });
         let frames = 0;
         let redrew;
         const redraw = new Promise((r) => (redrew = r));
@@ -167,36 +183,47 @@
          * The face as the label canvas's own context resolves it, against a fresh context: text widths in the label's
          * font string (`font`, as the label's last draw left it), the same at normal weight (`w400`) and in the
          * fallback alone (`serif`); on the label context also after setting the string again (`reset`). `drawn`: a
-         * fresh canvas's fillText pixels differ from the fallback's, at the label's weight and at normal weight.
+         * fresh canvas's fillText image differs from the fallback's, at the label's weight and at normal weight. Read
+         * back with toDataURL, not getImageData, which can throw InvalidStateError in WebKit (a failed pixel read or
+         * its privacy noise path). Every step is `safe`.
          */
         const faces = () => {
-          const ctx = canvas.getContext("2d");
+          const ctx = safe(() => canvas.getContext("2d"));
+          if (ctx?.error) return { label: ctx };
           const font = ctx.font;
           const variants = { font, w400: font.replace(/^(?:\S+ )*?(\d+(?:\.\d+)?px)/, "$1"), serif: font.replace(/S2LateFont,\s*/i, "") };
-          const widths = (c) => Object.fromEntries(Object.entries(variants).map(([k, f]) => ((c.font = f), [k, Math.round(c.measureText("Front Back").width * 100) / 100])));
+          const width = (c, f) =>
+            safe(() => {
+              c.font = f;
+              return Math.round(c.measureText("Front Back").width * 100) / 100;
+            });
+          const widths = (c) => Object.fromEntries(Object.entries(variants).map(([k, f]) => [k, width(c, f)]));
           const label = widths(ctx);
-          ctx.font = "10px monospace";
-          ctx.font = font;
-          label.reset = Math.round(ctx.measureText("Front Back").width * 100) / 100;
-          const fresh = widths(document.createElement("canvas").getContext("2d"));
-          const pixels = (f) => {
+          label.reset = safe(() => {
+            ctx.font = "10px monospace";
+            return width(ctx, font);
+          });
+          const fresh = safe(() => widths(document.createElement("canvas").getContext("2d")));
+          const image = (f) => {
             const c = document.createElement("canvas");
             c.width = 200;
             c.height = 60;
             const x = c.getContext("2d");
             x.font = f.replace(/\d+(?:\.\d+)?px/, "40px");
             x.fillText("Front", 4, 45);
-            return x.getImageData(0, 0, 200, 60).data;
+            return c.toDataURL();
           };
-          const differs = (a, b) => a.some((v, i) => v !== b[i]);
-          const fallback = pixels(variants.serif);
-          const drawn = { font: differs(pixels(font), fallback), w400: differs(pixels(variants.w400), fallback) };
-          ctx.font = font;
+          const fallback = safe(() => image(variants.serif));
+          const drawn = {
+            font: safe(() => image(font) !== fallback),
+            w400: safe(() => image(variants.w400) !== fallback),
+          };
+          safe(() => (ctx.font = font));
           return { variants, label, fresh, drawn };
         };
         scene.labels.onRedraw = () => {
           frames++;
-          note("redraw", { faces: faces() });
+          note("redraw", () => ({ faces: faces() }));
           redrew();
         };
         const ink = canvas.toDataURL();
@@ -207,7 +234,7 @@
           let settled = false;
           void ready.then(() => (settled = true));
           void Promise.resolve().then(() =>
-            note("loading", { fontfaces: event.fontfaces?.length ?? null, readySettled: settled })
+            note("loading", () => ({ fontfaces: event.fontfaces?.length ?? null, readySettled: settled }))
           );
           void ready.then(() => note("ready"));
         };
@@ -220,7 +247,7 @@
         await Promise.race([redraw, new Promise((r) => setTimeout(r, 1_000))]);
         await new Promise((r) => setTimeout(r, 50));
         const after = await draw();
-        note("draw", { faces: faces() });
+        note("draw", () => ({ faces: faces() }));
         document.fonts.removeEventListener("loading", onLoading);
         disposeScene(scene);
         target.dispose();
