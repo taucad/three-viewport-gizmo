@@ -6,7 +6,7 @@ import { classifyChange } from "../options/changes";
 import { resolveOptions } from "../options/resolve";
 import { createInternalCamera } from "../render/internalCamera";
 import type { GizmoOptions } from "../types";
-import { pixelsPerUnit } from "./axisLines";
+import { pixelsPerUnit } from "./outline";
 import { buildScene } from "./build";
 import { updateScene } from "./update";
 

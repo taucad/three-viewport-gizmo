@@ -27,6 +27,7 @@ import { sample, type Flight, type FlightFrame } from "./orbit/transition";
 import { planHome, planTurn, planView, restsOn, snapCardinal, TARGET_TOLERANCE, type TurnContext } from "./orbit/turn";
 import { createGizmoElement, resolveContainer, updateGizmoElement, writeGizmoState, type GizmoElementOptions } from "./render/dom";
 import { createInternalCamera, setFieldOfView } from "./render/internalCamera";
+import { faceOnOutline } from "./scene/outline";
 import { createDepthReset, renderInRect, type DepthReset } from "./render/frame";
 import { measureViewport, watchViewport, type MutableViewport, type ViewportWatch } from "./render/rect";
 import { warmUp } from "./render/warmUp";
@@ -229,7 +230,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._scene = buildScene(o);
     this._label = this._scene.frame;
     this._up.copy(this._label.up);
-    this._camera = createInternalCamera(o.type === "sphere", o.fieldOfView);
+    this._camera = createInternalCamera(o.type === "sphere", o.fieldOfView, faceOnOutline(this._scene.targets, o));
     this._three.add(this.root);
     this._adoptReset();
     this._adoptScene();
@@ -997,14 +998,15 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       disposeScene(this._scene);
       this._scene = buildScene(next);
       this._adoptReset();
-      this._camera = createInternalCamera(next.type === "sphere", next.fieldOfView);
+      this._camera = createInternalCamera(next.type === "sphere", next.fieldOfView, faceOnOutline(this._scene.targets, next));
       const label = this._scene.frame;
       if (!label.up.equals(this._label.up) || !label.front.equals(this._label.front)) this._up.copy(label.up);
       this._label = label;
       this._pointerOver = false;
     } else {
       updateScene(this._scene, next);
-      setFieldOfView(this._camera, next.fieldOfView);
+      // A triad toggle or a hidden target changes the outline the distance keeps (cheap path).
+      setFieldOfView(this._camera, next.fieldOfView, faceOnOutline(this._scene.targets, next));
     }
     this._adoptScene();
     this._faded.set(NaN, NaN, NaN, NaN);

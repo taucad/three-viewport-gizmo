@@ -1,31 +1,15 @@
 import { BufferAttribute, Color, CylinderGeometry, Mesh, Quaternion, Vector3 } from "three";
 import { mergeGeometries } from "./merge";
-import { fieldOfViewDistance } from "../render/internalCamera";
 import { GIZMO_AXES, GIZMO_SPHERE_AXES_DISTANCE } from "../utils/constants";
-import type { PartBuilder, SceneOptions } from "./build";
+import type { PartBuilder } from "./build";
 import { meshAttributes, targetMaterial, whiteTexture } from "./materials";
-
-/** Half the sphere's orthographic frustum height, as in `createInternalCamera`. */
-const SPHERE_HALF_HEIGHT = 1.8;
+import { faceOnOutline, pixelsPerUnit } from "./outline";
 
 /** Length of a line on the cube types, from the centre to just inside the face, as in 2.3.0. */
 const CUBE_LINE_LENGTH = 0.975;
 
 /** Sides of each line's cylinder: its silhouette is the line, so its width does not change with the view. */
 const RADIAL_SEGMENTS = 8;
-
-/**
- * Screen pixels per world unit at the gizmo's origin, for the gizmo's own camera drawn `size` pixels tall: the
- * sphere's orthographic frustum, or the cube's perspective camera at its field-of-view distance.
- *
- * @param options - Resolved options; reads `type`, `size` and `fieldOfView`
- * @returns CSS pixels per world unit; independent of the host canvas size and device pixel ratio
- */
-export const pixelsPerUnit = ({ type, size, fieldOfView }: Pick<SceneOptions, "type" | "size" | "fieldOfView">): number =>
-  size /
-  (type === "sphere"
-    ? 2 * SPHERE_HALF_HEIGHT
-    : 2 * fieldOfViewDistance(fieldOfView) * Math.tan(fieldOfView / 2));
 
 const Y = /*@__PURE__*/ new Vector3(0, 1, 0);
 const _color = /*@__PURE__*/ new Color();
@@ -40,7 +24,7 @@ const _scale = /*@__PURE__*/ new Vector3();
  * are 96 of its triangles, not 192). A cheap change rewrites positions, colours and that range in place without
  * compiling.
  */
-export const axisLines: PartBuilder = (_, { frame }, owned) => {
+export const axisLines: PartBuilder = (_, { frame, targets }, owned) => {
   const unit = new CylinderGeometry(1, 1, 1, RADIAL_SEGMENTS).translate(0, 0.5, 0);
   unit.deleteAttribute("uv");
   const base = unit.attributes.position.array;
@@ -66,7 +50,7 @@ export const axisLines: PartBuilder = (_, { frame }, owned) => {
   return {
     object,
     update(o) {
-      const radius = o.lineWidth / 2 / pixelsPerUnit(o);
+      const radius = o.lineWidth / 2 / pixelsPerUnit(o, faceOnOutline(targets, o));
       const positions = geometry.attributes.position as BufferAttribute;
       const index = geometry.index!;
       let shown = 0;
