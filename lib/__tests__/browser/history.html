@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Frame history</title>
+    <style>
+      body { margin: 0; }
+      #wrap { position: relative; width: 320px; height: 240px; }
+    </style>
+  </head>
+  <body>
+    <div id="wrap"></div>
+    <script type="module">
+      // Browser cases for a frame that is a function of the camera pose and options only: `?backend=webgpu|webgl&dpr=2`.
+      // A host draws into a render target the size of the drawing buffer and the gizmo draws over it, as Tau does; the
+      // page reads the target back after each frame. A pose is `[x, y, z]` (the camera looks at the origin from there)
+      // with an optional exact quaternion after it.
+      const q = new URLSearchParams(location.search);
+      const backend = q.get("backend") ?? "webgpu";
+      const W = 320, H = 240;
+      const THREE = backend === "webgpu" ? await import("three/webgpu") : await import("three");
+      const { ViewportGizmo } = await import("/lib/index.ts");
+
+      const wrap = document.getElementById("wrap");
+      const renderer = backend === "webgpu" ? new THREE.WebGPURenderer() : new THREE.WebGLRenderer();
+      if (renderer.init) await renderer.init();
+      const dpr = Number(q.get("dpr") ?? 1);
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(W, H);
+      wrap.appendChild(renderer.domElement);
+      const target = backend === "webgpu" ? new THREE.RenderTarget(W * dpr, H * dpr) : new THREE.WebGLRenderTarget(W * dpr, H * dpr);
+      target.texture.colorSpace = THREE.SRGBColorSpace;
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(35, W / H, 0.1, 100);
+      camera.up.set(0, 0, 1);
+      let gizmo = null;
+
+      const read = async () => {
+        if (backend === "webgpu") return new Uint8Array(await renderer.readRenderTargetPixelsAsync(target, 0, 0, W * dpr, H * dpr));
+        const buffer = new Uint8Array(W * H * dpr * dpr * 4);
+        await renderer.readRenderTargetPixelsAsync(target, 0, 0, W * dpr, H * dpr, buffer);
+        return buffer;
+      };
+
+      /** Creates the gizmo with `options` in the canvas's top-right corner. */
+      const setUp = (options) => {
+        gizmo?.dispose();
+        gizmo = new ViewportGizmo(camera, renderer, {
+          container: wrap,
+          type: "rounded-cube",
+          up: { x: 0, y: 0, z: 1 },
+          size: 160,
+          placement: "top-right",
+          navigation: { enabled: false },
+          ...options,
+        });
+      };
+
+      /** One host frame with the camera at `from` looking at the origin: host clear, `update()`, `render()`. */
+      const frame = async ([x, y, z, ...quaternion]) => {
+        await new Promise((done) => requestAnimationFrame(done));
+        camera.position.set(x, y, z).setLength(5);
+        camera.lookAt(0, 0, 0);
+        if (quaternion.length) camera.quaternion.fromArray(quaternion);
+        renderer.setRenderTarget(target);
+        renderer.setClearColor(0x000000, 0);
+        renderer.autoClear = true;
+        renderer.render(scene, camera);
+        gizmo.update();
+        gizmo.render();
+        const pixels = await read();
+        renderer.setRenderTarget(null);
+        return pixels;
+      };
+
+      const differ = (a, b) => {
+        let n = 0;
+        for (let i = 0; i < a.length; i++) n += a[i] !== b[i] ? 1 : 0;
+        return n;
+      };
+
+      /**
+       * Draws `home` twice (the second is the reference), then for each pose in `away` one frame there and one frame
+       * back at `home`; returns the bytes each first frame back differs from the reference by, and whether the reference
+       * drew anything (so the case is not vacuous).
+       */
+      const roundTrips = async (options, home, away) => {
+        setUp(options);
+        await frame(home);
+        const reference = await frame(home);
+        const returns = [];
+        for (const pose of away) {
+          await frame(pose);
+          returns.push({ from: pose, differ: differ(reference, await frame(home)) });
+        }
+        return { returns, drawn: reference.some((v) => v !== 0) };
+      };
+
+      window.T = { roundTrips, backend: () => (renderer.backend?.isWebGPUBackend ? "webgpu" : "webgl") };
+      window.READY = true;
+    </script>
+  </body>
+</html>

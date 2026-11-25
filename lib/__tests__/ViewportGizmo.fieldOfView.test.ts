@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MathUtils, Mesh, PerspectiveCamera, Vector3, type Camera, type Object3D } from "three";
 import { ViewportGizmo } from "../ViewportGizmo.js";
 import type { GizmoOptions } from "../types.js";
-import { createStubRenderer } from "./test-utils.js";
+import { createStubRenderer, layOut } from "./test-utils.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -23,7 +23,7 @@ function outlineWidth(options: GizmoOptions, degrees: number): number {
   host.position.set(0, 0, 7);
   host.lookAt(0, 0, 0);
   const size = 320;
-  const gizmo = new ViewportGizmo(host, renderer, { ...options, size, container, fieldOfView: MathUtils.degToRad(degrees) });
+  const gizmo = layOut(new ViewportGizmo(host, renderer, { ...options, size, container, fieldOfView: MathUtils.degToRad(degrees) }));
   const draw = vi.spyOn(renderer, "render");
   gizmo.render();
   const camera = draw.mock.calls[0]![1] as Camera;
@@ -70,10 +70,10 @@ describe("fieldOfView keeps the rounded cube's face-on outline (its drawn size),
       gizmo.render();
       return (draw.mock.calls.at(-1)![1] as Camera).position.z;
     };
-    const toggled = new ViewportGizmo(new PerspectiveCamera(), renderer, { type: "rounded-cube", container, fieldOfView });
+    const toggled = layOut(new ViewportGizmo(new PerspectiveCamera(), renderer, { type: "rounded-cube", container, fieldOfView }));
     const off = distance(toggled);
     toggled.set({ triad: { enabled: true } });
-    const fresh = new ViewportGizmo(new PerspectiveCamera(), renderer, { type: "rounded-cube", container, fieldOfView, triad: { enabled: true } });
+    const fresh = layOut(new ViewportGizmo(new PerspectiveCamera(), renderer, { type: "rounded-cube", container, fieldOfView, triad: { enabled: true } }));
     expect(distance(toggled)).not.toBeCloseTo(off, 3);
     expect(distance(toggled)).toBeCloseTo(distance(fresh), 12);
   });
@@ -82,7 +82,7 @@ describe("fieldOfView keeps the rounded cube's face-on outline (its drawn size),
     const renderer = createStubRenderer();
     const container = document.body.appendChild(document.createElement("div"));
     for (const options of cases.map(([, o]) => o)) {
-      const gizmo = new ViewportGizmo(new PerspectiveCamera(), renderer, { ...options, container });
+      const gizmo = layOut(new ViewportGizmo(new PerspectiveCamera(), renderer, { ...options, container }));
       const draw = vi.spyOn(renderer, "render");
       gizmo.render();
       expect((draw.mock.calls.at(-1)![1] as Camera).position.z).toBeCloseTo(7, 12);
@@ -98,7 +98,7 @@ describe("fieldOfView on the classic cube (2.3.0's front-edge model, scaled with
     const fieldOfView = MathUtils.degToRad(45);
     const t = Math.tan(fieldOfView / 2) / Math.tan(MathUtils.degToRad(13));
     for (const [triad, focus] of [[false, 1], [true, 0.7]] as const) {
-      const gizmo = new ViewportGizmo(new PerspectiveCamera(), renderer, { type: "cube", container, fieldOfView, triad: { enabled: triad } });
+      const gizmo = layOut(new ViewportGizmo(new PerspectiveCamera(), renderer, { type: "cube", container, fieldOfView, triad: { enabled: triad } }));
       const draw = vi.spyOn(renderer, "render");
       gizmo.render();
       expect((draw.mock.calls.at(-1)![1] as Camera).position.z).toBeCloseTo(focus + (7 - focus) / t, 12);

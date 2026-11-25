@@ -64,17 +64,20 @@ function crossSection(width: number): DataTexture {
   return texture;
 }
 
-/** An `onBeforeRender` that turns an axis ribbon about its axis (local +Y) to face `camera`, as a line is drawn. */
-function faceAlongAxis(this: Mesh, _renderer: unknown, _scene: unknown, camera: Camera): void {
-  const axis = AXES[this.userData.axis as number];
+/**
+ * Turns axis ribbon `i` about its axis (local +Y) to face `camera`, as a line is drawn. Needs the triad's world matrix
+ * current; updates the ribbon's own.
+ */
+function faceAlongAxis(line: Mesh, i: number, camera: Camera): void {
+  const axis = AXES[i];
   camera.getWorldPosition(_camera);
-  this.parent!.worldToLocal(_camera).addScaledVector(axis, -LENGTH / 2);
+  line.parent!.worldToLocal(_camera).addScaledVector(axis, -LENGTH / 2);
   _normal.copy(_camera).addScaledVector(axis, -_camera.dot(axis));
   // Seen end-on the line is a point: any side will do.
   if (_normal.lengthSq() < 1e-12) _normal.set(axis.y, axis.z, axis.x);
   _side.crossVectors(axis, _normal.normalize());
-  this.quaternion.setFromRotationMatrix(_basis.makeBasis(_side, axis, _normal));
-  this.updateMatrixWorld();
+  line.quaternion.setFromRotationMatrix(_basis.makeBasis(_side, axis, _normal));
+  line.updateMatrixWorld();
 }
 
 /** Draws one axis letter edge to edge in its axis colour. */
@@ -97,12 +100,17 @@ function drawLetter(canvas: HTMLCanvasElement, axis: (typeof GIZMO_MAIN_AXES)[nu
  * the targets' program (`targetMaterial`), so showing the triad adds no program or pipeline (perf budget `programs`).
  * Nothing is built until the triad first shows, so a gizmo without it pays nothing; toggling it after that writes
  * `visible` and the scene's scale only. Draws while shown: 6 (three lines, three labels).
+ *
+ * The turns are made by `face`, from {@link faceScene} before the renderer sorts the frame, not in `onBeforeRender`:
+ * the transparent sort reads each ribbon's world matrix, which was then still the previous frame's, so at a view where
+ * two ribbons sit at the same depth (Tau's home view) their order, and the pixels where they cross, followed the
+ * previous frame's pose.
  */
 export const triad: PartBuilder = (_, { targets }, owned) => {
   const object = new Group();
   object.position.setScalar(ORIGIN);
   let lines: Mesh<PlaneGeometry, MeshBasicMaterial>[] | null = null;
-  let letters: { canvas: HTMLCanvasElement; texture: CanvasTexture }[] = [];
+  let letters: { canvas: HTMLCanvasElement; texture: CanvasTexture; sprite: Mesh }[] = [];
   let dpr = 1;
 
   const create = (o: SceneOptions) => {
@@ -112,12 +120,10 @@ export const triad: PartBuilder = (_, { targets }, owned) => {
     const ribbon = meshAttributes(new PlaneGeometry().translate(0, 0.5, 0));
     const white = whiteTexture(owned);
     owned.add(section).add(ribbon);
-    lines = GIZMO_MAIN_AXES.map((_axis, i) => {
+    lines = GIZMO_MAIN_AXES.map(() => {
       const material = targetMaterial({ sprite: false, map: section, color: 0xffffff, opacity: 1 }, white) as MeshBasicMaterial;
       owned.add(material);
       const line = new Mesh(ribbon, material);
-      line.userData.axis = i;
-      line.onBeforeRender = faceAlongAxis;
       line.renderOrder = 2;
       object.add(line);
       return line;
@@ -134,17 +140,23 @@ export const triad: PartBuilder = (_, { targets }, owned) => {
       const material = targetMaterial({ sprite: false, map: texture, color: 0xffffff, opacity: 1 }, white);
       owned.add(texture).add(material);
       const sprite = new Mesh(quad, material);
-      sprite.onBeforeRender = turnToCamera;
       sprite.renderOrder = 3;
       sprite.scale.set(LABEL_SIZE, LABEL_SIZE, 1);
       sprite.position.setComponent(i, LENGTH + LABEL_GAP);
       object.add(sprite);
-      return { canvas, texture };
+      return { canvas, texture, sprite };
     });
   };
 
   return {
     object,
+    face(camera) {
+      if (!lines || !object.visible) return;
+      for (let i = 0; i < 3; i++) {
+        faceAlongAxis(lines[i], i, camera);
+        turnToCamera(letters[i].sprite, camera);
+      }
+    },
     update(o) {
       const shown = triadShown(o);
       object.parent?.scale.setScalar(shown ? TRIAD_SCENE_SCALE : 1);

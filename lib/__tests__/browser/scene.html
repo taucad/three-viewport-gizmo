@@ -12,7 +12,7 @@
       import * as THREE from "three/webgpu";
       import { resolveOptions, mergeOptions } from "/lib/options/resolve.ts";
       import { classifyChange } from "/lib/options/changes.ts";
-      import { buildScene, disposeScene } from "/lib/scene/build.ts";
+      import { buildScene, disposeScene, faceScene } from "/lib/scene/build.ts";
       import { hoverScene, updateScene } from "/lib/scene/update.ts";
 
       const q = new URLSearchParams(location.search);
@@ -36,6 +36,7 @@
       const base = { type };
       let scene = buildScene(resolve(base));
       root.add(scene.group);
+      world.onBeforeRender = (_renderer, _world, c) => faceScene(scene, c);
 
       const draw = async () => {
         renderer.setRenderTarget(target);

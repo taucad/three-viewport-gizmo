@@ -1,8 +1,8 @@
-import { Euler, Mesh, Object3D, OrthographicCamera, Quaternion, Scene, Vector3, type WebGLRenderer } from "three";
+import { Euler, Mesh, Object3D, OrthographicCamera, Quaternion, Scene, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 import { resolveOptions } from "../options/resolve";
 import { BACKGROUND_RADIUS } from "./background";
-import { buildScene } from "./build";
+import { buildScene, faceScene } from "./build";
 
 const sphere = () => buildScene(resolveOptions({ type: "sphere" }, { up: new Vector3(0, 1, 0) }));
 
@@ -34,7 +34,7 @@ describe("sphere background", () => {
     camera.position.set(0, 0, 7);
     world.updateMatrixWorld();
     const disc = scene.parts.background.object as Mesh;
-    disc.onBeforeRender({} as WebGLRenderer, world, camera, disc.geometry, disc.material as never, null as never);
+    faceScene(scene, camera);
 
     const normal = new Vector3(0, 0, 1).transformDirection(disc.matrixWorld);
     const toCamera = new Vector3(0, 0, 1).applyQuaternion(camera.quaternion);

@@ -11,7 +11,7 @@
       // ponytail: drives lib/scene directly until K5 wires buildScene into the class.
       import * as THREE from "three/webgpu";
       import { resolveOptions } from "/lib/options/resolve.ts";
-      import { buildScene, disposeScene } from "/lib/scene/build.ts";
+      import { buildScene, disposeScene, faceScene } from "/lib/scene/build.ts";
       import { updateScene } from "/lib/scene/update.ts";
       import { createInternalCamera } from "/lib/render/internalCamera.ts";
       import { TRIAD_COLORS } from "/lib/scene/triad.ts";
@@ -71,6 +71,7 @@
         const camera = createInternalCamera(false);
         const scene = buildScene(resolve({ type }));
         world.add(scene.group);
+        world.onBeforeRender = (_renderer, _world, c) => faceScene(scene, c);
         turn(scene, [3, 2, 4], [0, 1, 0]);
         const snapshot = () => scene.group.children.map((o) => [o, o.material]);
         const objects = snapshot();
@@ -119,6 +120,7 @@
         scene.parts.lines.object.visible = false;
         scene.parts.triad.object.children.slice(0, 3).forEach((line) => (line.visible = false)); // labels only
         world.add(scene.group);
+        world.onBeforeRender = (_renderer, _world, c) => faceScene(scene, c);
         // From the +X +Y +Z octant, tilted so no label lines up behind another: every label shows on every up.
         turn(scene, [4, 3, 5], up);
         world.updateMatrixWorld();
@@ -159,6 +161,7 @@
         const camera = createInternalCamera(false);
         const scene = buildScene(resolve({ type, triad: { enabled: true }, font: FONT }, up));
         world.add(scene.group);
+        world.onBeforeRender = (_renderer, _world, c) => faceScene(scene, c);
         turn(scene, [4, 3, 5], up);
         renderer.setClearColor(0xffffff, 1);
         renderer.render(world, camera);

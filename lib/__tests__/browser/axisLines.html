@@ -12,7 +12,7 @@
       // ponytail: drives lib/scene directly until K5 wires buildScene into the class.
       import * as THREE from "three/webgpu";
       import { resolveOptions } from "/lib/options/resolve.ts";
-      import { buildScene, disposeScene } from "/lib/scene/build.ts";
+      import { buildScene, disposeScene, faceScene } from "/lib/scene/build.ts";
       import { updateScene } from "/lib/scene/update.ts";
       import { createInternalCamera } from "/lib/render/internalCamera.ts";
 
@@ -55,6 +55,7 @@
         const scene = buildScene(resolve({ type, x: { line: true } }));
         linesOnly(scene);
         world.add(scene.group);
+        world.onBeforeRender = (_renderer, _world, c) => faceScene(scene, c);
         const camera = createInternalCamera(type === "sphere");
         renderer.setRenderTarget(target);
         renderer.setClearColor(0x000000, 0);
@@ -86,6 +87,7 @@
         const off = Object.fromEntries(["x", "y", "z", "nx", "ny", "nz"].map((end) => [end, { line: false }]));
         const scene = buildScene(resolve({ type, ...off }));
         world.add(scene.group);
+        world.onBeforeRender = (_renderer, _world, c) => faceScene(scene, c);
         draw();
         const withoutLines = programs();
         updateScene(scene, resolve({ type, x: { line: true }, nx: { line: true } }));
