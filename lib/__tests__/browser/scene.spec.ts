@@ -2,7 +2,7 @@
  * S1 browser cases: lib/scene/ build, in-place update and rebuild on a real GPU, read back from a render target.
  * Served from source by the G2 browser gate's Vite server at `/lib/__tests__/browser/scene.html`.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import budget from "../../../perf/budget.json" with { type: "json" };
 
 type Result = {
@@ -25,15 +25,23 @@ type Result = {
  */
 const THEME_FRAME_MS = 3 * (budget.rows.find((r) => r.id === "set-next-frame")!.baseline as number);
 
-for (const backend of ["webgpu", "webgl"] as const) {
-  for (const type of ["sphere", "cube", "rounded-cube"] as const) {
+const BACKENDS = ["webgpu", "webgl"] as const;
+const TYPES = ["sphere", "cube", "rounded-cube"] as const;
+
+/** Opens scene.html for one backend and type and runs it, counting console errors and warnings. */
+const run = async (page: Page, backend: string, type: string) => {
+  const errors: string[] = [];
+  page.on("console", (message) => (message.type() === "error" || message.type() === "warning") && !message.text().includes("GL Driver Message") && errors.push(message.text()));
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto(`/lib/__tests__/browser/scene.html?backend=${backend}&type=${type}`);
+  await page.waitForFunction("window.READY === true");
+  return { result: await page.evaluate<Result>("T.run()"), errors };
+};
+
+for (const backend of BACKENDS) {
+  for (const type of TYPES) {
     test(`${backend} ${type}: set() and a rebuild keep every pixel; hovering compiles nothing`, async ({ page }) => {
-      const errors: string[] = [];
-      page.on("console", (message) => (message.type() === "error" || message.type() === "warning") && !message.text().includes("GL Driver Message") && errors.push(message.text()));
-      page.on("pageerror", (error) => errors.push(error.message));
-      await page.goto(`/lib/__tests__/browser/scene.html?backend=${backend}&type=${type}`);
-      await page.waitForFunction("window.READY === true");
-      const result = await page.evaluate<Result>("T.run()");
+      const { result, errors } = await run(page, backend, type);
 
       expect(result.backend).toBe(backend);
       expect(result.lit).toBeGreaterThan(0);
@@ -43,9 +51,24 @@ for (const backend of ["webgpu", "webgl"] as const) {
       expect(result.rebuildEqual).toBe(true);
       expect(result.programsAfterHover).toBe(result.programsBefore);
       if (type === "cube") expect(result.materials).toBeLessThanOrEqual(16);
-      if (test.info().project.metadata.gpu === "metal") expect(result.themeMs).toBeLessThan(THEME_FRAME_MS);
-      else console.log(`[report] ${backend} ${type} theme change plus next frame: ${result.themeMs.toFixed(1)} ms (budget ${THEME_FRAME_MS} on metal)`);
+      console.log(`[report] ${backend} ${type} theme change plus next frame: ${result.themeMs.toFixed(1)} ms (budget ${THEME_FRAME_MS} on metal)`);
       expect(errors).toEqual([]);
     });
   }
 }
+
+/**
+ * The timing alarm on its own, so a slower GPU than the reference Mac (a CI runner's paravirtual Metal) reads as a
+ * timing miss, apart from the functional cases above. It runs only where the project's GPU is `metal`.
+ */
+test("set-next-frame report row: a theme change plus the next frame stays within 3x its baseline on metal", async ({ page }) => {
+  test.skip(test.info().project.metadata.gpu !== "metal", "The report row alarms only on the reference GPU (perf audit D12)");
+  test.setTimeout(180_000);
+  const times: Record<string, number> = {};
+  for (const backend of BACKENDS) {
+    for (const type of TYPES) times[`${backend} ${type}`] = +(await run(page, backend, type)).result.themeMs.toFixed(1);
+  }
+  test.info().annotations.push({ type: "measured", description: JSON.stringify(times) });
+  const over = Object.fromEntries(Object.entries(times).filter(([, ms]) => ms >= THEME_FRAME_MS));
+  expect(over, `budget ${THEME_FRAME_MS} ms`).toEqual({});
+});

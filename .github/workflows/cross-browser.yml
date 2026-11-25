@@ -123,19 +123,19 @@ jobs:
           GIZMO_BROWSER: chromium
           GIZMO_RUN: macos-chromium
         run: npx playwright test -c tests/browser/cross.config.ts --project=webgl tests/browser/cross/adapter.cross.ts
-      # scene.spec's theme-change timing budget is calibrated on the reference Mac (`metal` means that Mac to the
-      # spec); a 3-core VM's paravirtual GPU is slower. Its cases run on their own, so a timing miss stays apart from
-      # the functional results.
+      # scene.spec's set-next-frame timing alarm is calibrated on the reference Mac (`metal` means that Mac to the
+      # spec); a 3-core VM's paravirtual GPU is slower. That one case runs on its own, informational, and every
+      # functional scene assertion stays in the gate run.
       - name: Browser gate specs on Metal (WebGL and WebGPU)
         if: success() || failure()
         run: >-
-          npx playwright test -c tests/browser --grep-invert "set\(\) and a rebuild keep every pixel"
+          npx playwright test -c tests/browser --grep-invert "set-next-frame report row"
           tests/browser/views.spec.ts tests/browser/gate.spec.ts tests/browser/input.spec.ts tests/browser/baseline.spec.ts
           lib/__tests__/browser/
-      - name: scene.spec with the reference Mac's timing budget (informational)
+      - name: set-next-frame timing against the reference Mac's budget (informational)
         if: success() || failure()
         continue-on-error: true
-        run: npx playwright test -c tests/browser lib/__tests__/browser/scene.spec.ts --reporter=list
+        run: npx playwright test -c tests/browser lib/__tests__/browser/scene.spec.ts --grep "set-next-frame report row" --reporter=list
       - if: always()
         run: node tests/browser/cross/summary.mjs "macOS Chromium on Metal" test-results/cross perf/out/browser.json
       - if: always()
