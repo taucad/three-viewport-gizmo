@@ -16,7 +16,7 @@
       // The host draws a box, a near wall under the gizmo's rectangle and, after the gizmo, a far red quad (F0's probe).
       // ponytail: drives lib/render and lib/scene directly until K5 wires renderInRect into the class.
       import { resolveOptions } from "/lib/options/resolve.ts";
-      import { buildScene } from "/lib/scene/build.ts";
+      import { buildScene, faceScene } from "/lib/scene/build.ts";
       import { createInternalCamera, setFieldOfView } from "/lib/render/internalCamera.ts";
       import { createDepthReset, renderInRect } from "/lib/render/frame.ts";
       import { measureViewport, watchViewport } from "/lib/render/rect.ts";
@@ -69,6 +69,7 @@
       const gCamera = createInternalCamera(type === "sphere");
       const reset = createDepthReset(gizmo.owned);
       const gScene = new THREE.Scene().add(root, reset);
+      gScene.onBeforeRender = (_renderer, _world, c) => faceScene(gizmo, c);
       const rect = { x: 0, y: 0, width: 0, height: 0 };
       // As the class measures: only when layout may have moved the element (I4).
       const watch = watchViewport(renderer, element);

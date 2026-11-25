@@ -31,7 +31,7 @@ import { faceOnOutline } from "./scene/outline";
 import { createDepthReset, renderInRect, type DepthReset } from "./render/frame";
 import { measureViewport, watchViewport, type MutableViewport, type ViewportWatch } from "./render/rect";
 import { warmUp } from "./render/warmUp";
-import { buildScene, disposeScene, type GizmoScene, type SceneTarget } from "./scene/build";
+import { buildScene, disposeScene, faceScene, type GizmoScene, type SceneTarget } from "./scene/build";
 import { cubeBox, roundedCubeBox } from "./scene/roundedBox";
 import { fadeScene, hoverScene, pointerOverScene, updateScene } from "./scene/update";
 import type {
@@ -232,6 +232,8 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._up.copy(this._label.up);
     this._camera = createInternalCamera(o.type === "sphere", o.fieldOfView, faceOnOutline(this._scene.targets, o));
     this._three.add(this.root);
+    // Before the render list is built, so the frame depends on the pose and the options only (no previous frame).
+    this._three.onBeforeRender = (_renderer, _scene, camera) => faceScene(this._scene, camera);
     this._adoptReset();
     this._adoptScene();
 
