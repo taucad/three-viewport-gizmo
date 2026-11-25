@@ -10,6 +10,7 @@
  *
  * Usage (macOS, once per machine: `sudo safaridriver --enable`):
  *   node tests/browser/cross/safari.mjs
+ * `--serve-only` starts and checks the Vite server, then stops before safaridriver (any OS).
  * Env: GIZMO_GATE_PORT (Vite, default 4179), SAFARIDRIVER_PORT (default 4444), SAFARI_OUT (default
  * test-results/cross/safari). Exits 1 when any check fails; the results are in `$SAFARI_OUT/safari.json`.
  */
@@ -26,10 +27,14 @@ const driver = `http://127.0.0.1:${driverPort}`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const children = [];
-const start = (command, args) => {
-  const child = spawn(command, args, { cwd: root, stdio: ["ignore", "inherit", "inherit"] });
-  children.push(child);
-  return child;
+/** Whether anything answers HTTP on `url`'s origin, whatever the status. */
+const answers = async (url) => {
+  try {
+    await fetch(new URL("/", url));
+    return true;
+  } catch {
+    return false;
+  }
 };
 const waitFor = async (url, what, ms = 60_000) => {
   const until = Date.now() + ms;
@@ -40,6 +45,34 @@ const waitFor = async (url, what, ms = 60_000) => {
     await sleep(250);
   }
   throw new Error(`${what} did not answer at ${url} within ${ms} ms`);
+};
+/**
+ * Starts a server and resolves once `url` answers. Refuses a port something else already serves (its pages would be
+ * taken for ours), and rejects as soon as the child exits or fails to spawn before it is ready, with its output's tail.
+ */
+const serve = async (what, command, args, url) => {
+  if (await answers(url)) {
+    throw new Error(`${what}: ${new URL(url).host} is already served by another process; stop it or pick another port (GIZMO_GATE_PORT, SAFARIDRIVER_PORT)`);
+  }
+  const child = spawn(command, args, { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
+  children.push(child);
+  let tail = "";
+  const keep = (stream, sink) =>
+    stream.on("data", (chunk) => {
+      sink.write(chunk);
+      tail = (tail + chunk).slice(-2_000);
+    });
+  keep(child.stdout, process.stdout);
+  keep(child.stderr, process.stderr);
+  const died = new Promise((_, reject) => {
+    child.once("error", (error) => reject(new Error(`${what} could not start (${command}): ${error.message}`)));
+    child.once("exit", (code, signal) => reject(new Error(`${what} exited (${signal ?? `code ${code}`}) before ${url} answered:\n${tail.trim()}`)));
+  });
+  try {
+    await Promise.race([waitFor(url, what), died]);
+  } finally {
+    died.catch(() => {}); // the child's later exit (killed at the end) is not an error
+  }
 };
 
 /** One WebDriver command; throws with WebDriver's error on failure. */
@@ -219,10 +252,15 @@ const fonts = async (backend) => {
 
 let failed = false;
 try {
-  start("npx", ["vite", "--config", "tests/browser/vite.config.ts", "--host", "127.0.0.1", "--port", String(port), "--strictPort"]);
-  await waitFor(`${base}/perf/harness.html`, "Vite");
-  start("safaridriver", ["-p", String(driverPort)]);
-  await waitFor(`${driver}/status`, "safaridriver");
+  // Vite's own bin, not `npx vite`: npx runs it as a grandchild that killing npx would leave serving the port.
+  const vite = ["node_modules/vite/bin/vite.js", "--config", "tests/browser/vite.config.ts", "--host", "127.0.0.1", "--port", String(port), "--strictPort"];
+  await serve("Vite", process.execPath, vite, `${base}/perf/harness.html`);
+  if (process.argv.includes("--serve-only")) {
+    // Exercises the start path alone (no Safari): `node tests/browser/cross/safari.mjs --serve-only`.
+    console.log(`Vite serves ${base}; --serve-only, stopping`);
+    throw Object.assign(new Error("serve-only"), { serveOnly: true });
+  }
+  await serve("safaridriver", "safaridriver", ["-p", String(driverPort)], `${driver}/status`);
   const created = await wd("POST", "/session", { capabilities: { alwaysMatch: { browserName: "safari" } } });
   session = created.sessionId;
   results.safari = { browserName: created.capabilities.browserName, browserVersion: created.capabilities.browserVersion, platformName: created.capabilities.platformName };
@@ -254,9 +292,11 @@ try {
     }
   }
 } catch (error) {
-  console.error(error);
-  results.error = String(error);
-  failed = true;
+  if (!error.serveOnly) {
+    console.error(error);
+    results.error = String(error);
+    failed = true;
+  }
 } finally {
   if (session) await wd("DELETE", `/session/${session}`).catch(() => {});
   for (const child of children) child.kill();
