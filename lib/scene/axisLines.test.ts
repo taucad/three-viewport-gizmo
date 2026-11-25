@@ -6,7 +6,7 @@ import { classifyChange } from "../options/changes";
 import { resolveOptions } from "../options/resolve";
 import { createInternalCamera } from "../render/internalCamera";
 import type { GizmoOptions } from "../types";
-import { pixelsPerUnit } from "./axisLines";
+import { pixelsPerUnit } from "./outline";
 import { buildScene } from "./build";
 import { updateScene } from "./update";
 
@@ -65,6 +65,25 @@ describe("axisLines", () => {
     expect(segment(1).every((v) => v === 0)).toBe(true); // y hidden
     expect(segment(0).some((v) => v !== 0)).toBe(true);
     expect(Array.from(geometry.attributes.color.array.slice(0, 3))).toEqual([1, 0, 0]);
+  });
+
+  it("draws only the shown lines' triangles (S4: the sphere's three default lines, not six)", () => {
+    /** The lines whose vertices the drawn index range reaches, and the triangles it draws. */
+    const drawn = (mesh: Mesh<BufferGeometry>) => {
+      const { index, drawRange, attributes } = mesh.geometry;
+      const block = attributes.position.count / 6;
+      const end = Math.min(drawRange.count, index!.count);
+      const lines = new Set(Array.from(index!.array.slice(drawRange.start, end), (v) => Math.floor(v / block)));
+      return { lines: [...lines].sort(), triangles: (end - drawRange.start) / 3 };
+    };
+    const { scene, mesh } = linesOf({ type: "sphere" });
+    const perLine = mesh.geometry.index!.count / 6;
+    expect(drawn(mesh)).toEqual({ lines: [0, 1, 2], triangles: (3 * perLine) / 3 }); // x, y, z; nx, ny, nz have no line
+    updateScene(scene, resolve0({ type: "sphere", y: { line: false }, nz: { line: true } }));
+    expect(drawn(mesh)).toEqual({ lines: [0, 2, 5], triangles: (3 * perLine) / 3 });
+    updateScene(scene, resolve0({ type: "sphere", x: { line: false }, y: { line: false }, z: { line: false } }));
+    expect(drawn(mesh).triangles).toBe(0);
+    expect(mesh.visible).toBe(false);
   });
 });
 
