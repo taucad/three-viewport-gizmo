@@ -67,7 +67,12 @@ describe("viewport (I4: render() reads layout only when it may have moved)", () 
     gizmo.set({ size: 96 });
     expect(frame()).toBe(1);
     // `set({})` changes no option and still measures again: the documented way to pick up a transform-only move.
+    const invalidated = vi.fn();
+    gizmo.addEventListener("invalidate", invalidated);
     gizmo.set({});
+    // It also asks for a frame, so a render-on-demand host draws at the new rectangle.
+    expect(invalidated).toHaveBeenCalledTimes(1);
+    gizmo.removeEventListener("invalidate", invalidated);
     expect(frame()).toBe(1);
     expect(frame()).toBe(0);
     window.dispatchEvent(new Event("resize"));

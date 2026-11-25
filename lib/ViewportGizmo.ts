@@ -356,7 +356,8 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._raw = merged;
     // Every call measures again, `set({})` too: it picks up a move no layout signal reports (a CSS transform).
     this._layout.invalidate();
-    this._apply(next);
+    // An unchanged `set({})` still asks for a frame, so a render-on-demand host draws at the measured rectangle.
+    if (!this._apply(next)) this._invalidate();
   }
 
   /**
@@ -985,11 +986,11 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   }
 
   /** Applies resolved options by their change class (N1): in place when cheap, a rebuild when structural. */
-  private _apply(next: GizmoResolvedOptions): void {
+  private _apply(next: GizmoResolvedOptions): boolean {
     const previous = this._options;
     const change = classifyChange(previous, next);
     this._options = next;
-    if (!change) return;
+    if (!change) return false;
 
     if (change === "structural") {
       if (this._active) this._finish(cancelled("set"));
@@ -1030,6 +1031,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._rehover();
     this._writeState();
     this._invalidate();
+    return true;
   }
 
   /** Creates the depth reset for the current scene, freed with it, and puts it beside `root` (F1). */
