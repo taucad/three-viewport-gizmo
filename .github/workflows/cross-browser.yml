@@ -49,11 +49,15 @@ jobs:
       # runs headed on Xvfb with Mesa's llvmpipe for GLX. WebKit makes its own software context headless.
       - if: matrix.browser == 'firefox'
         run: sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri libglx-mesa0 libegl-mesa0
+      # One worker: headed browsers on one X display are not isolated. When another worker's Firefox maps or unmaps a
+      # window (a context per test), this one hears a trusted pointerout and pointerleave from outside the page, and the
+      # gizmo rightly ends its hover, so a spec reading the hover under its own mouse reads nothing (C2). One
+      # playwright process cannot give each worker its own xvfb-run.
       - if: matrix.browser == 'firefox'
         env:
           GIZMO_HEADED: '1'
           LIBGL_ALWAYS_SOFTWARE: '1'
-        run: xvfb-run -a -s "-screen 0 1920x1080x24" npx playwright test -c tests/browser/cross.config.ts --project=webgl
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" npx playwright test -c tests/browser/cross.config.ts --project=webgl --workers=1
       - if: matrix.browser != 'firefox'
         run: npx playwright test -c tests/browser/cross.config.ts --project=webgl
       - if: always()
