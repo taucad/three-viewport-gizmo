@@ -21,24 +21,24 @@ export const BACKGROUND_SEGMENTS = 128;
 const _parent = /*@__PURE__*/ new Quaternion();
 
 /**
- * An `onBeforeRender` that turns a quad to face `camera`, as a sprite does, so it draws with the meshes' program
- * instead of the sprite program (perf budget `programs`).
+ * Turns `object` to face `camera`, as a sprite does, so a quad draws with the meshes' program instead of the sprite
+ * program (perf budget `programs`). Needs its parent's world matrix current; updates the object's own.
  */
-export function turnToCamera(this: Object3D, _renderer: unknown, _scene: unknown, camera: Camera): void {
-  if (this.parent) this.parent.getWorldQuaternion(_parent).invert();
+export function turnToCamera(object: Object3D, camera: Camera): void {
+  if (object.parent) object.parent.getWorldQuaternion(_parent).invert();
   else _parent.identity();
-  camera.getWorldQuaternion(this.quaternion).premultiply(_parent);
-  this.updateMatrixWorld();
+  camera.getWorldQuaternion(object.quaternion).premultiply(_parent);
+  object.updateMatrixWorld();
 }
 
 /**
  * Turns the disc to face `camera` and moves it to the back of the 2.3.0 sphere, so the axis lines behind the origin
- * still draw in front of it as they did. Runs before the renderer reads the disc's world matrix.
+ * still draw in front of it as they did.
  */
-function faceCamera(this: Mesh, renderer: unknown, scene: unknown, camera: Camera): void {
-  turnToCamera.call(this, renderer, scene, camera);
-  this.position.set(0, 0, -BACKGROUND_RADIUS).applyQuaternion(this.quaternion);
-  this.updateMatrixWorld();
+function faceCamera(disc: Mesh, camera: Camera): void {
+  turnToCamera(disc, camera);
+  disc.position.set(0, 0, -BACKGROUND_RADIUS).applyQuaternion(disc.quaternion);
+  disc.updateMatrixWorld();
 }
 
 /**
@@ -68,9 +68,9 @@ export const background: PartBuilder = (o, { targets }, owned) => {
       );
   owned.add(material).add(meshAttributes(geometry));
   const object = new Mesh(geometry, material);
-  if (sphere) object.onBeforeRender = faceCamera;
   return {
     object,
+    face: sphere ? (camera) => faceCamera(object, camera) : undefined,
     update(o, over) {
       const { enabled, color, opacity, hover } = o.background;
       object.visible = enabled;

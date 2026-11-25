@@ -1,6 +1,7 @@
+import { Vector4 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GizmoRenderer } from "../backend";
-import { watchViewport, type MutableViewport } from "../rect";
+import { clipRect, watchViewport, type MutableViewport } from "../rect";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -118,5 +119,33 @@ describe("watchViewport (I4: no layout read while nothing moved, R6: no call aft
     watch.detach();
     expect(observers[0]!.disconnected).toBe(true);
     expect(removed.mock.calls.map(([type]) => type).sort()).toEqual(["resize", "scroll"]);
+  });
+});
+
+describe("clipRect (the scissor of a rectangle partly or wholly off the render area)", () => {
+  const clip = (x: number, y: number, width: number, height: number) => {
+    const out = new Vector4(-1, -1, -1, -1);
+    return { inside: clipRect(new Vector4(x, y, width, height), 800, 600, out), out: out.toArray() };
+  };
+
+  it.each([
+    ["inside", [664, 8, 128, 128], [664, 8, 128, 128]],
+    ["past the right edge", [736, 8, 128, 128], [736, 8, 64, 128]],
+    ["past the left edge", [-28.5, 8, 128, 128], [0, 8, 99.5, 128]],
+    ["past the top and bottom edges", [8, -30, 128, 700], [8, 0, 128, 600]],
+    ["over the whole area", [-10, -10, 900, 700], [0, 0, 800, 600]],
+  ] as const)("keeps the part %s", (_, rect, expected) => {
+    expect(clip(...rect)).toEqual({ inside: true, out: expected });
+  });
+
+  it.each([
+    ["right of the area", [960, 48, 192, 192]],
+    ["left of it", [-200, 48, 192, 192]],
+    ["above or below it", [8, 600, 128, 128]],
+    ["touching its edge only", [800, 8, 128, 128]],
+    ["empty", [8, 8, 0, 0]],
+    ["not a number", [Number.NaN, 8, 128, 128]],
+  ] as const)("reports nothing inside, and writes nothing, for a rectangle %s", (_, rect) => {
+    expect(clip(...rect)).toEqual({ inside: false, out: [-1, -1, -1, -1] });
   });
 });

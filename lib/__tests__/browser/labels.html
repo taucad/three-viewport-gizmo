@@ -11,7 +11,7 @@
       // ponytail: drives lib/scene directly until K5 wires buildScene into the class.
       import * as THREE from "three/webgpu";
       import { resolveOptions } from "/lib/options/resolve.ts";
-      import { buildScene, disposeScene } from "/lib/scene/build.ts";
+      import { buildScene, disposeScene, faceScene } from "/lib/scene/build.ts";
       import { hoverScene } from "/lib/scene/update.ts";
       import { textureBytes } from "/lib/scene/labels.ts";
 
@@ -52,6 +52,7 @@
         const scene = withDpr(buildDpr, () => buildScene(resolve(options)));
         onScene?.(scene);
         root.add(scene.group);
+        world.onBeforeRender = (_renderer, _world, c) => faceScene(scene, c);
         const draw = async () => {
           renderer.setRenderTarget(target);
           renderer.setClearColor(0x000000, 0);
