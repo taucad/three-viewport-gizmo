@@ -66,9 +66,11 @@ test("set-next-frame report row: a theme change plus the next frame stays within
   test.setTimeout(180_000);
   const times: Record<string, number> = {};
   for (const backend of BACKENDS) {
-    for (const type of TYPES) times[`${backend} ${type}`] = +(await run(page, backend, type)).result.themeMs.toFixed(1);
+    for (const type of TYPES) times[`${backend} ${type}`] = (await run(page, backend, type)).result.themeMs;
   }
-  test.info().annotations.push({ type: "measured", description: JSON.stringify(times) });
-  const over = Object.fromEntries(Object.entries(times).filter(([, ms]) => ms >= THEME_FRAME_MS));
+  // Compared raw, as the per-case check did (`toBeLessThan`); rounded only for the report.
+  const shown = (entries: [string, number][]) => Object.fromEntries(entries.map(([k, ms]) => [k, +ms.toFixed(1)]));
+  test.info().annotations.push({ type: "measured", description: JSON.stringify(shown(Object.entries(times))) });
+  const over = shown(Object.entries(times).filter(([, ms]) => ms >= THEME_FRAME_MS));
   expect(over, `budget ${THEME_FRAME_MS} ms`).toEqual({});
 });
