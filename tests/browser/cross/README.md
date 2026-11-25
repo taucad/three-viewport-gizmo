@@ -15,6 +15,17 @@ workflow whose jobs are not required: a red job here is evidence to triage, not 
 Each job writes a summary (`summary.mjs`): pass and fail counts per project, the adapter, axe violations by rule, the
 Safari checks and the VoiceOver transcript. The raw files are in the job's artifact.
 
+## Known engine bugs
+
+`safari.mjs` records a check as `known`, apart from passes and failures, only when its own evidence matches a bug:
+
+- **WebKit: FontFace API face drawn with fallback in 2D canvas** (Safari 27.2). A face added with
+  `document.fonts.add()` and loaded is measured by `measureText` but drawn with the fallback by `fillText`, so the
+  late-font case (`T.lateFont()`) redraws once yet shows no change. Its trace's final `draw` step shows the label
+  context measuring the face while a fresh canvas draws the fallback. `webkit-fontface-canvas.html` is a standalone
+  repro for a WebKit report. The CSS `@font-face` case (`T.cssFont()`) is checked separately and stays a failure if
+  it fails.
+
 ## What is left out, and why
 
 - **WebGPU off Chromium.** Playwright's Linux Firefox and WebKit have no WebGPU, and the WebGPU fixture launches

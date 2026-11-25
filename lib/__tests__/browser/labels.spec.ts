@@ -64,11 +64,12 @@ for (const backend of ["webgpu", "webgl"] as const) {
       expect(errors).toEqual([]);
     });
 
-    test("a CSS @font-face family the labels start loading appears with no set()", async ({ page }) => {
+    test("a CSS @font-face family the labels start loading appears with no set()", async ({ page }, info) => {
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
-      const result = await page.evaluate<{ loaded: boolean; redrawn: boolean; frames: number }>("T.cssFont()");
-      expect(result).toEqual({ loaded: true, redrawn: true, frames: 1 });
+      const { loaded, redrawn, frames, trace } = await page.evaluate<{ loaded: boolean; redrawn: boolean; frames: number; trace: unknown[] }>("T.cssFont()");
+      info.annotations.push({ type: "font-trace", description: JSON.stringify(trace) });
+      expect({ loaded, redrawn, frames }).toEqual({ loaded: true, redrawn: true, frames: 1 });
       expect(errors).toEqual([]);
     });
   });

@@ -86,8 +86,13 @@ for (const file of all.filter((f) => /safari\.json$/.test(f))) {
   if (!s) continue;
   const failed = s.checks.filter((c) => c.ok === false);
   const blocked = s.checks.filter((c) => c.ok === null);
-  lines.push(`### Safari ${s.safari?.browserVersion ?? "?"} (${s.safari?.platformName ?? "?"}): ${s.checks.length - failed.length - blocked.length} passed, ${failed.length} failed, ${blocked.length} blocked by the driver`, "");
-  for (const c of s.checks) lines.push(`- ${c.ok ? "pass" : c.ok === null ? "blocked" : "**FAIL**"} ${c.name}${c.ok ? "" : c.ok === null ? `: ${c.blocked}` : `: ${JSON.stringify(c.detail)}`}`);
+  // `known`: an engine bug the run recognised from its evidence (safari.mjs), listed apart from failures.
+  const known = s.checks.filter((c) => c.ok === "known");
+  lines.push(`### Safari ${s.safari?.browserVersion ?? "?"} (${s.safari?.platformName ?? "?"}): ${s.checks.length - failed.length - blocked.length - known.length} passed, ${failed.length} failed, ${known.length} known engine bugs, ${blocked.length} blocked by the driver`, "");
+  for (const c of s.checks) {
+    if (c.ok === "known") lines.push(`- known ${c.name}: ${c.known}`);
+    else lines.push(`- ${c.ok ? "pass" : c.ok === null ? "blocked" : "**FAIL**"} ${c.name}${c.ok ? "" : c.ok === null ? `: ${c.blocked}` : `: ${JSON.stringify(c.detail)}`}`);
+  }
   if (s.fonts) lines.push(`- fonts: ${JSON.stringify(s.fonts)}`);
   if (s.error) lines.push(`- **error**: ${s.error}`);
   lines.push("", "```json", JSON.stringify(s.probe, null, 2), "```", "");
