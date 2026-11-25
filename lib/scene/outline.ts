@@ -23,7 +23,7 @@ const _m = /*@__PURE__*/ new Matrix4();
  * - `rounded-cube`: the (depth, half-width) points of every shown target, reduced to those no other point is both
  *   nearer and wider than. Its pieces close one convex body whose outline runs round the bevel, so the point that
  *   bounds it moves toward the camera as the camera comes closer: a single depth (`1 − radius`) holds it only to 7 %
- *   at 90°. Read from each target's geometry, place and resting scale (never its hover scale).
+ *   at 90°. Read from each target's geometry and place, with the targets shown and scaled as at rest (never as hovered).
  * - `cube`: 2.3.0's model, the unit front edge, scaled with the scene. Its pieces are one-sided plates (side faces
  *   that face away, corner plates that turn away from a close camera, the background seen from inside), so what bounds
  *   its drawn width changes with the field of view and no single outline holds it (recorded, P13).
@@ -40,9 +40,12 @@ export function faceOnOutline(targets: readonly SceneTarget[], o: SceneOptions):
   const points: Array<[number, number]> = [];
   for (const target of targets) {
     const { object } = target;
-    if (!object.visible || !("geometry" in object)) continue;
+    // At rest, as `restyleTargets` draws it unhovered: a hover shows a target hidden at opacity 0, and must not move
+    // the camera at the next `set()`.
+    const { enabled, opacity, scale } = styleOf(o, target);
+    if (!enabled || opacity <= 0 || !("geometry" in object)) continue;
     const position = object.geometry.attributes.position;
-    _m.compose(object.position, object.quaternion, _v.setScalar(styleOf(o, target).scale));
+    _m.compose(object.position, object.quaternion, _v.setScalar(scale));
     for (let i = 0; i < position.count; i++) {
       _v.fromBufferAttribute(position, i).applyMatrix4(_m);
       if (_v.x > 0) points.push([_v.z, _v.x]);
