@@ -148,8 +148,8 @@ const loadingFaces = (fonts: FontFaceSet, event?: Event): FontFace[] => {
  * drawn in a CSS `@font-face` family started the load. `loadingdone` is not used: WebKit never fires it for a face the
  * page adds and then loads. A round collects every face still loading, from the event and the set, and waits for each
  * to settle, again until none is left, since a face can join meanwhile; with none found it waits for the set's
- * `ready`. Each face's own promise is the signal, not `ready` alone, which Safari can hand out already settled while
- * a face loads. Loads that overlap share one round and one call, a round under way at construction counts, and
+ * `ready`. Each face's own promise is the signal, not `ready` alone, which says nothing about a face that starts
+ * loading after it settles. Loads that overlap share one round and one call, a round under way at construction counts, and
  * nothing is called after the stop.
  *
  * The call then waits one animation frame: a canvas resolves its font through the document's style, which a browser
