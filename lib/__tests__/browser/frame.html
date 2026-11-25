@@ -19,7 +19,7 @@
       import { buildScene } from "/lib/scene/build.ts";
       import { createInternalCamera, setFieldOfView } from "/lib/render/internalCamera.ts";
       import { createDepthReset, renderInRect } from "/lib/render/frame.ts";
-      import { measureViewport } from "/lib/render/rect.ts";
+      import { measureViewport, watchViewport } from "/lib/render/rect.ts";
 
       const q = new URLSearchParams(location.search);
       const backend = q.get("backend") ?? "webgl";
@@ -30,6 +30,8 @@
 
       const wrap = document.getElementById("wrap");
       const element = document.getElementById("gizmo");
+      // `?subpixel=1` places the gizmo at a fractional offset, as a host with a centred or percentage layout does.
+      if (q.get("subpixel")) Object.assign(element.style, { top: "8.4px", right: "8.3px" });
       const params = { antialias: true, reversedDepthBuffer: depth === "reversed", logarithmicDepthBuffer: depth === "log" };
       const renderer = backend === "webgpu" ? new THREE.WebGPURenderer(params) : new THREE.WebGLRenderer(params);
       renderer.setPixelRatio(1);
@@ -68,8 +70,10 @@
       const reset = createDepthReset(gizmo.owned);
       const gScene = new THREE.Scene().add(root, reset);
       const rect = { x: 0, y: 0, width: 0, height: 0 };
+      // As the class measures: only when layout may have moved the element (I4).
+      const watch = watchViewport(renderer, element);
       const drawGizmo = () => {
-        measureViewport(renderer, element, rect);
+        watch.measure(rect);
         renderInRect(renderer, gScene, gCamera, rect, reset);
       };
 
@@ -272,6 +276,57 @@
             addedPrograms: withReset.programs - without.programs,
             gizmoPrograms: withReset.programs - hostPrograms,
           };
+        },
+
+        /**
+         * Layout changes a host makes between frames, each followed by a frame drawn in `requestAnimationFrame` as a host
+         * draws: the rectangle the gizmo draws at against one measured afresh on that frame (R6, I2: same frame, same
+         * subpixel rectangle). Ends with the layout it started from.
+         */
+        async follows() {
+          const fresh = { x: 0, y: 0, width: 0, height: 0 };
+          const frame = () =>
+            new Promise((resolve) =>
+              requestAnimationFrame(() => {
+                drawGizmo();
+                measureViewport(renderer, element, fresh);
+                resolve({ drawn: { ...rect }, fresh: { ...fresh } });
+              })
+            );
+          const style = element.style.cssText;
+          const rows = { start: await frame() };
+          wrap.style.width = "760.5px"; // the container resizes; the right-anchored gizmo moves left by 39.5 px
+          rows.containerResize = await frame();
+          element.style.top = "11.65px"; // a subpixel move of more than half a pixel
+          rows.move = await frame();
+          element.style.width = element.style.height = "100.3px";
+          rows.elementResize = await frame();
+          renderer.setSize(700, 500); // the host resizes its canvas
+          rows.canvasResize = await frame();
+          renderer.domElement.style.marginLeft = "20.25px"; // the canvas moves under the gizmo
+          rows.canvasMove = await frame();
+          renderer.setPixelRatio(2); // the rectangle is in CSS pixels; three scales it by the pixel ratio
+          rows.pixelRatio = await frame();
+          // An intermediate scroller moves the gizmo and not the canvas, and leaves every offset as it was.
+          const scroller = Object.assign(document.createElement("div"), { style: "position: absolute; top: 0; right: 0; width: 200px; height: 200px; overflow: auto" });
+          const tall = Object.assign(document.createElement("div"), { style: "position: relative; height: 1000px" });
+          wrap.append(scroller);
+          scroller.append(tall);
+          tall.append(element);
+          rows.reparent = await frame();
+          scroller.style.right = "40.5px"; // the positioned container moves; the element's own offsets do not change
+          rows.containerMove = await frame();
+          scroller.scrollTop = 10.5;
+          rows.scroll = await frame();
+          wrap.append(element);
+          scroller.remove();
+          element.style.cssText = style;
+          wrap.style.width = "";
+          renderer.domElement.style.marginLeft = "";
+          renderer.setPixelRatio(1);
+          renderer.setSize(W, H);
+          rows.end = await frame();
+          return rows;
         },
 
         /** `n` gizmo frames (measure and draw), for the allocation sample; the host frame is left out. */

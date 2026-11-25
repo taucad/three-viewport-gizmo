@@ -51,6 +51,39 @@ describe("viewport (R6: render() measures the rectangle)", () => {
   });
 });
 
+describe("viewport (I4: render() reads layout only when it may have moved)", () => {
+  it("reads no rectangle on an idle frame, measures again after set() and window resize, and stops listening at dispose", () => {
+    const renderer = createStubRenderer();
+    const container = document.body.appendChild(document.createElement("div"));
+    const gizmo = new ViewportGizmo(new PerspectiveCamera(), renderer, { type: "cube", container });
+    const read = vi.spyOn(gizmo.domElement, "getBoundingClientRect");
+    const frame = () => {
+      read.mockClear();
+      gizmo.render();
+      return read.mock.calls.length;
+    };
+    expect(frame()).toBe(1); // the first frame measures the laid-out element
+    expect(frame()).toBe(0);
+    gizmo.set({ size: 96 });
+    expect(frame()).toBe(1);
+    // `set({})` changes no option and still measures again: the documented way to pick up a transform-only move.
+    const invalidated = vi.fn();
+    gizmo.addEventListener("invalidate", invalidated);
+    gizmo.set({});
+    // It also asks for a frame, so a render-on-demand host draws at the new rectangle.
+    expect(invalidated).toHaveBeenCalledTimes(1);
+    gizmo.removeEventListener("invalidate", invalidated);
+    expect(frame()).toBe(1);
+    expect(frame()).toBe(0);
+    window.dispatchEvent(new Event("resize"));
+    expect(frame()).toBe(1);
+    expect(frame()).toBe(0);
+    const removed = vi.spyOn(window, "removeEventListener");
+    gizmo.dispose();
+    expect(removed.mock.calls.map(([type]) => type)).toEqual(expect.arrayContaining(["resize", "scroll"]));
+  });
+});
+
 describe("root", () => {
   it("keeps drawing after a host scene adopts its root (probe P3)", () => {
     const gizmo = createGizmo({ cameraPosition: new Vector3(5, 5, 5) });

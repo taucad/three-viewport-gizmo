@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { classifyChange } from "../options/changes";
 import { resolveOptions } from "../options/resolve";
 import type { GizmoOptions } from "../types";
-import { pixelsPerUnit } from "./axisLines";
+import { faceOnOutline, pixelsPerUnit, TRIAD_SCENE_SCALE } from "./outline";
 import { buildScene, disposeScene } from "./build";
-import { TRIAD_COLORS, TRIAD_SCENE_SCALE } from "./triad";
+import { TRIAD_COLORS } from "./triad";
 import { updateScene } from "./update";
 
 const resolve = (options: GizmoOptions) => resolveOptions(options, { up: new Vector3(0, 1, 0) });
@@ -51,7 +51,7 @@ describe("triad", () => {
     lines.forEach((line, i) => {
       const axis = (["x", "y", "z"] as const)[i];
       expect(line.scale.y).toBeCloseTo(2.1, 9);
-      expect(line.scale.x * pixelsPerUnit(scene.options) * TRIAD_SCENE_SCALE).toBeCloseTo(3.5, 6);
+      expect(line.scale.x * pixelsPerUnit(scene.options, faceOnOutline(scene.targets, scene.options)) * TRIAD_SCENE_SCALE).toBeCloseTo(3.5, 6);
       expect(line.material.color.getHex()).toBe(new Color(TRIAD_COLORS[axis]).getHex());
     });
     // The cross-section: clear at the ribbon's edges; inside, each texel's coverage by the 1.5 px line (0.81 at 0.44 px
