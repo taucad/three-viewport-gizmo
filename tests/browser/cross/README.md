@@ -45,3 +45,14 @@ guidepup.dev for the manual steps on a personal Mac) and `npx @guidepup/setup in
 `npx playwright test -c tests/browser/voiceover.config.ts`. It takes over the screen and speaks.
 
 `GIZMO_GATE_PORT` moves the Vite server off 4179 when another checkout already serves there.
+
+## Known issues
+
+- **Firefox, `hitSize.spec.ts` "a live edges.hitSize hovers as the same size passed at construction"** (flaky). After
+  `set({})` returns to Auto, one of the 41 sweep samples can come back empty (`…EE.EE…` against `…EEEEE…` at
+  construction); it failed both attempts in one run and passed on retry in the next. Not yet reproduced outside CI: a
+  hover race after `set()` and Firefox's fractional pointer coordinates landing on a seam are both open. Left as is.
+- **Firefox, reversed depth.** Firefox has no `EXT_clip_control`, so three falls back to the default depth buffer and
+  warns; `projection.spec.ts` expects that one warning on Firefox's WebGL reversed-depth case only.
+- **WebKit and Safari: late web fonts and the ArcballControls L7 case** fail here; both are library or harness fixes
+  owned by another lane (P13-L6), not by this workflow.
