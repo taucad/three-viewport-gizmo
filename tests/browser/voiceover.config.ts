@@ -13,7 +13,12 @@ export default withGuidepup({
   testDir: "../..",
   testMatch: "tests/browser/cross/voiceover.cross.ts",
   outputDir: "../../test-results/cross/voiceover",
-  reporter: [["list"], ...(process.env.CI ? ([["github"]] as const) : [])],
+  // The JSON report gives `summary.mjs` the pass and fail counts beside the transcript.
+  reporter: [
+    ["list"],
+    ...(process.env.CI ? ([["github"]] as const) : []),
+    ["json", { outputFile: "../../test-results/cross/voiceover/report.json" }],
+  ],
   reportSlowTests: null,
   timeout: 5 * 60 * 1000,
   retries: process.env.CI ? 2 : 0,

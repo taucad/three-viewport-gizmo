@@ -207,7 +207,11 @@ const fonts = async (backend) => {
     for (const type of ["loading", "loadingdone", "loadingerror"]) document.fonts.addEventListener(type, () => events.push({ type, at: Math.round(performance.now() - t0) }));
     const face = new FontFace("P13SafariFont", "url(/tests/browser/fixtures/geist-latin.woff2)", { weight: "100 900" });
     document.fonts.add(face);
-    return face.load().then(() => new Promise((r) => setTimeout(() => r({ loadedAt: Math.round(performance.now() - t0), events }), 2000)));
+    // loadedAt is when the load resolves; the 2 s after it only watch for a late loadingdone.
+    return face.load().then(() => {
+      const loadedAt = Math.round(performance.now() - t0);
+      return new Promise((r) => setTimeout(() => r({ loadedAt, events }), 2000));
+    });
   `);
   console.log(`fonts: ${JSON.stringify(events)}`);
   results.fonts = events;

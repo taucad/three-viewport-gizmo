@@ -49,7 +49,11 @@ for (const [file, report] of reports) {
   for (const suite of report.suites) walk(suite, []);
   lines.push(`### ${file}`, "", "| project | passed | failed | flaky | skipped |", "| --- | --- | --- | --- | --- |");
   for (const [project, c] of counts) lines.push(`| ${project} | ${c.passed} | ${c.failed} | ${c.flaky} | ${c.skipped} |`);
-  lines.push("", ...(failing.length ? failing : ["No failures."]), "");
+  // Errors outside any test (config, collection, web server, global timeout) fail a run with no failed test.
+  const runner = (report.errors ?? []).map(
+    (e) => `- runner error: ${(e.message ?? e.value ?? JSON.stringify(e)).split("\n")[0].replace(/\u001b\[[0-9;]*m/g, "").slice(0, 300)}`
+  );
+  lines.push("", ...(failing.length || runner.length ? [...failing, ...runner] : ["No failures."]), "");
 }
 
 for (const file of all.filter((f) => /adapter\.json$/.test(f))) {

@@ -24,9 +24,11 @@ const out = `../../test-results/cross/${process.env.GIZMO_RUN ?? browserName}`;
 /**
  * Left out off Chromium: WebGPU cases (no WebGPU in Playwright's Linux Firefox or WebKit; the WebGPU fixture launches
  * Chromium), CDP touch input (`Input.dispatchTouchEvent`, Chromium only; emulated touch runs in the touch projects)
- * and the allocation case, which needs V8 flags and CDP heap sampling.
+ * and the allocation case, which needs V8 flags and CDP heap sampling. WebGPU cases are titled by their lowercase
+ * backend (`webgpu cube: …`); the match is case-sensitive so titles that only name "WebGPU" (the adapter probe, the
+ * WebGL depth-reset cases) still run.
  */
-const chromiumOnly = [/webgpu/i, /touch|finger/i, /allocation budget/];
+const chromiumOnly = [/\bwebgpu\b/, /touch|finger/i, /allocation budget/];
 
 /** Chromium takes the gate's GPU flags (SwiftShader on Linux, Metal on macOS); Firefox is forced onto WebGL. */
 const launch = {

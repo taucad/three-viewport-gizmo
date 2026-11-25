@@ -29,8 +29,8 @@ Safari checks and the VoiceOver transcript. The raw files are in the job's artif
 
 ## Running locally
 
-Install the engines once with `npx playwright install firefox webkit` (CI does this itself), then from the repository
-root:
+Install the engines once with `npx playwright install chromium firefox webkit` (the touch-android and axe projects use
+Chromium; CI installs its own), then from the repository root:
 
 ```sh
 GIZMO_BROWSER=firefox npx playwright test -c tests/browser/cross.config.ts --project=webgl
