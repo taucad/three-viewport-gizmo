@@ -98,6 +98,11 @@ const check = (name, ok, detail) => {
   results.checks.push({ name, ok, ...(detail === undefined ? {} : { detail }) });
   console.log(`${ok ? "pass" : "FAIL"}  ${name}${ok || detail === undefined ? "" : `  ${JSON.stringify(detail)}`}`);
 };
+/** A check the driver cannot exercise: recorded with its reason, neither passed nor failed. */
+const block = (name, reason) => {
+  results.checks.push({ name, ok: null, blocked: reason });
+  console.log(`blocked  ${name}  (${reason})`);
+};
 
 const views = async (backend, type) => {
   await open(`/tests/browser/views.html?backend=${backend}&type=${type}&controls=orbit`);
@@ -141,22 +146,22 @@ const keyboard = async (backend) => {
   // Every keydown the page sees, so a miss tells a WebDriver key problem from a library one.
   await exec(`window.__keys = []; document.addEventListener("keydown", (e) => __keys.push({ key: e.key, code: e.code, shift: e.shiftKey, prevented: e.defaultPrevented, target: e.target.getAttribute?.("role") ?? e.target.tagName }), true);`);
   await press("Shift", "ArrowRight");
-  let rolled = await state();
+  const rolled = await state();
   const name = `${label("front")}, rolled 90° clockwise`;
   const keys = await exec("return __keys");
-  let via = "actions";
-  if (rolled.name !== name) {
-    // Second route: WebDriver element send keys, Shift held for the ArrowRight that follows it.
-    const element = await wd("POST", `/session/${session}/element`, { using: "css selector", value: "[role=application]" });
-    await exec("return T.look('front')");
-    await exec("__keys.length = 0");
-    await wd("POST", `/session/${session}/element/${Object.values(element)[0]}/value`, { text: `${KEYS.Shift}${KEYS.ArrowRight}${KEYS.Shift}` });
-    rolled = await state();
-    via = { actions: keys, sendKeys: await exec("return __keys") };
+  // safaridriver 27 delivers the arrow keys with `key` "\u001d"-style control characters (the classic Mac arrow
+  // codes) while `code` is right, so no `key`-based binding can see them through WebDriver. A person's arrow key in
+  // Safari reads `key` "ArrowRight" (the VoiceOver job presses real macOS keys into WebKit). Those checks are then
+  // recorded as blocked by the driver, not as failures.
+  const arrow = keys.find((k) => k.code === "ArrowRight");
+  if (arrow && arrow.key !== "ArrowRight") {
+    const reason = `safaridriver sent code ${arrow.code} with key ${JSON.stringify(arrow.key)}`;
+    for (const what of ["Shift+Right rolls and names the roll", "the status child announces the roll", "ArrowRight from front moves to a target"]) {
+      block(`${backend} keyboard: ${what}`, reason);
+    }
+    return;
   }
-  const route = via === "actions" ? "" : " (WebDriver actions missed it; element send keys used)";
-  check(`${backend} keyboard: Shift+Right rolls and names the roll${route}`, rolled.at === "front" && rolled.name === name, { at: rolled.at, name: rolled.name, keys: via });
-  if (via !== "actions") console.log(`keys seen: ${JSON.stringify(via)}`);
+  check(`${backend} keyboard: Shift+Right rolls and names the roll`, rolled.at === "front" && rolled.name === name, { at: rolled.at, name: rolled.name, keys });
   const announced = await poll("return T.state().status", (v) => v === name, 2_000);
   check(`${backend} keyboard: the status child announces the roll`, announced.ok, { status: announced.value });
   await exec("return T.look('front')");
@@ -254,6 +259,7 @@ try {
   mkdirSync(out, { recursive: true });
   writeFileSync(`${out}/safari.json`, `${JSON.stringify(results, null, 2)}\n`);
 }
-const failures = results.checks.filter((c) => !c.ok);
-console.log(`\n${results.checks.length - failures.length} passed, ${failures.length} failed`);
+const failures = results.checks.filter((c) => c.ok === false);
+const blocked = results.checks.filter((c) => c.ok === null).length;
+console.log(`\n${results.checks.length - failures.length - blocked} passed, ${failures.length} failed, ${blocked} blocked`);
 process.exit(failed || failures.length ? 1 : 0);

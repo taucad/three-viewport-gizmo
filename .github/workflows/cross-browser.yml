@@ -163,6 +163,11 @@ jobs:
       - run: sudo safaridriver --enable
       - name: Safari (safaridriver)
         run: node tests/browser/cross/safari.mjs
+      # macOS Tab skips buttons unless Keyboard navigation (Full Keyboard Access) is on, which the specs that Tab
+      # through the navigation buttons assume, as Linux does. Real Safari above runs with the macOS default.
+      - name: Turn on macOS keyboard navigation
+        if: success() || failure()
+        run: defaults write -g AppleKeyboardUIMode -int 2
       - name: Playwright WebKit on macOS
         if: success() || failure()
         env:

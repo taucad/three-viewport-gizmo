@@ -72,7 +72,7 @@ for (const file of all.filter((f) => /axe\.json$/.test(f))) {
   if (!a) continue;
   lines.push(`### axe ${a.axe}: ${a.page}`, "");
   if (!a.violations.length) lines.push("No violations.");
-  for (const v of a.violations) lines.push(`- **${v.id}** (${v.impact}): ${v.help}; ${v.nodes.length} node(s): ${v.nodes.slice(0, 5).join(", ")}`);
+  for (const v of a.violations) lines.push(`- **${v.id}** (${v.impact}): ${v.help}; ${v.nodes.length} node(s): ${v.nodes.slice(0, 5).join(", ")}${v.first ? `; first: ${v.first.replace(/\s+/g, " ")}` : ""}`);
   if (a.incomplete.length) lines.push(`- needs review: ${a.incomplete.map((v) => `${v.id} (${v.nodes})`).join(", ")}`);
   lines.push("");
 }
@@ -80,9 +80,11 @@ for (const file of all.filter((f) => /axe\.json$/.test(f))) {
 for (const file of all.filter((f) => /safari\.json$/.test(f))) {
   const s = read(file);
   if (!s) continue;
-  const failed = s.checks.filter((c) => !c.ok);
-  lines.push(`### Safari ${s.safari?.browserVersion ?? "?"} (${s.safari?.platformName ?? "?"}): ${s.checks.length - failed.length} passed, ${failed.length} failed`, "");
-  for (const c of s.checks) lines.push(`- ${c.ok ? "pass" : "**FAIL**"} ${c.name}${c.ok ? "" : `: ${JSON.stringify(c.detail)}`}`);
+  const failed = s.checks.filter((c) => c.ok === false);
+  const blocked = s.checks.filter((c) => c.ok === null);
+  lines.push(`### Safari ${s.safari?.browserVersion ?? "?"} (${s.safari?.platformName ?? "?"}): ${s.checks.length - failed.length - blocked.length} passed, ${failed.length} failed, ${blocked.length} blocked by the driver`, "");
+  for (const c of s.checks) lines.push(`- ${c.ok ? "pass" : c.ok === null ? "blocked" : "**FAIL**"} ${c.name}${c.ok ? "" : c.ok === null ? `: ${c.blocked}` : `: ${JSON.stringify(c.detail)}`}`);
+  if (s.fonts) lines.push(`- fonts: ${JSON.stringify(s.fonts)}`);
   if (s.error) lines.push(`- **error**: ${s.error}`);
   lines.push("", "```json", JSON.stringify(s.probe, null, 2), "```", "");
 }

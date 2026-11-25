@@ -31,7 +31,9 @@ const chromiumOnly = [/webgpu/i, /touch|finger/i, /allocation budget/];
 /** Chromium takes the gate's GPU flags (SwiftShader on Linux, Metal on macOS); Firefox is forced onto WebGL. */
 const launch = {
   chromium: { args: gpuArgs },
-  firefox: { firefoxUserPrefs: { "webgl.force-enabled": true, "webgl.disabled": false } },
+  // The perf harness reads WEBGL_debug_renderer_info, which Firefox warns is deprecated; the gate counts warnings, so
+  // the extension is turned off (the harness then records no renderer string).
+  firefox: { firefoxUserPrefs: { "webgl.force-enabled": true, "webgl.disabled": false, "webgl.enable-debug-renderer-info": false } },
   webkit: {},
 }[browserName];
 
@@ -62,6 +64,7 @@ export default defineConfig({
         "tests/browser/cross/adapter.cross.ts",
         "tests/browser/cross/a11y-tree.cross.ts",
         "tests/browser/cross/fonts.cross.ts",
+        "tests/browser/cross/arcball.cross.ts",
       ],
     },
     { name: "touch-iphone", use: { ...devices["iPhone 15"] }, testMatch: "tests/browser/cross/touch.cross.ts" },

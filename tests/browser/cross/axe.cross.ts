@@ -35,7 +35,7 @@ const record = (info: import("@playwright/test").TestInfo, page: string, result:
   const summary = {
     page,
     axe: result.testEngine.version,
-    violations: result.violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.map((n) => n.target.join(" ")) })),
+    violations: result.violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, first: v.nodes[0]?.failureSummary, nodes: v.nodes.map((n) => n.target.join(" ")) })),
     incomplete: result.incomplete.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.length })),
   };
   const json = JSON.stringify(summary, null, 2);
