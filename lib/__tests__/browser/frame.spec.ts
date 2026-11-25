@@ -93,7 +93,25 @@ for (const backend of backends) {
     });
   }
 
-  test(`${backend}: a gizmo frame (measure and draw) stays within the library allocation budget`, async ({ baseURL, viewport }) => {
+  test(`${backend}: the rectangle follows container, element and canvas resizes, moves, pixel ratio and scroll on the same frame (R6)`, async ({ page }) => {
+    const { F, errors } = await open(page, { backend, type: "cube", subpixel: "1" });
+    const rows = await F<Record<string, { drawn: Record<string, number>; fresh: Record<string, number> }>>("follows()");
+    annotate("follows", rows);
+    expect(rows.start!.drawn.x % 1, "the gizmo starts at a subpixel offset").not.toBe(0);
+    for (const [name, { drawn, fresh }] of Object.entries(rows)) expect({ name, ...drawn }).toEqual({ name, ...fresh });
+    // Each change moved or resized the rectangle, except the pixel ratio (the rectangle is in CSS pixels), moving the
+    // element into a scroller at the same place, and, on WebGPU, a canvas resize (a top-left origin; WebGL's bottom-left
+    // y follows the canvas height).
+    const names = Object.keys(rows);
+    const keeps = ["pixelRatio", "reparent", ...(backend === "webgpu" ? ["canvasResize"] : [])];
+    for (let i = 1; i < names.length; i++)
+      if (!keeps.includes(names[i]!)) expect(rows[names[i]!]!.drawn, names[i]).not.toEqual(rows[names[i - 1]!]!.drawn);
+    expect(rows.end!.drawn).toEqual(rows.start!.drawn);
+    expect(errors).toEqual([]);
+  });
+
+  for (const offset of ["whole-pixel", "subpixel"] as const)
+  test(`${backend} ${offset} offset: a gizmo frame (measure and draw) stays within the library allocation budget`, async ({ baseURL, viewport }) => {
     test.setTimeout(240_000); // software WebGPU queues every frame's work
     // The sampler charges each byte to the innermost physical stack frame, so inlining moves bytes across the line this
     // test draws: three.js code inlined into a library frame counts as the library's (r187's `Animation.start` allocates
@@ -104,7 +122,7 @@ for (const backend of backends) {
     const browser = await chromium.launch({ args: [...gpuArgs, "--js-flags=--no-maglev-inlining --no-turbo-inlining"] });
     try {
       const page = await (await browser.newContext({ baseURL, viewport })).newPage();
-      const { F } = await open(page, { backend, type: "cube" });
+      const { F } = await open(page, { backend, type: "cube", ...(offset === "subpixel" && { subpixel: "1" }) });
       await F("loop(1500)"); // compiled, and optimised past the interpreter's boxed numbers
       const cdp = await page.context().newCDPSession(page);
       await cdp.send("HeapProfiler.enable");

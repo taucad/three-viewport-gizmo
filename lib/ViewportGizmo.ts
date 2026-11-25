@@ -28,7 +28,7 @@ import { planHome, planTurn, planView, restsOn, snapCardinal, TARGET_TOLERANCE, 
 import { createGizmoElement, resolveContainer, updateGizmoElement, writeGizmoState, type GizmoElementOptions } from "./render/dom";
 import { createInternalCamera, setFieldOfView } from "./render/internalCamera";
 import { createDepthReset, renderInRect, type DepthReset } from "./render/frame";
-import { measureViewport, type MutableViewport } from "./render/rect";
+import { measureViewport, watchViewport, type MutableViewport, type ViewportWatch } from "./render/rect";
 import { warmUp } from "./render/warmUp";
 import { buildScene, disposeScene, type GizmoScene, type SceneTarget } from "./scene/build";
 import { cubeBox, roundedCubeBox } from "./scene/roundedBox";
@@ -190,6 +190,8 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   private readonly _atSeen = new Quaternion(NaN, NaN, NaN, NaN);
   private readonly _input: PointerInput;
   private readonly _stopWheel: () => void;
+  /** Measures `_viewport` again only when layout may have moved the element (I4). */
+  private readonly _layout: ViewportWatch;
   private readonly _keys: KeyboardInput;
   /** The built-in navigation buttons while `navigation.enabled` (OD2); null adds no node. */
   private _nav: Navigation | null = null;
@@ -243,6 +245,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       hover: (event, rect) => this._onHover(event, rect),
     });
     this._stopWheel = forwardWheel(this.domElement, renderer.domElement);
+    this._layout = watchViewport(renderer, this.domElement);
     this._keys = attachKeyboard(this.domElement, this, {
       aim: () => {
         if (this._active?.kind !== "flight") return this._current();
@@ -475,7 +478,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._sync();
     // ponytail: a host that parented `root` loses it here; without this its gizmo would draw nothing (probe P3).
     if (this.root.parent !== this._three) this._three.add(this.root);
-    measureViewport(this.renderer, this.domElement, this._viewport);
+    this._layout.measure(this._viewport);
     this._nav?.place();
     renderInRect(this.renderer, this._three, this._camera, this._viewport, this._reset);
   }
@@ -503,6 +506,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this.detachControls();
     this._input.detach();
     this._stopWheel();
+    this._layout.detach();
     this._keys.detach();
     this._nav?.detach();
     this._reset.removeFromParent();
@@ -1009,6 +1013,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._atSeen.set(NaN, NaN, NaN, NaN);
 
     updateGizmoElement(this.domElement, elementOptions(next), elementOptions(previous));
+    this._layout.invalidate();
     if (next.container !== previous.container) {
       resolveContainer(next.container, this.renderer.domElement).appendChild(this.domElement);
     }
