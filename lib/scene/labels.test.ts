@@ -115,18 +115,65 @@ describe("canvasLabels", () => {
     }
   });
 
-  it("redraws on a late font without set() and asks for a frame", () => {
-    const fonts = new EventTarget();
+  /** A `document.fonts` stand-in: `load()` starts a round as the engines do (`loading`, a fresh `ready`), `done()` ends it. */
+  const fontSet = (status: "loaded" | "loading" = "loaded") => {
+    let finish = () => {};
+    const fonts = Object.assign(new EventTarget(), {
+      status,
+      ready: Promise.resolve() as Promise<unknown>,
+      load() {
+        // `ready` stays one promise while the set is loading.
+        if (fonts.status !== "loading") fonts.ready = new Promise<void>((r) => (finish = r));
+        fonts.status = "loading";
+        fonts.dispatchEvent(new Event("loading"));
+      },
+      async done() {
+        fonts.status = "loaded";
+        finish();
+        await Promise.resolve();
+        await Promise.resolve();
+      },
+    });
+    if (status === "loading") fonts.ready = new Promise<void>((r) => (finish = r));
     vi.stubGlobal("document", Object.assign(document, { fonts }));
+    return fonts;
+  };
+
+  it("redraws once when a round of font loading ends, with no set() and no loadingdone, and asks for a frame", async () => {
+    const fonts = fontSet();
     const { labels } = request(resolve({ type: "cube" }));
     const texture = labels.texture("x", "idle");
     const version = texture.version;
     labels.onRedraw = vi.fn();
-    fonts.dispatchEvent(new Event("loadingdone"));
+    fonts.load();
+    fonts.load(); // a second face joins the same round
+    expect(labels.onRedraw).not.toHaveBeenCalled();
+    await fonts.done();
     expect(texture.version).toBeGreaterThan(version);
     expect(labels.onRedraw).toHaveBeenCalledOnce();
-    labels.dispose();
-    fonts.dispatchEvent(new Event("loadingdone"));
+    fonts.load();
+    await fonts.done();
+    expect(labels.onRedraw).toHaveBeenCalledTimes(2);
+  });
+
+  it("counts a round already under way at construction", async () => {
+    const fonts = fontSet("loading");
+    const { labels } = request(resolve({ type: "cube" }));
+    labels.onRedraw = vi.fn();
+    await fonts.done();
     expect(labels.onRedraw).toHaveBeenCalledOnce();
+  });
+
+  it("never redraws after dispose, even for a round pending at dispose", async () => {
+    const fonts = fontSet();
+    const { labels } = request(resolve({ type: "cube" }));
+    labels.texture("x", "idle");
+    labels.onRedraw = vi.fn();
+    fonts.load();
+    labels.dispose();
+    await fonts.done();
+    fonts.load();
+    await fonts.done();
+    expect(labels.onRedraw).not.toHaveBeenCalled();
   });
 });

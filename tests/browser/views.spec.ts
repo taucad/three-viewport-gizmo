@@ -142,6 +142,28 @@ test.describe("L7: the four real controllers after a roll", () => {
 const touch = (cdp: CDPSession, type: "touchStart" | "touchMove" | "touchEnd", points: { x: number; y: number; id: number }[]) =>
   cdp.send("Input.dispatchTouchEvent", { type, touchPoints: points });
 
+test.describe("H1: a gizmo turn stops the motion the host's controls keep up after a drag", () => {
+  // OrbitControls' damping and TrackballControls' inertia run in the host's `update()`, ArcballControls' animation on
+  // its own frames; disabling the controls stops none of them. A flick on the host canvas, then a turn at once.
+  for (const controls of controllers) {
+    test(`${controls}: the turn's end is where the camera stays`, async ({ page }, info) => {
+      const { errors, T } = await open(page, info.project.name, { type: "cube", controls, momentum: "1" });
+      await T("lookFrom('top-front-right', { animated: false, up: 'reset' })");
+      await T("frames(5)");
+      await page.mouse.move(250, 300);
+      await page.mouse.down();
+      await page.mouse.move(450, 330, { steps: 4 });
+      await page.mouse.up();
+      expect(await T("lookFrom('front')")).toBe("reached");
+      await T("frames(60)");
+      expect(await T("at()")).toBe("front");
+      const front = await T<State>("state()");
+      expect(front.back.map((x) => Math.round(x * 1e4) / 1e4 + 0)).toEqual([0, 0, 1]);
+      expect(errors).toEqual([]);
+    });
+  }
+});
+
 test.describe("E1: the host's CSS and the page", () => {
   test("the host's cursor rules follow the state attributes", async ({ page }, info) => {
     const { errors, T } = await open(page, info.project.name, { type: "cube", controls: "orbit" });

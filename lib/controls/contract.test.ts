@@ -1,6 +1,6 @@
 // C1: the controls contract against the real controllers. `@ts-expect-error` lines are checked by `tsc` when this file
 // is in a typecheck program; the runtime half runs here.
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import * as THREE from "three";
 import { PerspectiveCamera, Vector3 } from "three";
 import CameraControls from "camera-controls";
@@ -93,6 +93,54 @@ describe("holdControls (scope audit P4 inverted)", () => {
       expect(controls.enabled).toBe(false);
       restore();
       expect(controls.enabled).toBe(true);
+    }
+  });
+
+  // P13 H1: disabling stops input, not the motion `update()` or the controls' own frames keep up after a drag.
+  type Moving = Record<string, { set(...v: number[]): unknown } & Record<string, number>> & Record<string, unknown>;
+
+  it.runIf(ORBIT_TAKES_UP)("stops OrbitControls' damping, so its next updates leave the camera where the gizmo put it", () => {
+    const camera = cameraAt(0, 0, 5);
+    const controls = new OrbitControls(camera, document.body);
+    controls.enableDamping = true;
+    const moving = controls as unknown as Moving;
+    moving._sphericalDelta.theta = 0.5; // what a flick leaves to apply
+    moving._panOffset.set(0.2, 0, 0);
+    holdControls(controls);
+    const at = camera.position.clone();
+    for (let i = 0; i < 30; i++) controls.update();
+    expect(camera.position.distanceTo(at)).toBeLessThan(1e-12);
+  });
+
+  it.runIf(ORBIT_TAKES_UP)("stops TrackballControls' inertia, so its next updates leave the camera where the gizmo put it", () => {
+    const camera = cameraAt(0, 0, 5);
+    const controls = new TrackballControls(camera, document.body);
+    const moving = controls as unknown as Moving;
+    moving._lastAngle = 0.3 as never;
+    moving._lastAxis.set(0, 1, 0);
+    moving._zoomEnd.set(0, 0.5);
+    moving._panEnd.set(0.1, 0);
+    holdControls(controls);
+    const at = camera.position.clone();
+    for (let i = 0; i < 30; i++) controls.update();
+    expect(camera.position.distanceTo(at)).toBeLessThan(1e-12);
+  });
+
+  it("cancels ArcballControls' running animation, and leaves one that is not running alone", () => {
+    const cancel = vi.fn();
+    vi.stubGlobal("cancelAnimationFrame", cancel);
+    try {
+      const controls = new ArcballControls(cameraAt(0, 0, 5), document.body) as unknown as GizmoControls;
+      holdControls(controls)();
+      expect(cancel).not.toHaveBeenCalled();
+      const moving = controls as unknown as Moving;
+      moving._animationId = 7 as never;
+      moving._timeStart = 1 as never;
+      holdControls(controls);
+      expect(cancel).toHaveBeenCalledExactlyOnceWith(7);
+      expect([moving._animationId, moving._timeStart]).toEqual([-1, -1]);
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 });
