@@ -334,8 +334,11 @@
          * The gizmo laid out partly and then wholly off the canvas, as a host whose gizmo container is not the canvas's
          * can (Tau's container is `document.body`). Over black: flush with the canvas's right and left edges (the
          * references) and half past them, then wholly past the right edge, also while drawing into a render target.
-         * `cut`: pixels of the half left on the canvas that differ from the same half of the reference (0 when the gizmo
-         * is cut, not squashed); `litHalf`: lit pixels in those halves of the references; `leaked`: lit pixels outside
+         * `cut`: pixels of the half left on the canvas that differ from the same half of the reference by more than one
+         * level of a channel (0 when the gizmo is cut, not squashed; a squashed gizmo differs on thousands); `exact`: the
+         * pixels that differ at all, which a rasteriser may round differently after any whole-pixel move (Firefox's
+         * llvmpipe and WebKit move 1 to 3 pixels by one level even with the gizmo wholly on the canvas; SwiftShader none);
+         * `litHalf`: lit pixels in those halves of the references; `leaked`: lit pixels outside
          * the gizmo's part of the canvas in the half-past frames; `offLit`: lit pixels of the wholly-off frames.
          */
         async offCanvas() {
@@ -348,7 +351,7 @@
             element.style[side] = `${offset}px`;
             return gizmoOver(0x000000);
           };
-          let cut = 0, litHalf = 0, leaked = 0;
+          let cut = 0, exact = 0, litHalf = 0, leaked = 0;
           for (const side of ["right", "left"]) {
             const flush = await at(side, 0);
             const partly = await at(side, -half);
@@ -363,11 +366,10 @@
                 }
                 const reference = i - shift * 4;
                 if (shows(flush, reference)) litHalf++;
-                for (let c = 0; c < 4; c++)
-                  if (flush[reference + c] !== partly[i + c]) {
-                    cut++;
-                    break;
-                  }
+                let most = 0;
+                for (let c = 0; c < 4; c++) most = Math.max(most, Math.abs(flush[reference + c] - partly[i + c]));
+                if (most > 0) exact++;
+                if (most > 1) cut++;
               }
           }
           let offLit = 0;
@@ -390,7 +392,7 @@
           if (backend === "webgpu") await renderer.backend.device.queue.onSubmittedWorkDone();
           await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
           element.style.cssText = style;
-          return { cut, litHalf, leaked, offLit, rect: { ...rect } };
+          return { cut, exact, litHalf, leaked, offLit, rect: { ...rect } };
         },
 
         /** `n` gizmo frames (measure and draw), for the allocation sample; the host frame is left out. */
