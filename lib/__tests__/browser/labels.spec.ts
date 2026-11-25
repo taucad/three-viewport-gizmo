@@ -54,10 +54,11 @@ for (const backend of ["webgpu", "webgl"] as const) {
       expect(off).toBe(0);
     });
 
-    test("a font loaded after construction appears with no set()", async ({ page }) => {
+    test("a font loaded after construction appears with no set()", async ({ page }, info) => {
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
-      const { changed, frames } = await page.evaluate<{ changed: boolean; frames: number }>("T.lateFont()");
+      const { changed, frames, trace } = await page.evaluate<{ changed: boolean; frames: number; trace: unknown[] }>("T.lateFont()");
+      info.annotations.push({ type: "font-trace", description: JSON.stringify(trace) });
       expect(changed).toBe(true);
       expect(frames).toBe(1);
       expect(errors).toEqual([]);

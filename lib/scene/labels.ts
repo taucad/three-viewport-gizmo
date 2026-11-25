@@ -134,27 +134,49 @@ function drawLabel(canvas: HTMLCanvasElement, look: Look, o: SceneOptions, texel
   ctx.fillText(look.label, n / 2, (n + ascent - descent) / 2);
 }
 
+/** The faces of `fonts` still loading, with any `event` names that are. */
+const loadingFaces = (fonts: FontFaceSet, event?: Event): FontFace[] => {
+  const faces = new Set<FontFace>();
+  for (const face of (event as FontFaceSetLoadEvent | undefined)?.fontfaces ?? []) if (face.status === "loading") faces.add(face);
+  fonts.forEach((face) => face.status === "loading" && faces.add(face));
+  return [...faces];
+};
+
 /**
  * Calls `onLoaded` once each time `document.fonts` finishes a round of loading, and returns the function that stops
  * it. A round starts with `loading`, which every engine fires, whether the host added and loaded a `FontFace` or text
- * drawn in a CSS `@font-face` family started the load; it ends when that round's `document.fonts.ready` settles.
- * `loadingdone` is not used: WebKit never fires it for a face the page adds and then loads. Loads that overlap share
- * one round and one call, and a round already under way at construction counts. Nothing is called after the stop.
+ * drawn in a CSS `@font-face` family started the load. `loadingdone` is not used: WebKit never fires it for a face the
+ * page adds and then loads. A round collects every face still loading, from the event and the set, and waits for each
+ * to settle, again until none is left, since a face can join meanwhile; with none found it waits for the set's
+ * `ready`. Each face's own promise is the signal, not `ready` alone, which Safari can hand out already settled while
+ * a face loads. Loads that overlap share one round and one call, a round under way at construction counts, and
+ * nothing is called after the stop.
+ *
+ * The call then waits one animation frame: a canvas resolves its font through the document's style, which a browser
+ * may bring up to date only at its next rendering update after the face settles. A hidden page renders no frames, so
+ * its labels redraw at its first frame back, the first time they are seen.
  */
 function watchFonts(onLoaded: () => void): () => void {
   const fonts = globalThis.document?.fonts;
   if (!fonts) return () => {};
   let waiting = false;
   let stopped = false;
-  const settled = () => {
-    waiting = false;
-    if (!stopped) onLoaded();
+  const round = async (event?: Event) => {
+    let faces = loadingFaces(fonts, event);
+    if (faces.length === 0) await fonts.ready.catch(() => {});
+    while (faces.length > 0) {
+      await Promise.allSettled(faces.map((face) => face.loaded));
+      faces = loadingFaces(fonts);
+    }
+    if (typeof globalThis.requestAnimationFrame === "function") await new Promise(requestAnimationFrame);
   };
-  const onLoading = () => {
+  const onLoading = (event?: Event) => {
     if (waiting) return;
     waiting = true;
-    // `ready` settles once the set has nothing left to load, a failed face included.
-    void fonts.ready.then(settled, settled);
+    void round(event).then(() => {
+      waiting = false;
+      if (!stopped) onLoaded();
+    });
   };
   fonts.addEventListener("loading", onLoading);
   if (fonts.status === "loading") onLoading();

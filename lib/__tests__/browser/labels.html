@@ -131,29 +131,66 @@
         return { toReference: diff(defaults, reference), blurryToReference: diff(blurry, reference) };
       };
 
-      /** R25: a face added after construction redraws the labels with no set(). */
+      /**
+       * R25: a face added after construction redraws the labels with no set(). `trace` is evidence for the engines
+       * (Safari 27.2 redrew once, but in the fallback): at each step, the set's and the face's status, and whether a
+       * canvas already draws in the face (`usable`); at `loading`, how many faces the event names and whether `ready`
+       * had already settled.
+       */
       const lateFont = async () => {
         const options = { type: "cube", font: { family: "S2LateFont, serif" } };
         const { scene, draw, target } = await shoot(options, { dpr: 2 });
         // A host has drawn more than one frame by then. three r184's WebGPU backend drops a texture update made between
         // the first and second frame that sample it.
         const before = await draw();
-        let frames = 0;
-        scene.labels.onRedraw = () => frames++;
-        const canvas = scene.labels.texture("z", "idle").image;
-        const ink = canvas.toDataURL();
+        const t0 = performance.now();
+        const probe = document.createElement("canvas").getContext("2d");
+        const usable = () => {
+          probe.font = "100px S2LateFont, serif";
+          const width = probe.measureText("Front Back Top").width;
+          probe.font = "100px serif";
+          return width !== probe.measureText("Front Back Top").width;
+        };
         // A file the gate's server holds, not a local() font: CI runners have no Courier. A url() source (not an
         // ArrayBuffer, which is parsed before it joins the set) loads through document.fonts, so `loading` fires.
         // WebKit fires no `loadingdone` for it.
         const face = new FontFace("S2LateFont", "url(/tests/browser/fixtures/geist-latin.woff2)", { weight: "100 900" });
+        const trace = [];
+        const note = (step, extra) =>
+          trace.push({ step, at: Math.round(performance.now() - t0), set: document.fonts.status, face: face.status, usable: usable(), ...extra });
+        let frames = 0;
+        let redrew;
+        const redraw = new Promise((r) => (redrew = r));
+        scene.labels.onRedraw = () => {
+          frames++;
+          note("redraw");
+          redrew();
+        };
+        const canvas = scene.labels.texture("z", "idle").image;
+        const ink = canvas.toDataURL();
+        const onLoading = (event) => {
+          const ready = document.fonts.ready;
+          // Settled already when its reaction runs before that of a promise made after it.
+          void Promise.race([ready.then(() => true), Promise.resolve(false)]).then((settled) =>
+            note("loading", { fontfaces: event.fontfaces?.length ?? null, readySettled: settled })
+          );
+          void ready.then(() => note("ready"));
+        };
+        document.fonts.addEventListener("loading", onLoading);
         document.fonts.add(face);
+        note("added");
         await face.load();
-        await new Promise((r) => setTimeout(r, 50)); // the redraw follows the set's `ready`
+        note("face.load");
+        // The redraw follows the faces and one frame; a second second covers an engine that is slower.
+        await Promise.race([redraw, new Promise((r) => setTimeout(r, 1_000))]);
+        await new Promise((r) => setTimeout(r, 50));
         const after = await draw();
+        note("draw");
+        document.fonts.removeEventListener("loading", onLoading);
         disposeScene(scene);
         target.dispose();
         document.fonts.delete(face);
-        return { changed: diff(before, after) > 0, redrawn: canvas.toDataURL() !== ink, frames };
+        return { changed: diff(before, after) > 0, redrawn: canvas.toDataURL() !== ink, frames, trace };
       };
 
       /**
