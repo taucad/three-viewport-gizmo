@@ -27,8 +27,9 @@ import { sample, type Flight, type FlightFrame } from "./orbit/transition";
 import { planHome, planTurn, planView, restsOn, snapCardinal, TARGET_TOLERANCE, type TurnContext } from "./orbit/turn";
 import { createGizmoElement, resolveContainer, updateGizmoElement, writeGizmoState, type GizmoElementOptions } from "./render/dom";
 import { createInternalCamera, setFieldOfView } from "./render/internalCamera";
+import { faceOnOutline } from "./scene/outline";
 import { createDepthReset, renderInRect, type DepthReset } from "./render/frame";
-import { measureViewport, type MutableViewport } from "./render/rect";
+import { measureViewport, watchViewport, type MutableViewport, type ViewportWatch } from "./render/rect";
 import { warmUp } from "./render/warmUp";
 import { buildScene, disposeScene, type GizmoScene, type SceneTarget } from "./scene/build";
 import { cubeBox, roundedCubeBox } from "./scene/roundedBox";
@@ -190,6 +191,8 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   private readonly _atSeen = new Quaternion(NaN, NaN, NaN, NaN);
   private readonly _input: PointerInput;
   private readonly _stopWheel: () => void;
+  /** Measures `_viewport` again only when layout may have moved the element (I4). */
+  private readonly _layout: ViewportWatch;
   private readonly _keys: KeyboardInput;
   /** The built-in navigation buttons while `navigation.enabled` (OD2); null adds no node. */
   private _nav: Navigation | null = null;
@@ -227,7 +230,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._scene = buildScene(o);
     this._label = this._scene.frame;
     this._up.copy(this._label.up);
-    this._camera = createInternalCamera(o.type === "sphere", o.fieldOfView);
+    this._camera = createInternalCamera(o.type === "sphere", o.fieldOfView, faceOnOutline(this._scene.targets, o));
     this._three.add(this.root);
     this._adoptReset();
     this._adoptScene();
@@ -243,6 +246,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       hover: (event, rect) => this._onHover(event, rect),
     });
     this._stopWheel = forwardWheel(this.domElement, renderer.domElement);
+    this._layout = watchViewport(renderer, this.domElement);
     this._keys = attachKeyboard(this.domElement, this, {
       aim: () => {
         if (this._active?.kind !== "flight") return this._current();
@@ -350,7 +354,10 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     const merged = mergeOptions(this._raw, options);
     const next = resolveOptions(merged, this._resolveContext(this._controls));
     this._raw = merged;
-    this._apply(next);
+    // Every call measures again, `set({})` too: it picks up a move no layout signal reports (a CSS transform).
+    this._layout.invalidate();
+    // An unchanged `set({})` still asks for a frame, so a render-on-demand host draws at the measured rectangle.
+    if (!this._apply(next)) this._invalidate();
   }
 
   /**
@@ -424,7 +431,9 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
 
   /**
    * Connects controls (R13): their `target` is copied in on attach and on each `change`, they are disabled while the
-   * gizmo turns the view and restored to their previous `enabled` after, and told after every `camera.up` write.
+   * gizmo turns the view and restored to their previous `enabled` after, and told after every `camera.up` write. When
+   * the gizmo takes the view, the motion three's OrbitControls, TrackballControls and ArcballControls keep up after a
+   * drag (damping, inertia, animation) stops.
    *
    * @throws {ViewportGizmoError} `INVALID_OPTION` for controls without the contract's members; `ROLL_UNSUPPORTED` for
    * `roll: true` with controls that cannot take a new up
@@ -475,7 +484,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._sync();
     // ponytail: a host that parented `root` loses it here; without this its gizmo would draw nothing (probe P3).
     if (this.root.parent !== this._three) this._three.add(this.root);
-    measureViewport(this.renderer, this.domElement, this._viewport);
+    this._layout.measure(this._viewport);
     this._nav?.place();
     renderInRect(this.renderer, this._three, this._camera, this._viewport, this._reset);
   }
@@ -503,6 +512,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this.detachControls();
     this._input.detach();
     this._stopWheel();
+    this._layout.detach();
     this._keys.detach();
     this._nav?.detach();
     this._reset.removeFromParent();
@@ -978,11 +988,11 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   }
 
   /** Applies resolved options by their change class (N1): in place when cheap, a rebuild when structural. */
-  private _apply(next: GizmoResolvedOptions): void {
+  private _apply(next: GizmoResolvedOptions): boolean {
     const previous = this._options;
     const change = classifyChange(previous, next);
     this._options = next;
-    if (!change) return;
+    if (!change) return false;
 
     if (change === "structural") {
       if (this._active) this._finish(cancelled("set"));
@@ -993,14 +1003,15 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       disposeScene(this._scene);
       this._scene = buildScene(next);
       this._adoptReset();
-      this._camera = createInternalCamera(next.type === "sphere", next.fieldOfView);
+      this._camera = createInternalCamera(next.type === "sphere", next.fieldOfView, faceOnOutline(this._scene.targets, next));
       const label = this._scene.frame;
       if (!label.up.equals(this._label.up) || !label.front.equals(this._label.front)) this._up.copy(label.up);
       this._label = label;
       this._pointerOver = false;
     } else {
       updateScene(this._scene, next);
-      setFieldOfView(this._camera, next.fieldOfView);
+      // A triad toggle or a hidden target changes the outline the distance keeps (cheap path).
+      setFieldOfView(this._camera, next.fieldOfView, faceOnOutline(this._scene.targets, next));
     }
     this._adoptScene();
     this._faded.set(NaN, NaN, NaN, NaN);
@@ -1009,6 +1020,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._atSeen.set(NaN, NaN, NaN, NaN);
 
     updateGizmoElement(this.domElement, elementOptions(next), elementOptions(previous));
+    this._layout.invalidate();
     if (next.container !== previous.container) {
       resolveContainer(next.container, this.renderer.domElement).appendChild(this.domElement);
     }
@@ -1021,6 +1033,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._rehover();
     this._writeState();
     this._invalidate();
+    return true;
   }
 
   /** Creates the depth reset for the current scene, freed with it, and puts it beside `root` (F1). */

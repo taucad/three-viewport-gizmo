@@ -62,5 +62,13 @@ for (const backend of ["webgpu", "webgl"] as const) {
       expect(frames).toBe(1);
       expect(errors).toEqual([]);
     });
+
+    test("a CSS @font-face family the labels start loading appears with no set()", async ({ page }) => {
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      const result = await page.evaluate<{ loaded: boolean; redrawn: boolean; frames: number }>("T.cssFont()");
+      expect(result).toEqual({ loaded: true, redrawn: true, frames: 1 });
+      expect(errors).toEqual([]);
+    });
   });
 }

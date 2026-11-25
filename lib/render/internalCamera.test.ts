@@ -154,3 +154,27 @@ describe("DEFAULT_FIELD_OF_VIEW", () => {
     expect(DEFAULT_FIELD_OF_VIEW).toBeCloseTo((26 * Math.PI) / 180, 15);
   });
 });
+
+describe("fieldOfViewDistance", () => {
+  const halfSize = (outline: readonly number[], distance: number, degrees: number) => {
+    let half = 0;
+    for (let i = 0; i < outline.length; i += 2) half = Math.max(half, outline[i + 1]! / (distance - outline[i]!));
+    return half / Math.tan((degrees * MathUtils.DEG2RAD) / 2);
+  };
+
+  it("is 2.3.0's 1 + 6 tan(13°) / tan(fov / 2) for the unit front edge, and 7 at 26° for any outline", () => {
+    for (const degrees of [0.1, 10, 45, 90, 170])
+      expect(fieldOfViewDistance(degrees * MathUtils.DEG2RAD)).toBeCloseTo(
+        1 + (6 * Math.tan(DEFAULT_FIELD_OF_VIEW / 2)) / Math.tan((degrees * MathUtils.DEG2RAD) / 2),
+        12
+      );
+    expect(fieldOfViewDistance(DEFAULT_FIELD_OF_VIEW, [0.7, 1, 0.9, 0.6])).toBe(7);
+  });
+
+  it("holds a many-point outline's face-on half-size exactly, whichever point bounds it", () => {
+    const arc = [0.9, 0.7, 0.85, 0.8, 0.79, 0.86, 0.7, 0.9]; // nearer points narrower, as round a bevel
+    const at26 = halfSize(arc, 7, 26);
+    for (const degrees of [0.1, 30, 60, 90, 150])
+      expect(halfSize(arc, fieldOfViewDistance(degrees * MathUtils.DEG2RAD, arc), degrees)).toBeCloseTo(at26, 12);
+  });
+});

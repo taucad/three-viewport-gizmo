@@ -14,10 +14,10 @@ import {
   Vector3,
 } from "three";
 import { GIZMO_MAIN_AXES } from "../utils/constants";
-import { pixelsPerUnit } from "./axisLines";
 import { turnToCamera } from "./background";
 import type { PartBuilder, SceneOptions } from "./build";
 import { meshAttributes, targetMaterial, whiteTexture } from "./materials";
+import { faceOnOutline, pixelsPerUnit, TRIAD_SCENE_SCALE, triadShown } from "./outline";
 
 /** Tau's triad: axis length from the cube's corner, in the cube's units (its half size is 1). */
 const LENGTH = 2.1;
@@ -29,8 +29,6 @@ const LABEL_GAP = 0.2;
 const LABEL_SIZE = 0.49;
 /** Line width in the gizmo's CSS pixels. */
 const LINE_WIDTH = 1.5;
-/** The scene's scale while the triad shows, as Tau draws it: the cube shrinks to give the axes and labels room. */
-export const TRIAD_SCENE_SCALE = 0.7;
 /** Tau's `axesHelperColors`: the default of the `triad.colors` option. */
 export const TRIAD_COLORS = { x: "rgb(130, 41, 37)", y: "rgb(53, 122, 56)", z: "rgb(0, 70, 145)" } as const;
 
@@ -79,9 +77,6 @@ function faceAlongAxis(this: Mesh, _renderer: unknown, _scene: unknown, camera: 
   this.updateMatrixWorld();
 }
 
-/** Whether the triad shows for these options: on, and a cube type. */
-export const triadShown = (o: SceneOptions): boolean => o.type !== "sphere" && o.triad.enabled;
-
 /** Draws one axis letter edge to edge in its axis colour. */
 function drawLetter(canvas: HTMLCanvasElement, axis: (typeof GIZMO_MAIN_AXES)[number], o: SceneOptions): void {
   const n = canvas.width;
@@ -103,7 +98,7 @@ function drawLetter(canvas: HTMLCanvasElement, axis: (typeof GIZMO_MAIN_AXES)[nu
  * Nothing is built until the triad first shows, so a gizmo without it pays nothing; toggling it after that writes
  * `visible` and the scene's scale only. Draws while shown: 6 (three lines, three labels).
  */
-export const triad: PartBuilder = (_, __, owned) => {
+export const triad: PartBuilder = (_, { targets }, owned) => {
   const object = new Group();
   object.position.setScalar(ORIGIN);
   let lines: Mesh<PlaneGeometry, MeshBasicMaterial>[] | null = null;
@@ -128,7 +123,7 @@ export const triad: PartBuilder = (_, __, owned) => {
       return line;
     });
 
-    const texels = Math.ceil(LABEL_SIZE * TRIAD_SCENE_SCALE * pixelsPerUnit(o) * dpr * 2);
+    const texels = Math.ceil(LABEL_SIZE * TRIAD_SCENE_SCALE * pixelsPerUnit(o, faceOnOutline(targets, o)) * dpr * 2);
     const quad = meshAttributes(new PlaneGeometry());
     owned.add(quad);
     letters = GIZMO_MAIN_AXES.map((_axis, i) => {
@@ -158,7 +153,7 @@ export const triad: PartBuilder = (_, __, owned) => {
       if (!lines) create(o);
 
       // Each ribbon is LINE_WIDTH CSS pixels and its feather across inside the scaled scene.
-      const across = (LINE_WIDTH + (2 * FEATHER) / dpr) / (pixelsPerUnit(o) * TRIAD_SCENE_SCALE);
+      const across = (LINE_WIDTH + (2 * FEATHER) / dpr) / (pixelsPerUnit(o, faceOnOutline(targets, o)) * TRIAD_SCENE_SCALE);
       GIZMO_MAIN_AXES.forEach((axis, i) => {
         lines![i].scale.set(across, LENGTH, 1);
         lines![i].material.color.set(o.triad.colors[axis]);

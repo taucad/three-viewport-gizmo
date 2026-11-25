@@ -1,8 +1,8 @@
 import { Vector3, type Quaternion } from "three";
 
-// The one place the library reads a controller's private fields (roll Finding 1, L10). three's `OrbitControls` (and
-// `MapControls`, its subclass) caches its orbit axis at construction as `_quat`, the rotation from `object.up` to +Y,
-// with no public way to refresh it. Without a refresh, a drag after a roll orbits the old up. `_quat` is an instance
+// With `momentum.ts`, the only places the library reads a controller's private fields (roll Finding 1, L10). three's
+// `OrbitControls` (and `MapControls`, its subclass) caches its orbit axis at construction as `_quat`, the rotation from
+// `object.up` to +Y, with no public way to refresh it. Without a refresh, a drag after a roll orbits the old up. `_quat` is an instance
 // field from three 0.168; in 0.167 and earlier it is a closure variable and cannot be reached.
 // ponytail: delete this file when three.js ships a public up refresh (L10).
 

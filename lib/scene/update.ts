@@ -17,7 +17,7 @@ export const targetOf = (entry: TargetEntry, frame: LabelFrame, o: SceneOptions)
 type TargetDraft = Readonly<{ entry: TargetEntry; target: GizmoTarget; end: AxisEnd | null }>;
 
 /** The options that style a target: its face's axis end, or the edges or corners. */
-const styleOf = (o: SceneOptions, { entry, end }: TargetDraft) =>
+export const styleOf = (o: SceneOptions, { entry, end }: TargetDraft) =>
   end ? o[end] : entry.kind === "edge" ? o.edges : o.corners;
 
 /**

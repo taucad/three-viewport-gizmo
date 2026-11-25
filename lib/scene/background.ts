@@ -8,7 +8,7 @@ import {
   type Camera,
   type Object3D,
 } from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { mergeGeometries } from "./merge";
 import type { PartBuilder } from "./build";
 import { meshAttributes, targetMaterial, whiteTexture } from "./materials";
 
