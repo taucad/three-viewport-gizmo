@@ -1,6 +1,7 @@
 import { REVISION } from "three";
 import { ViewportGizmoError } from "../errors";
 import type { GizmoControls, GizmoLimits } from "../types";
+import { stopMomentum } from "./momentum";
 import { hasOrbitUpCache, isUnreachableOrbitControls, refreshOrbitControlsUp } from "./orbitControls";
 
 const LIMIT_KEYS = ["minPolarAngle", "maxPolarAngle", "minAzimuthAngle", "maxAzimuthAngle"] as const;
@@ -28,8 +29,9 @@ export const assertControls = (controls: GizmoControls): void => {
 };
 
 /**
- * Disables the controls for a gizmo interaction and returns the restore, which puts back the `enabled` value they
- * had, so a host that disabled its controls keeps them disabled (scope audit P4).
+ * Disables the controls for a gizmo interaction and stops the motion they keep up on their own after a drag (damping,
+ * inertia, animation), which would otherwise carry the camera off the gizmo's turn. Returns the restore, which puts
+ * back the `enabled` value they had, so a host that disabled its controls keeps them disabled (scope audit P4).
  *
  * @param controls - The attached controls
  * @returns Call at the interaction's end to restore the previous `enabled`
@@ -37,6 +39,7 @@ export const assertControls = (controls: GizmoControls): void => {
 export const holdControls = (controls: GizmoControls): (() => void) => {
   const enabled = controls.enabled;
   controls.enabled = false;
+  stopMomentum(controls);
   return () => {
     controls.enabled = enabled;
   };

@@ -25,6 +25,10 @@
       const type = q.get("type") ?? "cube";
       const controlsName = q.get("controls") ?? "none";
       if (q.get("tall") === "1") document.body.classList.add("tall");
+      // `momentum=1` turns on OrbitControls' damping and TrackballControls' inertia, for the cases that check a gizmo
+      // turn stops the motion the controls keep up after a drag. ArcballControls' animation is on in every case: it is
+      // its default.
+      const momentum = q.get("momentum") === "1";
       const THREE = backend === "webgpu" ? await import("three/webgpu") : await import("three");
       const { ViewportGizmo } = await import("/lib/index.ts");
 
@@ -44,12 +48,12 @@
       if (controlsName === "orbit") {
         const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
         controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = momentum;
         step = () => controls.update();
       } else if (controlsName === "trackball") {
         const { TrackballControls } = await import("three/addons/controls/TrackballControls.js");
         controls = new TrackballControls(camera, renderer.domElement);
-        // No inertia: a drag's momentum would carry on through a later gizmo turn (the gizmo holds input, not update()).
-        controls.staticMoving = true;
+        controls.staticMoving = !momentum;
         step = () => controls.update();
       } else if (controlsName === "arcball") {
         const { ArcballControls } = await import("three/addons/controls/ArcballControls.js");

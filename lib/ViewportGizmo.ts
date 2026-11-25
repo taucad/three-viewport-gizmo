@@ -431,7 +431,9 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
 
   /**
    * Connects controls (R13): their `target` is copied in on attach and on each `change`, they are disabled while the
-   * gizmo turns the view and restored to their previous `enabled` after, and told after every `camera.up` write.
+   * gizmo turns the view and restored to their previous `enabled` after, and told after every `camera.up` write. When
+   * the gizmo takes the view, the motion three's OrbitControls, TrackballControls and ArcballControls keep up after a
+   * drag (damping, inertia, animation) stops.
    *
    * @throws {ViewportGizmoError} `INVALID_OPTION` for controls without the contract's members; `ROLL_UNSUPPORTED` for
    * `roll: true` with controls that cannot take a new up

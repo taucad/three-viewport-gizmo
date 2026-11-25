@@ -16,7 +16,8 @@ export default function OrbitControlsGuide() {
         <code>attachControls</code> links the gizmo to your OrbitControls: the gizmo copies their
         target on attach and on every change, disables them while it turns the view and restores
         their previous <code>enabled</code> after, and tells them when it changes{" "}
-        <code>camera.up</code>.
+        <code>camera.up</code>. A press or turn on the gizmo stops their damping, so a flick does not
+        carry the camera off the view the gizmo turns to.
       </p>
 
       <h2>Prerequisites</h2>
