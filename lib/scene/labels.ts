@@ -134,12 +134,42 @@ function drawLabel(canvas: HTMLCanvasElement, look: Look, o: SceneOptions, texel
   ctx.fillText(look.label, n / 2, (n + ascent - descent) / 2);
 }
 
+/**
+ * Calls `onLoaded` once each time `document.fonts` finishes a round of loading, and returns the function that stops
+ * it. A round starts with `loading`, which every engine fires, whether the host added and loaded a `FontFace` or text
+ * drawn in a CSS `@font-face` family started the load; it ends when that round's `document.fonts.ready` settles.
+ * `loadingdone` is not used: WebKit never fires it for a face the page adds and then loads. Loads that overlap share
+ * one round and one call, and a round already under way at construction counts. Nothing is called after the stop.
+ */
+function watchFonts(onLoaded: () => void): () => void {
+  const fonts = globalThis.document?.fonts;
+  if (!fonts) return () => {};
+  let waiting = false;
+  let stopped = false;
+  const settled = () => {
+    waiting = false;
+    if (!stopped) onLoaded();
+  };
+  const onLoading = () => {
+    if (waiting) return;
+    waiting = true;
+    // `ready` settles once the set has nothing left to load, a failed face included.
+    void fonts.ready.then(settled, settled);
+  };
+  fonts.addEventListener("loading", onLoading);
+  if (fonts.status === "loading") onLoading();
+  return () => {
+    stopped = true;
+    fonts.removeEventListener("loading", onLoading);
+  };
+}
+
 type Entry = { canvas: HTMLCanvasElement; texture: CanvasTexture; look: Look };
 
 /**
  * One small texture per label (P3, R25): a face's own, sized from `size` and the device pixel ratio (D13), and a
  * hover texture only where the hover look differs (D14). The cube's edges and corners have none. Late web fonts redraw
- * every texture in place (R25): a `loadingdone` on `document.fonts` needs no `set()`, and `onRedraw` asks for a frame.
+ * every texture in place (R25), with no `set()`: see `watchFonts`. `onRedraw` asks for a frame.
  */
 export const canvasLabels: LabelProvider = (built) => {
   const dpr = globalThis.devicePixelRatio || 1;
@@ -166,11 +196,10 @@ export const canvasLabels: LabelProvider = (built) => {
     }
   };
 
-  const onFonts = () => {
+  const unwatch = watchFonts(() => {
     redraw(o);
     labels.onRedraw?.();
-  };
-  globalThis.document?.fonts?.addEventListener("loadingdone", onFonts);
+  });
 
   const labels: LabelTextures = {
     texture(part, state): Texture {
@@ -190,7 +219,7 @@ export const canvasLabels: LabelProvider = (built) => {
     },
     update: redraw,
     dispose() {
-      globalThis.document?.fonts?.removeEventListener("loadingdone", onFonts);
+      unwatch();
       for (const { texture } of entries.values()) texture.dispose();
       entries.clear();
     },

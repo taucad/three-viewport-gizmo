@@ -37,7 +37,7 @@
       };
 
       /** Renders `options` at `dpr` from `euler`, returning RGBA bytes of a `CSS * dpr` square and the scene. */
-      const shoot = async (options, { dpr = 2, buildDpr = dpr, euler = [0, 0, 0], hoverAll = false } = {}) => {
+      const shoot = async (options, { dpr = 2, buildDpr = dpr, euler = [0, 0, 0], hoverAll = false, onScene } = {}) => {
         const side = CSS * dpr;
         const target = backend === "webgl" ? new (await import("three")).WebGLRenderTarget(side, side) : new THREE.RenderTarget(side, side);
         const camera =
@@ -50,6 +50,7 @@
         root.quaternion.setFromEuler(new THREE.Euler(...euler)).invert();
         world.add(root);
         const scene = withDpr(buildDpr, () => buildScene(resolve(options)));
+        onScene?.(scene);
         root.add(scene.group);
         const draw = async () => {
           renderer.setRenderTarget(target);
@@ -142,16 +143,48 @@
         const canvas = scene.labels.texture("z", "idle").image;
         const ink = canvas.toDataURL();
         // A file the gate's server holds, not a local() font: CI runners have no Courier. A url() source (not an
-        // ArrayBuffer, which is parsed before it joins the set) loads through document.fonts, so `loadingdone` fires.
+        // ArrayBuffer, which is parsed before it joins the set) loads through document.fonts, so `loading` fires.
+        // WebKit fires no `loadingdone` for it.
         const face = new FontFace("S2LateFont", "url(/tests/browser/fixtures/geist-latin.woff2)", { weight: "100 900" });
         document.fonts.add(face);
         await face.load();
-        await new Promise((r) => setTimeout(r, 50)); // `loadingdone` follows the load's promise
+        await new Promise((r) => setTimeout(r, 50)); // the redraw follows the set's `ready`
         const after = await draw();
         disposeScene(scene);
         target.dispose();
         document.fonts.delete(face);
         return { changed: diff(before, after) > 0, redrawn: canvas.toDataURL() !== ink, frames };
+      };
+
+      /**
+       * R25: a CSS `@font-face` family that nothing on the page uses yet starts loading when the labels draw in it, and
+       * the labels redraw once it has loaded, with no set().
+       */
+      const cssFont = async () => {
+        const style = document.createElement("style");
+        style.textContent = "@font-face { font-family: S2CssFont; src: url(/tests/browser/fixtures/geist-latin.woff2?css) }";
+        document.head.append(style);
+        let frames = 0;
+        let canvas;
+        let ink;
+        const options = { type: "cube", font: { family: "S2CssFont, serif" } };
+        const { scene, target } = await shoot(options, {
+          dpr: 2,
+          onScene: (built) => {
+            built.labels.onRedraw = () => frames++;
+            canvas = built.labels.texture("z", "idle").image;
+            ink = canvas.toDataURL(); // drawn in the fallback: the load has only just started
+          },
+        });
+        await document.fonts.ready;
+        await new Promise((r) => setTimeout(r, 50));
+        // The canvas, not the render: the load can end between the first and second frame, where three r184's WebGPU
+        // backend drops the update (see lateFont). lateFont covers the upload.
+        const loaded = document.fonts.check("12px S2CssFont");
+        disposeScene(scene);
+        target.dispose();
+        style.remove();
+        return { loaded, redrawn: canvas.toDataURL() !== ink, frames };
       };
 
       /**
@@ -186,7 +219,7 @@
         return { lit, off };
       };
 
-      window.T = { memory, sharp, lateFont, seams };
+      window.T = { memory, sharp, lateFont, cssFont, seams };
       window.READY = true;
     </script>
   </body>
