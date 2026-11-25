@@ -24,6 +24,23 @@ const open = async (page: Page, backend: string, eye: number[], initial: HitSize
   return errors;
 };
 
+/**
+ * The kind hovered with the spec's mouse at `(x, y)`. A sample during which the page heard a pointer event anywhere
+ * else is taken again: under Xvfb, headed Firefox hears a trusted `pointerout` and `pointerleave` from outside the page
+ * when another worker's browser maps or unmaps a window on the shared display, and the gizmo rightly ends its hover on
+ * it. That is a second pointer, not the hover under this one (C2).
+ */
+const sample = async (page: Page, x: number, y: number) => {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.evaluate("T.track()");
+    await page.mouse.move(x, y);
+    const { hovered, foreign } = await page.evaluate<{ hovered: string; foreign: boolean }>(`T.read(${x}, ${y})`);
+    if (!foreign) return hovered;
+    test.info().annotations.push({ type: "foreign pointer", description: `resampled (${x}, ${y})` });
+  }
+  throw new Error(`another pointer moved over the page in three samples at (${x}, ${y})`);
+};
+
 /** The kind hovered at each of 41 points across the gizmo's middle row: F, E, C or `.` for nothing. */
 const sweep = async (page: Page) => {
   const rect = await page.evaluate<Rect>("T.rect()");
@@ -32,8 +49,8 @@ const sweep = async (page: Page) => {
   expect(rect.top >= 0 && rect.left >= 0 && rect.left + rect.width <= viewport.width && rect.top + rect.height <= viewport.height).toBe(true);
   let row = "";
   for (let i = 0; i <= SAMPLES; i++) {
-    await page.mouse.move(rect.left + (rect.width * i) / SAMPLES, rect.top + rect.height / 2);
-    row += { face: "F", edge: "E", corner: "C" }[await page.evaluate<string>("T.hovered()")] ?? ".";
+    const hovered = await sample(page, rect.left + (rect.width * i) / SAMPLES, rect.top + rect.height / 2);
+    row += { face: "F", edge: "E", corner: "C" }[hovered] ?? ".";
   }
   await page.mouse.move(1, 1);
   return row;

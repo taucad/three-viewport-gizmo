@@ -72,6 +72,14 @@
           requestAnimationFrame(step);
         });
 
+      // Where every pointer event the page hears happened, since `T.track()`. A headed browser on a display it shares
+      // (Firefox under Xvfb, beside another worker's windows) can hear a trusted `pointerleave` from outside the page
+      // when another window maps or unmaps; that is another pointer, not the spec's mouse (see the spec's `sweep`).
+      let heard = [];
+      for (const type of ["pointerover", "pointerenter", "pointermove", "pointerout", "pointerleave"]) {
+        addEventListener(type, (e) => heard.push([e.clientX, e.clientY]), true);
+      }
+
       window.T = {
         /** `set()` with the playground's whole options object and `extra` over it; then two frames. */
         set: async (hitSizes, extra = {}) => {
@@ -82,6 +90,13 @@
         backend: () => (renderer.backend?.isWebGPUBackend ? "webgpu" : "webgl"),
         rect: () => gizmo.domElement.getBoundingClientRect().toJSON(),
         hovered: () => gizmo.domElement.getAttribute("data-hovered") ?? ".",
+        /** Starts listing the pointer events the page hears. */
+        track: () => void (heard = []),
+        /** `hovered()`, and whether any pointer event since `track()` was more than a pixel from `(x, y)`. */
+        read: (x, y) => ({
+          hovered: gizmo.domElement.getAttribute("data-hovered") ?? ".",
+          foreign: heard.some(([hx, hy]) => Math.abs(hx - x) >= 1 || Math.abs(hy - y) >= 1),
+        }),
         resolved: () => ({ corners: gizmo.options.corners.hitSize, edges: gizmo.options.edges.hitSize }),
       };
       await frames(2);
