@@ -42,6 +42,8 @@ export default defineConfig({
   fullyParallel: true,
   workers: process.env.CI ? 2 : 1,
   timeout: 60_000,
+  // One retry in CI, so a failure that passes on retry reads as flaky in the summary rather than as an engine finding.
+  retries: process.env.CI ? 1 : 0,
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     viewport: { width: 1280, height: 800 },
@@ -50,7 +52,7 @@ export default defineConfig({
   projects: [
     {
       name: "webgl",
-      use: { browserName, launchOptions: launch },
+      use: { browserName, launchOptions: launch, headless: !process.env.GIZMO_HEADED },
       grepInvert: browserName === "chromium" ? undefined : chromiumOnly,
       testMatch: [
         "tests/browser/views.spec.ts",
@@ -59,6 +61,7 @@ export default defineConfig({
         "lib/__tests__/browser/**/*.spec.ts",
         "tests/browser/cross/adapter.cross.ts",
         "tests/browser/cross/a11y-tree.cross.ts",
+        "tests/browser/cross/fonts.cross.ts",
       ],
     },
     { name: "touch-iphone", use: { ...devices["iPhone 15"] }, testMatch: "tests/browser/cross/touch.cross.ts" },

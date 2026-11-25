@@ -138,10 +138,25 @@ const keyboard = async (backend) => {
   const home = await state();
   check(`${backend} keyboard: Home reaches top-front-right`, home.at === "top-front-right", { at: home.at });
   await exec("return T.look('front')");
+  // Every keydown the page sees, so a miss tells a WebDriver key problem from a library one.
+  await exec(`window.__keys = []; document.addEventListener("keydown", (e) => __keys.push({ key: e.key, code: e.code, shift: e.shiftKey, prevented: e.defaultPrevented, target: e.target.getAttribute?.("role") ?? e.target.tagName }), true);`);
   await press("Shift", "ArrowRight");
-  const rolled = await state();
+  let rolled = await state();
   const name = `${label("front")}, rolled 90° clockwise`;
-  check(`${backend} keyboard: Shift+Right rolls and names the roll`, rolled.at === "front" && rolled.name === name, { at: rolled.at, name: rolled.name });
+  const keys = await exec("return __keys");
+  let via = "actions";
+  if (rolled.name !== name) {
+    // Second route: WebDriver element send keys, Shift held for the ArrowRight that follows it.
+    const element = await wd("POST", `/session/${session}/element`, { using: "css selector", value: "[role=application]" });
+    await exec("return T.look('front')");
+    await exec("__keys.length = 0");
+    await wd("POST", `/session/${session}/element/${Object.values(element)[0]}/value`, { text: `${KEYS.Shift}${KEYS.ArrowRight}${KEYS.Shift}` });
+    rolled = await state();
+    via = { actions: keys, sendKeys: await exec("return __keys") };
+  }
+  const route = via === "actions" ? "" : " (WebDriver actions missed it; element send keys used)";
+  check(`${backend} keyboard: Shift+Right rolls and names the roll${route}`, rolled.at === "front" && rolled.name === name, { at: rolled.at, name: rolled.name, keys: via });
+  if (via !== "actions") console.log(`keys seen: ${JSON.stringify(via)}`);
   const announced = await poll("return T.state().status", (v) => v === name, 2_000);
   check(`${backend} keyboard: the status child announces the roll`, announced.ok, { status: announced.value });
   await exec("return T.look('front')");
@@ -177,6 +192,22 @@ const navigation = async (backend) => {
   check(`${backend} navigation: hover reveals the buttons; each side and Home lands`, failures.length === 0, failures);
 };
 
+/** The late web font case (labels.spec.ts R25), plus when Safari fires `loadingdone` for an added and loaded FontFace. */
+const fonts = async (backend) => {
+  await open(`/lib/__tests__/browser/labels.html?backend=${backend}`);
+  const late = await exec("return T.lateFont()");
+  check(`${backend} labels: a font loaded after construction appears with no set()`, late.changed === true && late.frames === 1, late);
+  const events = await exec(`
+    const events = [], t0 = performance.now();
+    for (const type of ["loading", "loadingdone", "loadingerror"]) document.fonts.addEventListener(type, () => events.push({ type, at: Math.round(performance.now() - t0) }));
+    const face = new FontFace("P13SafariFont", "url(/tests/browser/fixtures/geist-latin.woff2)", { weight: "100 900" });
+    document.fonts.add(face);
+    return face.load().then(() => new Promise((r) => setTimeout(() => r({ loadedAt: Math.round(performance.now() - t0), events }), 2000)));
+  `);
+  console.log(`fonts: ${JSON.stringify(events)}`);
+  results.fonts = events;
+};
+
 let failed = false;
 try {
   start("npx", ["vite", "--config", "tests/browser/vite.config.ts", "--host", "127.0.0.1", "--port", String(port), "--strictPort"]);
@@ -205,7 +236,7 @@ try {
         check(`${backend} ${type}: views`, false, String(error));
       }
     }
-    for (const run of [keyboard, navigation]) {
+    for (const run of [keyboard, navigation, fonts]) {
       try {
         await run(backend);
       } catch (error) {
