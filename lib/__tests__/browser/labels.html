@@ -161,12 +161,43 @@
         let frames = 0;
         let redrew;
         const redraw = new Promise((r) => (redrew = r));
+        const canvas = scene.labels.texture("z", "idle").image;
+        /**
+         * The face as the label canvas's own context resolves it, against a fresh context: text widths in the label's
+         * font string (`font`, as the label's last draw left it), the same at normal weight (`w400`) and in the
+         * fallback alone (`serif`); on the label context also after setting the string again (`reset`). `drawn`: a
+         * fresh canvas's fillText pixels differ from the fallback's, at the label's weight and at normal weight.
+         */
+        const faces = () => {
+          const ctx = canvas.getContext("2d");
+          const font = ctx.font;
+          const variants = { font, w400: font.replace(/^(?:\S+ )*?(\d+(?:\.\d+)?px)/, "$1"), serif: font.replace(/S2LateFont,\s*/i, "") };
+          const widths = (c) => Object.fromEntries(Object.entries(variants).map(([k, f]) => ((c.font = f), [k, Math.round(c.measureText("Front Back").width * 100) / 100])));
+          const label = widths(ctx);
+          ctx.font = "10px monospace";
+          ctx.font = font;
+          label.reset = Math.round(ctx.measureText("Front Back").width * 100) / 100;
+          const fresh = widths(document.createElement("canvas").getContext("2d"));
+          const pixels = (f) => {
+            const c = document.createElement("canvas");
+            c.width = 200;
+            c.height = 60;
+            const x = c.getContext("2d");
+            x.font = f.replace(/\d+(?:\.\d+)?px/, "40px");
+            x.fillText("Front", 4, 45);
+            return x.getImageData(0, 0, 200, 60).data;
+          };
+          const differs = (a, b) => a.some((v, i) => v !== b[i]);
+          const fallback = pixels(variants.serif);
+          const drawn = { font: differs(pixels(font), fallback), w400: differs(pixels(variants.w400), fallback) };
+          ctx.font = font;
+          return { variants, label, fresh, drawn };
+        };
         scene.labels.onRedraw = () => {
           frames++;
-          note("redraw");
+          note("redraw", { faces: faces() });
           redrew();
         };
-        const canvas = scene.labels.texture("z", "idle").image;
         const ink = canvas.toDataURL();
         const onLoading = (event) => {
           const ready = document.fonts.ready;
@@ -185,7 +216,7 @@
         await Promise.race([redraw, new Promise((r) => setTimeout(r, 1_000))]);
         await new Promise((r) => setTimeout(r, 50));
         const after = await draw();
-        note("draw");
+        note("draw", { faces: faces() });
         document.fonts.removeEventListener("loading", onLoading);
         disposeScene(scene);
         target.dispose();
