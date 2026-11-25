@@ -15,21 +15,14 @@ workflow whose jobs are not required: a red job here is evidence to triage, not 
 Each job writes a summary (`summary.mjs`): pass and fail counts per project, the adapter, axe violations by rule, the
 Safari checks and the VoiceOver transcript. The raw files are in the job's artifact.
 
-## Known engine bugs
+## Safari canvas readback
 
-`safari.mjs` records a check as `known`, apart from passes and failures, only when its own evidence matches a bug:
-
-- **WebKit: FontFace API face drawn with fallback in 2D canvas** (Safari 27.2). A face added with
-  `document.fonts.add()` and loaded is measured by `measureText` but drawn with the fallback by `fillText`, so the
-  late-font case (`T.lateFont()`) redraws once yet shows no change. Its trace's final `draw` step shows the label
-  context measuring the face while a fresh canvas draws the fallback. `webkit-fontface-canvas.html` is a standalone
-  repro for a WebKit report. The CSS `@font-face` case (`T.cssFont()`) is checked separately and stays a failure if
-  it fails.
-
-Both font checks read "no change" through canvas and render-target readback, so `safari.mjs` first runs readback
-controls (`T.readback()`: black vs white, "AAAA" vs "WWWW", red vs blue, through toDataURL, getImageData, toBlob,
-WebGL textures, createImageBitmap and the renderer's target). Where the channel a font check reads through cannot tell
-those apart, the check is `blocked` ("canvas readback neutralized in Safari automation"), not known or failed.
+Safari under safaridriver neutralizes 2D canvas readback (toDataURL identical for different content,
+getImageData/createImageBitmap throw; even a 2D canvas uploaded to WebGL reads back identical), so label-pixel checks
+are blocked there; WebGL readback of cleared targets works. `safari.mjs` runs readback controls first (`T.readback()`:
+black vs white, "AAAA" vs "WWWW", red vs blue, through each channel) and blocks a font check whose channel cannot tell
+them apart. Late-font redraw is verified in Chromium, Firefox and WebKit; in Safari the trace shows the redraw runs
+after the face loads and measurement uses the face.
 
 ## What is left out, and why
 

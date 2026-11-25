@@ -131,11 +131,6 @@ const check = (name, ok, detail) => {
   results.checks.push({ name, ok, ...(detail === undefined ? {} : { detail }) });
   console.log(`${ok ? "pass" : "FAIL"}  ${name}${ok || detail === undefined ? "" : `  ${JSON.stringify(detail)}`}`);
 };
-/** A failure that is a recorded engine bug, not the gizmo's: neither passed nor failed, listed apart with its note. */
-const known = (name, note, detail) => {
-  results.checks.push({ name, ok: "known", known: note, detail });
-  console.log(`known  ${name}  (${note})`);
-};
 /** A check the driver cannot exercise: recorded with its reason, neither passed nor failed. */
 const block = (name, reason) => {
   results.checks.push({ name, ok: null, blocked: reason });
@@ -236,18 +231,6 @@ const navigation = async (backend) => {
 };
 
 /**
- * WebKit draws a face added through the FontFace API with the fallback in a 2D canvas while measuring with it (Safari
- * 27.2; repro: webkit-fontface-canvas.html). The late-font trace shows it when, at the final draw, the label canvas
- * measures the face (its width differs from the fallback's) yet a fresh canvas's fillText matches the fallback.
- */
-const FONTFACE_CANVAS_BUG = "WebKit: FontFace API face drawn with fallback in 2D canvas";
-const isFontFaceCanvasBug = (late) => {
-  const faces = late?.trace?.find((t) => t.step === "draw")?.faces;
-  const { font, serif } = faces?.label ?? {};
-  return late?.frames === 1 && typeof font === "number" && typeof serif === "number" && font !== serif && faces.drawn?.font === false;
-};
-
-/**
  * The late web font cases (labels.spec.ts R25): a FontFace the page adds and loads, and a CSS `@font-face` family the
  * labels start loading (the usual app path); plus when Safari fires `loadingdone` for an added and loaded FontFace.
  */
@@ -255,7 +238,7 @@ const NEUTRALIZED = "canvas readback neutralized in Safari automation";
 const fonts = async (backend) => {
   // Controls first (T.readback()): the font checks read "no change" through toDataURL (the 2D text pair) and the
   // renderer's target readback (`changed`). Where a channel cannot tell plainly different images apart, a check that
-  // reads through it is inconclusive: blocked, not known or failed.
+  // reads through it is inconclusive: blocked, not failed.
   await open(`/lib/__tests__/browser/labels.html?backend=${backend}`);
   const controls = await exec("return T.readback()");
   results.readback = { ...results.readback, [backend]: controls };
@@ -271,7 +254,6 @@ const fonts = async (backend) => {
   const lateName = `${backend} labels: a font loaded after construction appears with no set()`;
   const lateOk = late.changed === true && late.frames === 1;
   if (!lateOk && !(dataUrlReads && targetReads)) block(lateName, `${NEUTRALIZED}; result ${JSON.stringify(late)}`);
-  else if (!lateOk && isFontFaceCanvasBug(late)) known(lateName, FONTFACE_CANVAS_BUG, late);
   else check(lateName, lateOk, late);
   await open(`/lib/__tests__/browser/labels.html?backend=${backend}`);
   const css = await exec("return T.cssFont()");
@@ -350,6 +332,5 @@ try {
 }
 const failures = results.checks.filter((c) => c.ok === false);
 const blocked = results.checks.filter((c) => c.ok === null).length;
-const knownCount = results.checks.filter((c) => c.ok === "known").length;
-console.log(`\n${results.checks.length - failures.length - blocked - knownCount} passed, ${failures.length} failed, ${knownCount} known, ${blocked} blocked`);
+console.log(`\n${results.checks.length - failures.length - blocked} passed, ${failures.length} failed, ${blocked} blocked`);
 process.exit(failed || failures.length ? 1 : 0);

@@ -132,7 +132,7 @@ describe("canvasLabels", () => {
 
   /**
    * A `document.fonts` stand-in. `load()` adds a loading face and starts a round as the engines do: `loading`, with a
-   * fresh `ready`, or with `ready` left already settled (`stale`, what Safari 27.2 was seen to do).
+   * fresh `ready`, or with `ready` left already settled (`stale`, which some engine might do).
    * `event: false` fires `loading` with no `fontfaces`, as Chromium does.
    */
   const fontSet = ({ status = "loaded", stale = false }: { status?: FontFaceSetLoadStatus; stale?: boolean } = {}) => {

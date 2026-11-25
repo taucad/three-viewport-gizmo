@@ -149,8 +149,7 @@
        * normal weight (`w400`) and in the fallback alone (`serif`); on the label context also after setting the string
        * again (`reset`). `drawn`: a fresh canvas's fillText image differs from the fallback's, at the label's weight
        * and at normal weight. Read back with toDataURL, not getImageData, which can throw InvalidStateError in WebKit
-       * (a failed pixel read or its privacy noise path). `dom()` uses the face once in the document (an off-screen
-       * element in that family, laid out) and then records `faces()` again: whether that makes a canvas draw it.
+       * (a failed pixel read or its privacy noise path).
        */
       const fontTracer = (family, faceStatus) => {
         const t0 = performance.now();
@@ -210,26 +209,14 @@
           safe(() => (ctx.font = font));
           return { variants, label, fresh, drawn };
         };
-        const dom = async (canvas) => {
-          const used = safe(() => {
-            const span = document.createElement("span");
-            span.textContent = "Front Back Top";
-            Object.assign(span.style, { position: "absolute", left: "-9999px", top: "0", fontFamily: `${family}, serif`, fontWeight: "900" });
-            document.body.append(span);
-            const width = span.offsetWidth; // forces style and layout in the face
-            return { span, width };
-          });
-          await new Promise((r) => requestAnimationFrame(() => r()));
-          note("dom", () => ({ width: used.width ?? used, faces: faces(canvas) }));
-          safe(() => used.span?.remove());
-        };
-        return { trace, note, faces, dom };
+        return { trace, note, faces };
       };
 
       /**
        * R25: a face added after construction redraws the labels with no set(). `trace` (see fontTracer) is evidence for
-       * the engines (Safari 27.2 redrew once, but in the fallback); at `loading` it also records how many faces the
-       * event names and whether `ready` had already settled.
+       * the engines, Safari above all, whose label pixels cannot be read back under safaridriver (see
+       * tests/browser/cross/README.md); at `loading` it also records how many faces the event names and whether `ready`
+       * had already settled.
        */
       const lateFont = async () => {
         const options = { type: "cube", font: { family: "S2LateFont, serif" } };
@@ -241,7 +228,7 @@
         // ArrayBuffer, which is parsed before it joins the set) loads through document.fonts, so `loading` fires.
         // WebKit fires no `loadingdone` for it.
         const face = new FontFace("S2LateFont", "url(/tests/browser/fixtures/geist-latin.woff2)", { weight: "100 900" });
-        const { trace, note, faces, dom } = fontTracer("S2LateFont", () => face.status);
+        const { trace, note, faces } = fontTracer("S2LateFont", () => face.status);
         let frames = 0;
         let redrew;
         const redraw = new Promise((r) => (redrew = r));
@@ -274,7 +261,6 @@
         const after = await draw();
         note("draw", () => ({ faces: faces(canvas) }));
         const redrawn = canvas.toDataURL() !== ink;
-        await dom(canvas);
         document.fonts.removeEventListener("loading", onLoading);
         disposeScene(scene);
         target.dispose();
@@ -291,7 +277,7 @@
         style.textContent = "@font-face { font-family: S2CssFont; src: url(/tests/browser/fixtures/geist-latin.woff2?css) }";
         document.head.append(style);
         const cssFace = () => [...document.fonts].find((f) => f.family.replace(/"/g, "") === "S2CssFont")?.status ?? null;
-        const { trace, note, faces, dom } = fontTracer("S2CssFont", cssFace);
+        const { trace, note, faces } = fontTracer("S2CssFont", cssFace);
         let frames = 0;
         let canvas;
         let ink;
@@ -318,7 +304,6 @@
         note("draw", () => ({ faces: faces(canvas) }));
         const loaded = document.fonts.check("12px S2CssFont");
         const redrawn = canvas.toDataURL() !== ink;
-        await dom(canvas);
         disposeScene(scene);
         target.dispose();
         style.remove();
