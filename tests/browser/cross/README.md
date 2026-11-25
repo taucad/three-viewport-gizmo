@@ -26,6 +26,11 @@ Safari checks and the VoiceOver transcript. The raw files are in the job's artif
   repro for a WebKit report. The CSS `@font-face` case (`T.cssFont()`) is checked separately and stays a failure if
   it fails.
 
+Both font checks read "no change" through canvas and render-target readback, so `safari.mjs` first runs readback
+controls (`T.readback()`: black vs white, "AAAA" vs "WWWW", red vs blue, through toDataURL, getImageData, toBlob,
+WebGL textures, createImageBitmap and the renderer's target). Where the channel a font check reads through cannot tell
+those apart, the check is `blocked` ("canvas readback neutralized in Safari automation"), not known or failed.
+
 ## What is left out, and why
 
 - **WebGPU off Chromium.** Playwright's Linux Firefox and WebKit have no WebGPU, and the WebGPU fixture launches

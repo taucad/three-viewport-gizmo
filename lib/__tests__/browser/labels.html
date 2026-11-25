@@ -357,7 +357,106 @@
         return { lit, off };
       };
 
-      window.T = { memory, sharp, lateFont, cssFont, seams };
+      /**
+       * P13 readback controls: whether each channel the font checks read through tells plainly different images apart,
+       * so a Safari "no change" is read as a font result only when readback works. Pairs: a 2D canvas filled black vs
+       * white, and "AAAA" vs "WWWW" in plain serif. Channels: toDataURL, getImageData, toBlob size, the 2D canvas
+       * uploaded into a WebGL texture (and through createImageBitmap) read with readPixels; a WebGL clear red vs blue;
+       * and the gizmo's own path, this renderer's render target cleared red vs blue and read back as `changed` is.
+       * Each value is `true` when the pair differs, or `{ error }`.
+       */
+      const readback = async () => {
+        const canvas2d = (paint) => {
+          const c = Object.assign(document.createElement("canvas"), { width: 64, height: 32 });
+          paint(c.getContext("2d"));
+          return c;
+        };
+        const fill = (color) => canvas2d((x) => ((x.fillStyle = color), x.fillRect(0, 0, 64, 32)));
+        const text = (t) =>
+          canvas2d((x) => {
+            x.fillStyle = "#fff";
+            x.fillRect(0, 0, 64, 32);
+            x.fillStyle = "#000";
+            x.font = "24px serif";
+            x.fillText(t, 2, 26);
+          });
+        const pairs = { fill: [fill("#000"), fill("#fff")], text: [text("AAAA"), text("WWWW")] };
+        const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+        const gl = (() => {
+          const c = Object.assign(document.createElement("canvas"), { width: 64, height: 32 });
+          return c.getContext("webgl2") ?? c.getContext("webgl");
+        })();
+        const viaTexture = (source) => {
+          const tex = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, tex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+          const fb = gl.createFramebuffer();
+          gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+          const out = new Uint8Array(64 * 32 * 4);
+          gl.readPixels(0, 0, 64, 32, gl.RGBA, gl.UNSIGNED_BYTE, out);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.deleteFramebuffer(fb);
+          gl.deleteTexture(tex);
+          return [...out];
+        };
+        const channels = {};
+        for (const [name, [a, b]] of Object.entries(pairs)) {
+          const blob = (c) => new Promise((r) => c.toBlob((x) => r(x?.size ?? null)));
+          const [sa, sb] = await Promise.all([blob(a), blob(b)]).catch((e) => [{ error: String(e) }, null]);
+          let bitmap;
+          try {
+            const [ba, bb] = await Promise.all([createImageBitmap(a), createImageBitmap(b)]);
+            bitmap = safe(() => !same(viaTexture(ba), viaTexture(bb)));
+          } catch (error) {
+            bitmap = { error: `${error?.name}: ${error?.message}` };
+          }
+          channels[name] = {
+            toDataURL: safe(() => a.toDataURL() !== b.toDataURL()),
+            getImageData: safe(() => !same([...a.getContext("2d").getImageData(0, 0, 64, 32).data], [...b.getContext("2d").getImageData(0, 0, 64, 32).data])),
+            toBlobSize: sa?.error ? sa : { differs: sa !== sb, sizes: [sa, sb] },
+            webglTexture: safe(() => !same(viaTexture(a), viaTexture(b))),
+            imageBitmapTexture: bitmap,
+          };
+        }
+        channels.webglClear = safe(() => {
+          const read = (r, g, b) => {
+            gl.clearColor(r, g, b, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            const out = new Uint8Array(4);
+            gl.readPixels(8, 8, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
+            return [...out];
+          };
+          const red = read(1, 0, 0);
+          const blue = read(0, 0, 1);
+          return { differs: !same(red, blue), red, blue };
+        });
+        // The gizmo checks' own path: this renderer, a render target, the async readback `changed` uses.
+        try {
+          const THREEGL = backend === "webgl" ? await import("three") : THREE;
+          const target = backend === "webgl" ? new THREEGL.WebGLRenderTarget(8, 8) : new THREE.RenderTarget(8, 8);
+          const read = async (color) => {
+            renderer.setRenderTarget(target);
+            renderer.setClearColor(color, 1);
+            renderer.clear();
+            renderer.setRenderTarget(null);
+            if (backend !== "webgl") return [...(await renderer.readRenderTargetPixelsAsync(target, 0, 0, 8, 8))];
+            const buffer = new Uint8Array(8 * 8 * 4);
+            await renderer.readRenderTargetPixelsAsync(target, 0, 0, 8, 8, buffer);
+            return [...buffer];
+          };
+          const red = await read(0xff0000);
+          const blue = await read(0x0000ff);
+          renderer.setClearColor(0x000000, 0);
+          target.dispose();
+          channels.renderTarget = { differs: !same(red, blue), red: red.slice(0, 4), blue: blue.slice(0, 4) };
+        } catch (error) {
+          channels.renderTarget = { error: `${error?.name}: ${error?.message}` };
+        }
+        return channels;
+      };
+
+      window.T = { memory, sharp, lateFont, cssFont, seams, readback };
       window.READY = true;
     </script>
   </body>

@@ -64,6 +64,17 @@ for (const backend of ["webgpu", "webgl"] as const) {
       expect(errors).toEqual([]);
     });
 
+    test("the readback controls tell plainly different images apart in every channel", async ({ page }) => {
+      const channels = await page.evaluate<Record<string, unknown>>("T.readback()");
+      const differs = (v: unknown) => v === true || (v as { differs?: boolean })?.differs === true;
+      for (const pair of ["fill", "text"]) {
+        const c = channels[pair] as Record<string, unknown>;
+        expect(differs(c.toDataURL) && differs(c.getImageData) && differs(c.webglTexture) && differs(c.imageBitmapTexture), `${pair}: ${JSON.stringify(c)}`).toBe(true);
+      }
+      expect(differs(channels.webglClear), JSON.stringify(channels.webglClear)).toBe(true);
+      expect(differs(channels.renderTarget), JSON.stringify(channels.renderTarget)).toBe(true);
+    });
+
     test("a CSS @font-face family the labels start loading appears with no set()", async ({ page }, info) => {
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
