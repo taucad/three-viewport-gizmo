@@ -15,9 +15,10 @@ export default function ResponsiveGuide() {
       <h1>Responsive</h1>
       <p>
         The gizmo is one element inside its <code>container</code>. Give it a class and size it with
-        CSS; it measures its box again whenever layout may have moved it (a resize, a scroll, a change to its
-        own or the canvas&apos;s offset or size), so layout changes need no call. A move made only by a CSS transform
-        is picked up at the next of those, or call <code>set()</code>.
+        CSS; it measures its box again whenever layout may have moved it (a resize, a scroll, a change to the
+        position or size of its box or the canvas&apos;s, including a move of a positioned container), so layout
+        changes need no call. A move made only by a CSS transform is picked up at the next of those, or at once
+        after <code>{"set({})"}</code>.
       </p>
 
       <h2>Prerequisites</h2>

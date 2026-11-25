@@ -354,6 +354,8 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     const merged = mergeOptions(this._raw, options);
     const next = resolveOptions(merged, this._resolveContext(this._controls));
     this._raw = merged;
+    // Every call measures again, `set({})` too: it picks up a move no layout signal reports (a CSS transform).
+    this._layout.invalidate();
     this._apply(next);
   }
 

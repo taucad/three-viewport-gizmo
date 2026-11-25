@@ -66,6 +66,10 @@ describe("viewport (I4: render() reads layout only when it may have moved)", () 
     expect(frame()).toBe(0);
     gizmo.set({ size: 96 });
     expect(frame()).toBe(1);
+    // `set({})` changes no option and still measures again: the documented way to pick up a transform-only move.
+    gizmo.set({});
+    expect(frame()).toBe(1);
+    expect(frame()).toBe(0);
     window.dispatchEvent(new Event("resize"));
     expect(frame()).toBe(1);
     expect(frame()).toBe(0);
