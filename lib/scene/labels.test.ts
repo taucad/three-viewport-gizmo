@@ -230,6 +230,23 @@ describe("canvasLabels", () => {
     expect(labels.onRedraw).toHaveBeenCalledOnce();
   });
 
+  it("keeps the round open for a face that starts loading during its frame wait", async () => {
+    const frame = frames();
+    const fonts = fontSet({ stale: true });
+    const { labels } = request(resolve({ type: "cube" }));
+    labels.onRedraw = vi.fn();
+    const first = fonts.load();
+    first.settle();
+    await flush(); // the round now waits for its frame
+    const late = fonts.load(); // its `loading` arrives while the round is waiting
+    await frame();
+    expect(labels.onRedraw).not.toHaveBeenCalled();
+    late.settle();
+    await flush();
+    await frame();
+    expect(labels.onRedraw).toHaveBeenCalledOnce();
+  });
+
   it("falls back to the set's `ready` when no face is loading", async () => {
     const frame = frames();
     const fonts = fontSet();

@@ -202,8 +202,11 @@
         const ink = canvas.toDataURL();
         const onLoading = (event) => {
           const ready = document.fonts.ready;
-          // Settled already when its reaction runs before that of a promise made after it.
-          void Promise.race([ready.then(() => true), Promise.resolve(false)]).then((settled) =>
+          // Settled already when its own reaction runs before that of a resolved promise queued after it (one
+          // reaction each, so the depths match).
+          let settled = false;
+          void ready.then(() => (settled = true));
+          void Promise.resolve().then(() =>
             note("loading", { fontfaces: event.fontfaces?.length ?? null, readySettled: settled })
           );
           void ready.then(() => note("ready"));

@@ -164,11 +164,15 @@ function watchFonts(onLoaded: () => void): () => void {
   const round = async (event?: Event) => {
     let faces = loadingFaces(fonts, event);
     if (faces.length === 0) await fonts.ready.catch(() => {});
-    while (faces.length > 0) {
-      await Promise.allSettled(faces.map((face) => face.loaded));
+    // A face can start loading during the frame wait, when `onLoading` ignores its event, so look again after it.
+    do {
+      while (faces.length > 0) {
+        await Promise.allSettled(faces.map((face) => face.loaded));
+        faces = loadingFaces(fonts);
+      }
+      if (typeof globalThis.requestAnimationFrame === "function") await new Promise(requestAnimationFrame);
       faces = loadingFaces(fonts);
-    }
-    if (typeof globalThis.requestAnimationFrame === "function") await new Promise(requestAnimationFrame);
+    } while (faces.length > 0);
   };
   const onLoading = (event?: Event) => {
     if (waiting) return;
