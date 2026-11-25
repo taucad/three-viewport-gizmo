@@ -148,3 +148,29 @@ export function targetRect(renderer: GizmoRenderer, rect: GizmoViewport, target:
   out.w = rect.height * sy;
   return out;
 }
+
+/**
+ * The part of `rect` inside a render area `width` × `height` (both in `rect`'s units, origin at a corner of the area),
+ * written to `out`: the scissor that keeps a draw at viewport `rect` on the area. WebGPU rejects a scissor that is not
+ * contained in its target (three clamps only the far edges, so a rectangle past the right or top edge keeps an `x` or
+ * `y` outside), and a scissor clamped at the near edges without shrinking would let the draw past the rectangle.
+ *
+ * @param rect - The gizmo's viewport, `x, y, width, height` as `x, y, z, w`
+ * @param width - The render area's width
+ * @param height - The render area's height
+ * @param out - Receives the clipped rectangle as `x, y, z, w`; may be `rect` itself
+ * @returns Whether any of `rect` is inside the area; `out` is not written when none is
+ */
+export function clipRect(rect: Vector4, width: number, height: number, out: Vector4): boolean {
+  const x0 = Math.max(rect.x, 0);
+  const y0 = Math.max(rect.y, 0);
+  const x1 = Math.min(rect.x + rect.z, width);
+  const y1 = Math.min(rect.y + rect.w, height);
+  // Also false for NaN and for an empty rectangle (an element with no box).
+  if (!(x1 > x0 && y1 > y0)) return false;
+  out.x = x0;
+  out.y = y0;
+  out.z = x1 - x0;
+  out.w = y1 - y0;
+  return true;
+}

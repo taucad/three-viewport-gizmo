@@ -6,6 +6,7 @@ import {
   NeverDepth,
   PlaneGeometry,
   REVISION,
+  Vector2,
   Vector4,
   type OrthographicCamera,
   type PerspectiveCamera,
@@ -15,7 +16,7 @@ import {
 import type { GizmoViewport } from "../types";
 import { meshAttributes, whiteTexture, type Owned } from "../scene/materials";
 import { isWebGPURenderer, type GizmoRenderer } from "./backend";
-import { targetRect } from "./rect";
+import { clipRect, targetRect } from "./rect";
 
 /** The gizmo's depth-reset quad, from {@link createDepthReset}. */
 export type DepthReset = Mesh<PlaneGeometry, MeshBasicMaterial>;
@@ -35,6 +36,8 @@ const _scissor = /*@__PURE__*/ new Vector4();
 const _targetViewport = /*@__PURE__*/ new Vector4();
 const _targetScissor = /*@__PURE__*/ new Vector4();
 const _rect = /*@__PURE__*/ new Vector4();
+const _clip = /*@__PURE__*/ new Vector4();
+const _size = /*@__PURE__*/ new Vector2();
 
 /**
  * Creates the quad that resets depth inside the gizmo's rectangle (P2, F0's mechanism). Drawn first, colour off, depth
@@ -115,6 +118,10 @@ function rebindTarget(renderer: GizmoRenderer) {
  * the rectangle is written to that target's `viewport` and `scissor` in its pixels and restored after, so a draw into a
  * host target lands in the right place on both backends with no host code (D15). Allocates nothing.
  *
+ * A rectangle partly off the canvas or target keeps its whole viewport, so the gizmo is cut, not squashed, and is
+ * scissored to the part on it ({@link clipRect}); one wholly off it draws nothing and touches no renderer state, since
+ * WebGPU rejects a scissor outside its target.
+ *
  * @param renderer - The host renderer
  * @param scene - The gizmo's scene: `root` and `reset` as siblings
  * @param camera - The gizmo's own camera
@@ -129,6 +136,20 @@ export function renderInRect(
   reset: DepthReset
 ): void {
   const target = renderer.getRenderTarget() as RenderTarget | null;
+  if (target) targetRect(renderer, rect, target, _rect);
+  else {
+    // A Vector4 filled field by field: a fractional coordinate passed as a number to a call V8 does not inline is
+    // boxed, 12 B each, about 24 B a frame for a gizmo at a subpixel offset (perf budget `alloc`).
+    _rect.x = rect.x;
+    _rect.y = rect.y;
+    _rect.z = rect.width;
+    _rect.w = rect.height;
+  }
+  // The render area in the rectangle's units: the target's pixels, or the canvas's size in the renderer's CSS pixels.
+  if (target) _size.set(target.width, target.height);
+  else renderer.getSize(_size);
+  if (!clipRect(_rect, _size.x, _size.y, _clip)) return;
+
   const autoClear = renderer.autoClear;
   const scissorTest = renderer.getScissorTest();
   renderer.getViewport(_viewport);
@@ -146,20 +167,13 @@ export function renderInRect(
     // WebGPU reads the scissor test from the canvas even when it draws into a target.
     renderer.setScissorTest(true);
     if (target) {
-      targetRect(renderer, rect, target, _rect);
       target.viewport.copy(_rect);
-      target.scissor.copy(_rect);
+      target.scissor.copy(_clip);
       target.scissorTest = true;
       rebindTarget(renderer);
     } else {
-      // Passed as a Vector4 filled field by field: a fractional coordinate passed as a number to a call V8 does not
-      // inline is boxed, 12 B each, about 24 B a frame for a gizmo at a subpixel offset (perf budget `alloc`).
-      _rect.x = rect.x;
-      _rect.y = rect.y;
-      _rect.z = rect.width;
-      _rect.w = rect.height;
       renderer.setViewport(_rect);
-      renderer.setScissor(_rect);
+      renderer.setScissor(_clip);
     }
     renderer.render(scene, camera);
   } finally {
