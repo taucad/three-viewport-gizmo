@@ -158,10 +158,12 @@ for (const backend of backends) {
 for (const backend of backends) {
   test(`${backend}: a gizmo partly off the canvas is cut, not squashed, and one wholly off it draws nothing, with no WebGPU validation error`, async ({ page }) => {
     const { F, errors } = await open(page, { backend, type: "cube" });
-    const result = await F<{ cut: number; litHalf: number; leaked: number; offLit: number }>("offCanvas()");
+    const result = await F<{ cut: number; exact: number; litHalf: number; leaked: number; offLit: number }>("offCanvas()");
     annotate("off-canvas", result);
     expect(result.litHalf, "the reference half shows the gizmo").toBeGreaterThan(1000);
     expect(result).toMatchObject({ cut: 0, leaked: 0, offLit: 0 });
+    // Rounding after a whole-pixel move, not a squash: a few pixels at most (see `offCanvas`).
+    expect(result.exact).toBeLessThanOrEqual(8);
     expect(errors).toEqual([]);
   });
 }
