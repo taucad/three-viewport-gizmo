@@ -21,8 +21,12 @@
       ]
     },
     "changelog": {
+      "workspaceChangelog": {
+        "renderer": "{workspaceRoot}/scripts/changelog-renderer.cjs"
+      },
       "projectChangelogs": {
         "file": "CHANGELOG.md",
+        "renderer": "{workspaceRoot}/scripts/changelog-renderer.cjs",
         "renderOptions": {
           "authors": true,
           "commitReferences": true,
