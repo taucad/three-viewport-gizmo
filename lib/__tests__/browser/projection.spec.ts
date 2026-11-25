@@ -14,6 +14,13 @@ const WEBGPU = 2001;
 const FIELDS_OF_VIEW = [0.1, 5, 20, 25.57, 26.07, 45, 75];
 const OBLIQUE = [3, 2.6, 3.4];
 const RIGHT = [1, 0, 0];
+/**
+ * Firefox has no `EXT_clip_control`, so three's WebGLRenderer cannot honour `reversedDepthBuffer` there and warns once
+ * that it falls back to the default depth buffer (P13 cross-browser run). That exact warning is expected on Firefox's
+ * WebGL reversed-depth case only; every other warning still fails the case.
+ */
+const CLIP_CONTROL_FALLBACK =
+  "THREE.WebGLRenderer: Unable to use reversed depth buffer due to missing EXT_clip_control extension. Fallback to default depth buffer.";
 
 const open = async (page: Page, backend: string, reversed: boolean) => {
   const errors: string[] = [];
@@ -31,7 +38,7 @@ const hoverAt = async (page: Page, x: number, y: number) => {
 
 for (const backend of ["webgl", "webgpu"] as const) {
   for (const reversed of [false, true]) {
-    test(`${backend}${reversed ? " reversedDepthBuffer" : ""}: the pointer hits what is drawn at every field of view`, async ({ page }) => {
+    test(`${backend}${reversed ? " reversedDepthBuffer" : ""}: the pointer hits what is drawn at every field of view`, async ({ page, browserName }) => {
       test.setTimeout(120_000);
       const errors = await open(page, backend, reversed);
       let projection: Projection | null = null;
@@ -53,7 +60,8 @@ for (const backend of ["webgl", "webgpu"] as const) {
       // Not vacuous: the renderer did rewrite the gizmo camera's projection as this case names.
       if (backend === "webgpu") expect(projection!.coordinateSystem).toBe(WEBGPU);
       if (reversed && backend === "webgpu") expect(projection!.reversedDepth).toBe(true);
-      expect(errors).toEqual([]);
+      const expected = browserName === "firefox" && backend === "webgl" && reversed ? [CLIP_CONTROL_FALLBACK] : [];
+      expect(errors.filter((e) => !expected.includes(e))).toEqual([]);
     });
   }
 }

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Adapter probe</title>
+  </head>
+  <body>
+    <script type="module">
+      // P13: what the browser gives the gizmo to draw with. `P.probe()` resolves with the user agent, the WebGL 2
+      // renderer string and the WebGPU adapter (name, fallback or not), plus whether three's WebGPURenderer really
+      // initialises on the WebGPU backend rather than falling back to WebGL 2.
+      const webgl = () => {
+        const gl = document.createElement("canvas").getContext("webgl2");
+        if (!gl) return null;
+        const debug = gl.getExtension("WEBGL_debug_renderer_info");
+        return {
+          version: gl.getParameter(gl.VERSION),
+          vendor: debug ? gl.getParameter(debug.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR),
+          renderer: debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
+        };
+      };
+      const adapter = async (powerPreference) => {
+        const a = await navigator.gpu.requestAdapter({ powerPreference });
+        if (!a) return null;
+        const info = a.info ?? (await a.requestAdapterInfo?.()) ?? {};
+        return {
+          vendor: info.vendor ?? null,
+          architecture: info.architecture ?? null,
+          device: info.device ?? null,
+          description: info.description ?? null,
+          isFallbackAdapter: info.isFallbackAdapter ?? a.isFallbackAdapter ?? null,
+          features: [...a.features].sort(),
+          maxTextureDimension2D: a.limits.maxTextureDimension2D,
+        };
+      };
+      const webgpu = async () => {
+        if (!("gpu" in navigator)) return { available: false, reason: "navigator.gpu is undefined" };
+        try {
+          const low = await adapter("low-power");
+          const high = await adapter("high-performance");
+          return { available: !!(low || high), lowPower: low, highPerformance: high };
+        } catch (error) {
+          return { available: false, reason: String(error) };
+        }
+      };
+      const three = async () => {
+        try {
+          const THREE = await import("three/webgpu");
+          const renderer = new THREE.WebGPURenderer();
+          await renderer.init();
+          const isWebGPU = renderer.backend.isWebGPUBackend === true;
+          renderer.dispose();
+          return { webgpuBackend: isWebGPU };
+        } catch (error) {
+          return { error: String(error) };
+        }
+      };
+      window.P = {
+        probe: async () => ({
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          devicePixelRatio: devicePixelRatio,
+          webgl2: webgl(),
+          webgpu: await webgpu(),
+          threeWebGPURenderer: await three(),
+        }),
+      };
+      window.READY = true;
+    </script>
+  </body>
+</html>

@@ -4,7 +4,7 @@ import { classifyChange } from "../options/changes";
 import { resolveOptions } from "../options/resolve";
 import type { GizmoOptions } from "../types";
 import { faceOnOutline, pixelsPerUnit, TRIAD_SCENE_SCALE } from "./outline";
-import { buildScene, disposeScene } from "./build";
+import { buildScene, disposeScene, faceScene } from "./build";
 import { TRIAD_COLORS } from "./triad";
 import { updateScene } from "./update";
 
@@ -69,8 +69,8 @@ describe("triad", () => {
     const camera = new PerspectiveCamera();
     camera.position.set(3, 4, 5);
     scene.group.updateMatrixWorld(true);
+    faceScene(scene, camera);
     (object.children.slice(0, 3) as Mesh[]).forEach((line, i) => {
-      line.onBeforeRender(undefined as never, undefined as never, camera, line.geometry, line.material as never, null as never);
       const axis = new Vector3().setComponent(i, 1);
       // Still along its axis, and its face's normal (local +Z) is the camera's direction off that axis.
       expect(new Vector3(0, 1, 0).applyQuaternion(line.quaternion).distanceTo(axis)).toBeLessThan(1e-9);

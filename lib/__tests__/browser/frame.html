@@ -16,7 +16,7 @@
       // The host draws a box, a near wall under the gizmo's rectangle and, after the gizmo, a far red quad (F0's probe).
       // ponytail: drives lib/render and lib/scene directly until K5 wires renderInRect into the class.
       import { resolveOptions } from "/lib/options/resolve.ts";
-      import { buildScene } from "/lib/scene/build.ts";
+      import { buildScene, faceScene } from "/lib/scene/build.ts";
       import { createInternalCamera, setFieldOfView } from "/lib/render/internalCamera.ts";
       import { createDepthReset, renderInRect } from "/lib/render/frame.ts";
       import { measureViewport, watchViewport } from "/lib/render/rect.ts";
@@ -69,6 +69,7 @@
       const gCamera = createInternalCamera(type === "sphere");
       const reset = createDepthReset(gizmo.owned);
       const gScene = new THREE.Scene().add(root, reset);
+      gScene.onBeforeRender = (_renderer, _world, c) => faceScene(gizmo, c);
       const rect = { x: 0, y: 0, width: 0, height: 0 };
       // As the class measures: only when layout may have moved the element (I4).
       const watch = watchViewport(renderer, element);
@@ -327,6 +328,69 @@
           renderer.setSize(W, H);
           rows.end = await frame();
           return rows;
+        },
+
+        /**
+         * The gizmo laid out partly and then wholly off the canvas, as a host whose gizmo container is not the canvas's
+         * can (Tau's container is `document.body`). Over black: flush with the canvas's right and left edges (the
+         * references) and half past them, then wholly past the right edge, also while drawing into a render target.
+         * `cut`: pixels of the half left on the canvas that differ from the same half of the reference (0 when the gizmo
+         * is cut, not squashed); `litHalf`: lit pixels in those halves of the references; `leaked`: lit pixels outside
+         * the gizmo's part of the canvas in the half-past frames; `offLit`: lit pixels of the wholly-off frames.
+         */
+        async offCanvas() {
+          const style = element.style.cssText;
+          const half = R.w / 2;
+          // Over opaque black: a pixel the gizmo draws on has colour.
+          const shows = (pixels, i) => pixels[i] > 8 || pixels[i + 1] > 8 || pixels[i + 2] > 8;
+          const at = (side, offset) => {
+            element.style.left = element.style.right = "auto";
+            element.style[side] = `${offset}px`;
+            return gizmoOver(0x000000);
+          };
+          let cut = 0, litHalf = 0, leaked = 0;
+          for (const side of ["right", "left"]) {
+            const flush = await at(side, 0);
+            const partly = await at(side, -half);
+            // The columns of the canvas the gizmo keeps, and how far its pixels moved from the flush frame.
+            const [from, shift] = side === "right" ? [W - half, half] : [0, -half];
+            for (let y = 0; y < H; y++)
+              for (let x = 0; x < W; x++) {
+                const i = (y * W + x) * 4;
+                if (y < R.y || y >= R.y + R.h || x < from || x >= from + half) {
+                  if (shows(partly, i)) leaked++;
+                  continue;
+                }
+                const reference = i - shift * 4;
+                if (shows(flush, reference)) litHalf++;
+                for (let c = 0; c < 4; c++)
+                  if (flush[reference + c] !== partly[i + c]) {
+                    cut++;
+                    break;
+                  }
+              }
+          }
+          let offLit = 0;
+          const off = await at("right", -2 * R.w);
+          for (let i = 0; i < off.length; i += 4) if (shows(off, i)) offLit++;
+          const target = backend === "webgpu" ? new THREE.RenderTarget(W, H) : new THREE.WebGLRenderTarget(W, H);
+          renderer.setRenderTarget(target);
+          renderer.setClearColor(0x000000, 0);
+          renderer.clear();
+          drawGizmo();
+          renderer.setRenderTarget(null);
+          let pixels;
+          if (backend === "webgl") {
+            pixels = new Uint8Array(W * H * 4);
+            await renderer.readRenderTargetPixelsAsync(target, 0, 0, W, H, pixels);
+          } else pixels = await renderer.readRenderTargetPixelsAsync(target, 0, 0, W, H);
+          for (let i = 0; i < pixels.length; i += 4) if (lit(pixels, i)) offLit++;
+          target.dispose();
+          // WebGPU reports validation errors on the console after the queue has run.
+          if (backend === "webgpu") await renderer.backend.device.queue.onSubmittedWorkDone();
+          await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+          element.style.cssText = style;
+          return { cut, litHalf, leaked, offLit, rect: { ...rect } };
         },
 
         /** `n` gizmo frames (measure and draw), for the allocation sample; the host frame is left out. */

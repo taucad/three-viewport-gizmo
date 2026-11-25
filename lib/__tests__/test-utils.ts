@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import type { WebGLRenderer } from "three";
-import { PerspectiveCamera, REVISION, Vector3, Vector4 } from "three";
+import { PerspectiveCamera, REVISION, Vector2, Vector3, Vector4 } from "three";
 import type { GizmoOptions } from "../index.js";
 import { ViewportGizmo } from "../ViewportGizmo.js";
 
@@ -27,6 +27,7 @@ export function createStubRenderer(options: StubRendererOptions = {}): WebGLRend
     getScissorTest: (): boolean => false,
     setScissorTest: (): void => {},
     getRenderTarget: (): null => null,
+    getSize: (target: Vector2): Vector2 => target.set(800, 600),
     capabilities: { reversedDepthBuffer: false },
     getScissor: (target: Vector4): Vector4 => target.set(0, 0, 800, 600),
     setViewport: (): void => {},
@@ -47,7 +48,21 @@ export type CreateGizmoOptions = {
   readonly gizmoOptions?: GizmoOptions;
 };
 
-/** A gizmo on a stub renderer in a fresh container; the caller disposes it. */
+/** The rectangle every mounted gizmo element measures as: a 128 px square at the page origin. */
+export const RECT = DOMRect.fromRect({ x: 0, y: 0, width: 128, height: 128 });
+
+/**
+ * Lays the gizmo's element out at {@link RECT}, as jsdom does not, so `render()` draws: a rectangle with no area, or off
+ * the canvas, draws nothing.
+ *
+ * @returns The gizmo
+ */
+export function layOut(gizmo: ViewportGizmo): ViewportGizmo {
+  gizmo.domElement.getBoundingClientRect = () => RECT;
+  return gizmo;
+}
+
+/** A gizmo on a stub renderer in a fresh container, laid out at {@link RECT}; the caller disposes it. */
 export function createGizmo({ up = new Vector3(0, 1, 0), cameraPosition, gizmoOptions = { type: "cube" } }: CreateGizmoOptions) {
   const camera = new PerspectiveCamera(50, 1, 0.1, 1000);
   camera.up.copy(up);
@@ -55,11 +70,8 @@ export function createGizmo({ up = new Vector3(0, 1, 0), cameraPosition, gizmoOp
   camera.lookAt(0, 0, 0);
   const container = document.createElement("div");
   document.body.appendChild(container);
-  return new ViewportGizmo(camera, createStubRenderer(), { container, ...gizmoOptions });
+  return layOut(new ViewportGizmo(camera, createStubRenderer(), { container, ...gizmoOptions }));
 }
-
-/** The rectangle every mounted gizmo element measures as: a 128 px square at the page origin. */
-export const RECT = DOMRect.fromRect({ x: 0, y: 0, width: 128, height: 128 });
 
 /**
  * Creates a gizmo whose element measures as {@link RECT} and takes pointer capture, as jsdom's does not.

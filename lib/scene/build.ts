@@ -1,4 +1,5 @@
 import {
+  type Camera,
   Group,
   Mesh,
   Sprite,
@@ -37,8 +38,15 @@ export type SceneTarget = {
   hover: Material;
 };
 
-/** A part that is not a target: built on a structural change, restyled in place on a cheap one. */
-export type ScenePart = Readonly<{ object: Object3D; update(o: SceneOptions, pointerOver: boolean): void }>;
+/**
+ * A part that is not a target: built on a structural change, restyled in place on a cheap one. `face` turns its
+ * camera-facing objects to `camera`, from {@link faceScene}.
+ */
+export type ScenePart = Readonly<{
+  object: Object3D;
+  update(o: SceneOptions, pointerOver: boolean): void;
+  face?: (camera: Camera) => void;
+}>;
 
 /** Builds one part from the options and the placed targets; registers whatever it creates in `owned`. */
 export type PartBuilder = (o: SceneOptions, scene: Readonly<{ frame: LabelFrame; targets: readonly SceneTarget[] }>, owned: Owned) => ScenePart;
@@ -158,6 +166,22 @@ export function buildScene(options: GizmoResolvedOptions, builders: Partial<Scen
   restyleTargets(scene);
   for (const part of Object.values(parts)) part.update(o, false);
   return scene;
+}
+
+/**
+ * Turns the scene's camera-facing objects (the sphere's background disc, the triad's ribbons and labels) to `camera`.
+ * Call it as the gizmo's three.js scene's `onBeforeRender`: both renderers call that after updating world matrices and
+ * before building and sorting the render list, so the sort and the draw see this frame's turns and the drawn frame
+ * depends on the pose and the options only. Allocates nothing.
+ *
+ * @param scene - The gizmo scene, with its world matrices current
+ * @param camera - The gizmo's own camera, as the renderer draws with it
+ */
+export function faceScene(scene: GizmoScene, camera: Camera): void {
+  const { background, lines, triad } = scene.parts;
+  background.face?.(camera);
+  lines.face?.(camera);
+  triad.face?.(camera);
 }
 
 /**

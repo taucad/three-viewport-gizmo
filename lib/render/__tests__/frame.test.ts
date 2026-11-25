@@ -1,4 +1,4 @@
-import { AlwaysDepth, MathUtils, NeverDepth, PerspectiveCamera, RenderTarget, REVISION, Scene, Vector4 } from "three";
+import { AlwaysDepth, MathUtils, NeverDepth, PerspectiveCamera, RenderTarget, REVISION, Scene, Vector2, Vector4 } from "three";
 import { describe, expect, it } from "vitest";
 import { createDepthReset, renderInRect } from "../frame";
 import { createInternalCamera } from "../internalCamera";
@@ -18,6 +18,7 @@ function fakeRenderer({ webgpu = false, reversed = false, target = null as Rende
     reversedDepthBuffer: reversed,
     capabilities: { reversedDepthBuffer: reversed },
     getRenderTarget: () => target,
+    getSize: (v: Vector2) => v.set(800, 600),
     setRenderTarget: () => {},
     getActiveCubeFace: () => 0,
     getActiveMipmapLevel: () => 0,
@@ -82,6 +83,60 @@ describe("renderInRect", () => {
     renderInRect(renderer, scene, camera, rect, reset);
     expect(seen[0].target).toEqual([1328, 16, 256, 256]);
     expect([target.viewport.toArray(), target.scissor.toArray(), target.scissorTest]).toEqual([[1, 2, 3, 4], [5, 6, 7, 8], false]);
+  });
+
+  it("keeps the whole viewport and scissors the part on the canvas when the rectangle is partly off it", () => {
+    const cases = [
+      // WebGL's y runs from the bottom: past the right edge and the top; past the left edge and the bottom.
+      [{ x: 736, y: 500, width: 128, height: 128 }, [736, 500, 64, 100]],
+      [{ x: -28.5, y: -40, width: 128, height: 128 }, [0, 0, 99.5, 88]],
+    ] as const;
+    for (const [partly, scissor] of cases) {
+      const { renderer, state, seen } = fakeRenderer();
+      const { reset, scene, camera } = setup();
+      renderInRect(renderer, scene, camera, partly, reset);
+      expect(seen).toEqual([
+        { viewport: [partly.x, partly.y, partly.width, partly.height], scissor, scissorTest: true, autoClear: false, target: undefined },
+      ]);
+      expect([state.viewport.toArray(), state.scissor.toArray(), state.scissorTest]).toEqual([[10, 20, 300, 200], [1, 2, 3, 4], false]);
+    }
+  });
+
+  it("draws nothing and touches no renderer state when the rectangle is off the canvas or empty", () => {
+    for (const off of [
+      { x: 960, y: 48, width: 192, height: 192 }, // Tau's case: the element laid out right of the canvas
+      { x: 8, y: -200, width: 128, height: 128 },
+      { x: 8, y: 8, width: 0, height: 0 },
+    ]) {
+      const { renderer, state, seen } = fakeRenderer();
+      const calls: string[] = [];
+      const methods = renderer as unknown as Record<string, (...args: unknown[]) => unknown>;
+      for (const name of ["setViewport", "setScissor", "setScissorTest", "setRenderTarget", "render"]) {
+        const call = methods[name]!;
+        methods[name] = (...args) => (calls.push(name), call(...args));
+      }
+      const { reset, scene, camera } = setup();
+      renderInRect(renderer, scene, camera, off, reset);
+      expect({ seen, calls, autoClear: renderer.autoClear }).toEqual({ seen: [], calls: [], autoClear: true });
+      expect([state.viewport.toArray(), state.scissor.toArray(), state.scissorTest]).toEqual([[10, 20, 300, 200], [1, 2, 3, 4], false]);
+    }
+  });
+
+  it("clips a host render target's scissor in its pixels, and skips a target the rectangle misses", () => {
+    const target = new RenderTarget(762, 2094);
+    const { renderer, seen } = fakeRenderer({ webgpu: true, target });
+    const scissors: number[][] = [];
+    const methods = renderer as unknown as Record<string, (...args: unknown[]) => unknown>;
+    const render = methods.render!;
+    methods.render = (...args) => (scissors.push(target.scissor.toArray()), render(...args));
+    const { reset, scene, camera } = setup();
+    // The 800 × 600 CSS pixel canvas maps to the 762 × 2094 target: 0.9525 and 3.49 target pixels per CSS pixel.
+    renderInRect(renderer, scene, camera, { x: 760, y: 8, width: 96, height: 96 }, reset);
+    const round = (values: number[]) => values.map((v) => +v.toFixed(3));
+    expect(round(seen[0]!.target!)).toEqual([723.9, 27.92, 91.44, 335.04]);
+    expect(scissors.map(round)).toEqual([[723.9, 27.92, 38.1, 335.04]]);
+    renderInRect(renderer, scene, camera, { x: 960, y: 8, width: 96, height: 96 }, reset);
+    expect(seen).toHaveLength(1);
   });
 
   it("spells depth test 'always' so the installed three maps it to 'always' (the browser case reads the depth)", () => {
