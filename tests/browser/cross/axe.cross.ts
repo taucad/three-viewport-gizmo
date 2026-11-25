@@ -64,9 +64,17 @@ for (const [title, path] of gizmoPages) {
   });
 }
 
-const sitePages = ["/", "/playground/", "/docs/", "/docs/keyboard/", "/docs/navigation/", "/docs/quickstart/"];
+/** Each docs page and the live example gizmos it mounts after hydration (`role="application"`, one per example). */
+const sitePages = [
+  { path: "/", gizmos: 1 },
+  { path: "/playground/", gizmos: 1 },
+  { path: "/docs/", gizmos: 0 },
+  { path: "/docs/keyboard/", gizmos: 1 },
+  { path: "/docs/navigation/", gizmos: 3 },
+  { path: "/docs/quickstart/", gizmos: 1 },
+] as const;
 
-for (const path of sitePages) for (const scheme of ["light", "dark"] as const) {
+for (const { path, gizmos } of sitePages) for (const scheme of ["light", "dark"] as const) {
   test(`axe: docs site ${path}${scheme === "dark" ? " (dark)" : ""}`, async ({ page }, info) => {
     test.skip(!axePath, "npm install --no-save axe-core first");
     test.skip(!site, "Build the docs site first (:docs writes site/out)");
@@ -74,11 +82,19 @@ for (const path of sitePages) for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     await page.goto(`http://127.0.0.1:${sitePort}/three-viewport-gizmo${path}`);
     await page.waitForLoadState("networkidle");
-    // Live examples mount their gizmo after hydration.
-    await page.waitForTimeout(1_000);
+    if (gizmos > 0) {
+      // Live examples mount their gizmo after hydration: scan only once every one is there, visible and named, and no
+      // stage is still starting its renderer (`aria-busy`).
+      const live = page.getByRole("application");
+      await expect(live).toHaveCount(gizmos, { timeout: 30_000 });
+      await expect(page.locator("[aria-busy=true]")).toHaveCount(0, { timeout: 30_000 });
+      for (const gizmo of await live.all()) {
+        await expect(gizmo).toBeVisible();
+        await expect(gizmo).toHaveAttribute("aria-label", /\S/);
+      }
+    }
     const summary = record(info, `site ${path} (${scheme})`, await scan(page));
-    const gizmos = await page.getByRole("application").count();
-    info.annotations.push({ type: "gizmos", description: String(gizmos) });
+    await expect(page.getByRole("application")).toHaveCount(gizmos);
     expect(summary.violations).toEqual([]);
   });
 }
