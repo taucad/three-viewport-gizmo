@@ -18,7 +18,9 @@ export async function Code({
 }) {
   const html = await codeToHtml(children.trim(), {
     lang,
-    themes: { light: "github-light", dark: "github-dark" },
+    // The high-contrast GitHub themes: every token meets WCAG AA (4.5:1) on `--code-bg` in both schemes, where
+    // github-light's keywords and strings (4.19, 4.24) and github-dark's comments (3.51) fall short (axe, P13).
+    themes: { light: "github-light-high-contrast", dark: "github-dark-high-contrast" },
     defaultColor: false,
     transformers: [
       {
