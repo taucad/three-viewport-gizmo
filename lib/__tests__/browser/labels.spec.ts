@@ -54,20 +54,33 @@ for (const backend of ["webgpu", "webgl"] as const) {
       expect(off).toBe(0);
     });
 
-    test("a font loaded after construction appears with no set()", async ({ page }) => {
+    test("a font loaded after construction appears with no set()", async ({ page }, info) => {
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
-      const { changed, frames } = await page.evaluate<{ changed: boolean; frames: number }>("T.lateFont()");
+      const { changed, frames, trace } = await page.evaluate<{ changed: boolean; frames: number; trace: unknown[] }>("T.lateFont()");
+      info.annotations.push({ type: "font-trace", description: JSON.stringify(trace) });
       expect(changed).toBe(true);
       expect(frames).toBe(1);
       expect(errors).toEqual([]);
     });
 
-    test("a CSS @font-face family the labels start loading appears with no set()", async ({ page }) => {
+    test("the readback controls tell plainly different images apart in every channel", async ({ page }) => {
+      const channels = await page.evaluate<Record<string, unknown>>("T.readback()");
+      const differs = (v: unknown) => v === true || (v as { differs?: boolean })?.differs === true;
+      for (const pair of ["fill", "text"]) {
+        const c = channels[pair] as Record<string, unknown>;
+        expect(differs(c.toDataURL) && differs(c.getImageData) && differs(c.webglTexture) && differs(c.imageBitmapTexture), `${pair}: ${JSON.stringify(c)}`).toBe(true);
+      }
+      expect(differs(channels.webglClear), JSON.stringify(channels.webglClear)).toBe(true);
+      expect(differs(channels.renderTarget), JSON.stringify(channels.renderTarget)).toBe(true);
+    });
+
+    test("a CSS @font-face family the labels start loading appears with no set()", async ({ page }, info) => {
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
-      const result = await page.evaluate<{ loaded: boolean; redrawn: boolean; frames: number }>("T.cssFont()");
-      expect(result).toEqual({ loaded: true, redrawn: true, frames: 1 });
+      const { loaded, redrawn, frames, trace } = await page.evaluate<{ loaded: boolean; redrawn: boolean; frames: number; trace: unknown[] }>("T.cssFont()");
+      info.annotations.push({ type: "font-trace", description: JSON.stringify(trace) });
+      expect({ loaded, redrawn, frames }).toEqual({ loaded: true, redrawn: true, frames: 1 });
       expect(errors).toEqual([]);
     });
   });

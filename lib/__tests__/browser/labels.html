@@ -132,60 +132,182 @@
         return { toReference: diff(defaults, reference), blurryToReference: diff(blurry, reference) };
       };
 
-      /** R25: a face added after construction redraws the labels with no set(). */
+      /** Runs one diagnostic step: its value, or `{ error }` in the trace rather than a throw (Safari threw one). */
+      const safe = (fn) => {
+        try {
+          return fn();
+        } catch (error) {
+          return { error: `${error?.name}: ${error?.message}` };
+        }
+      };
+
+      /**
+       * The late-font trace for `family` drawn into a label `canvas` (P13 Safari evidence). `note(step)` records the
+       * time, the set's and the face's status, `usable` (a fresh context measures in the face) and any extras; every
+       * step is `safe`. `faces()` reads the face as the label canvas's own context resolves it, against a fresh
+       * context: text widths in the label's font string (`font`, as the label's last draw left it), the same at
+       * normal weight (`w400`) and in the fallback alone (`serif`); on the label context also after setting the string
+       * again (`reset`). `drawn`: a fresh canvas's fillText image differs from the fallback's, at the label's weight
+       * and at normal weight. Read back with toDataURL, not getImageData, which can throw InvalidStateError in WebKit
+       * (a failed pixel read or its privacy noise path).
+       */
+      const fontTracer = (family, faceStatus) => {
+        const t0 = performance.now();
+        const probe = document.createElement("canvas").getContext("2d");
+        const usable = () =>
+          safe(() => {
+            probe.font = `100px ${family}, serif`;
+            const width = probe.measureText("Front Back Top").width;
+            probe.font = "100px serif";
+            return width !== probe.measureText("Front Back Top").width;
+          });
+        const trace = [];
+        const note = (step, extra = () => ({})) =>
+          trace.push({
+            step,
+            at: Math.round(performance.now() - t0),
+            set: safe(() => document.fonts.status),
+            face: safe(faceStatus),
+            usable: usable(),
+            ...safe(extra),
+          });
+        const faces = (canvas) => {
+          const ctx = safe(() => canvas.getContext("2d"));
+          if (ctx?.error) return { label: ctx };
+          const font = ctx.font;
+          const variants = {
+            font,
+            w400: font.replace(/^(?:\S+ )*?(\d+(?:\.\d+)?px)/, "$1"),
+            serif: font.replace(new RegExp(`${family},\\s*`, "i"), ""),
+          };
+          const width = (c, f) =>
+            safe(() => {
+              c.font = f;
+              return Math.round(c.measureText("Front Back").width * 100) / 100;
+            });
+          const widths = (c) => Object.fromEntries(Object.entries(variants).map(([k, f]) => [k, width(c, f)]));
+          const label = widths(ctx);
+          label.reset = safe(() => {
+            ctx.font = "10px monospace";
+            return width(ctx, font);
+          });
+          const fresh = safe(() => widths(document.createElement("canvas").getContext("2d")));
+          const image = (f) => {
+            const c = document.createElement("canvas");
+            c.width = 200;
+            c.height = 60;
+            const x = c.getContext("2d");
+            x.font = f.replace(/\d+(?:\.\d+)?px/, "40px");
+            x.fillText("Front", 4, 45);
+            return c.toDataURL();
+          };
+          const fallback = safe(() => image(variants.serif));
+          const drawn = {
+            font: safe(() => image(font) !== fallback),
+            w400: safe(() => image(variants.w400) !== fallback),
+          };
+          safe(() => (ctx.font = font));
+          return { variants, label, fresh, drawn };
+        };
+        return { trace, note, faces };
+      };
+
+      /**
+       * R25: a face added after construction redraws the labels with no set(). `trace` (see fontTracer) is evidence for
+       * the engines, Safari above all, whose label pixels cannot be read back under safaridriver (see
+       * tests/browser/cross/README.md); at `loading` it also records how many faces the event names and whether `ready`
+       * had already settled.
+       */
       const lateFont = async () => {
         const options = { type: "cube", font: { family: "S2LateFont, serif" } };
         const { scene, draw, target } = await shoot(options, { dpr: 2 });
         // A host has drawn more than one frame by then. three r184's WebGPU backend drops a texture update made between
         // the first and second frame that sample it.
         const before = await draw();
-        let frames = 0;
-        scene.labels.onRedraw = () => frames++;
-        const canvas = scene.labels.texture("z", "idle").image;
-        const ink = canvas.toDataURL();
         // A file the gate's server holds, not a local() font: CI runners have no Courier. A url() source (not an
         // ArrayBuffer, which is parsed before it joins the set) loads through document.fonts, so `loading` fires.
         // WebKit fires no `loadingdone` for it.
         const face = new FontFace("S2LateFont", "url(/tests/browser/fixtures/geist-latin.woff2)", { weight: "100 900" });
+        const { trace, note, faces } = fontTracer("S2LateFont", () => face.status);
+        let frames = 0;
+        let redrew;
+        const redraw = new Promise((r) => (redrew = r));
+        const canvas = scene.labels.texture("z", "idle").image;
+        scene.labels.onRedraw = () => {
+          frames++;
+          note("redraw", () => ({ faces: faces(canvas) }));
+          redrew();
+        };
+        const ink = canvas.toDataURL();
+        const onLoading = (event) => {
+          const ready = document.fonts.ready;
+          // Settled already when its own reaction runs before that of a resolved promise queued after it (one
+          // reaction each, so the depths match).
+          let settled = false;
+          void ready.then(() => (settled = true));
+          void Promise.resolve().then(() =>
+            note("loading", () => ({ fontfaces: event.fontfaces?.length ?? null, readySettled: settled }))
+          );
+          void ready.then(() => note("ready"));
+        };
+        document.fonts.addEventListener("loading", onLoading);
         document.fonts.add(face);
+        note("added");
         await face.load();
-        await new Promise((r) => setTimeout(r, 50)); // the redraw follows the set's `ready`
+        note("face.load");
+        // The redraw follows the faces and one frame; a second second covers an engine that is slower.
+        await Promise.race([redraw, new Promise((r) => setTimeout(r, 1_000))]);
+        await new Promise((r) => setTimeout(r, 50));
         const after = await draw();
+        note("draw", () => ({ faces: faces(canvas) }));
+        const redrawn = canvas.toDataURL() !== ink;
+        document.fonts.removeEventListener("loading", onLoading);
         disposeScene(scene);
         target.dispose();
         document.fonts.delete(face);
-        return { changed: diff(before, after) > 0, redrawn: canvas.toDataURL() !== ink, frames };
+        return { changed: diff(before, after) > 0, redrawn, frames, trace };
       };
 
       /**
        * R25: a CSS `@font-face` family that nothing on the page uses yet starts loading when the labels draw in it, and
-       * the labels redraw once it has loaded, with no set().
+       * the labels redraw once it has loaded, with no set(). `trace` as lateFont's; `changed` reads the render back.
        */
       const cssFont = async () => {
         const style = document.createElement("style");
         style.textContent = "@font-face { font-family: S2CssFont; src: url(/tests/browser/fixtures/geist-latin.woff2?css) }";
         document.head.append(style);
+        const cssFace = () => [...document.fonts].find((f) => f.family.replace(/"/g, "") === "S2CssFont")?.status ?? null;
+        const { trace, note, faces } = fontTracer("S2CssFont", cssFace);
         let frames = 0;
         let canvas;
         let ink;
         const options = { type: "cube", font: { family: "S2CssFont, serif" } };
-        const { scene, target } = await shoot(options, {
+        const { scene, target, draw, pixels: before } = await shoot(options, {
           dpr: 2,
           onScene: (built) => {
-            built.labels.onRedraw = () => frames++;
+            built.labels.onRedraw = () => {
+              frames++;
+              note("redraw", () => ({ faces: faces(canvas) }));
+            };
             canvas = built.labels.texture("z", "idle").image;
             ink = canvas.toDataURL(); // drawn in the fallback: the load has only just started
+            note("built");
           },
         });
         await document.fonts.ready;
+        note("ready");
         await new Promise((r) => setTimeout(r, 50));
-        // The canvas, not the render: the load can end between the first and second frame, where three r184's WebGPU
-        // backend drops the update (see lateFont). lateFont covers the upload.
+        // `redrawn` reads the canvas: the load can end between the first and second frame, where three r184's WebGPU
+        // backend drops the update (see lateFont). `changed` is evidence only.
+        await draw();
+        const after = await draw();
+        note("draw", () => ({ faces: faces(canvas) }));
         const loaded = document.fonts.check("12px S2CssFont");
+        const redrawn = canvas.toDataURL() !== ink;
         disposeScene(scene);
         target.dispose();
         style.remove();
-        return { loaded, redrawn: canvas.toDataURL() !== ink, frames };
+        return { loaded, redrawn, frames, changed: diff(before, after) > 0, trace };
       };
 
       /**
@@ -220,7 +342,106 @@
         return { lit, off };
       };
 
-      window.T = { memory, sharp, lateFont, cssFont, seams };
+      /**
+       * P13 readback controls: whether each channel the font checks read through tells plainly different images apart,
+       * so a Safari "no change" is read as a font result only when readback works. Pairs: a 2D canvas filled black vs
+       * white, and "AAAA" vs "WWWW" in plain serif. Channels: toDataURL, getImageData, toBlob size, the 2D canvas
+       * uploaded into a WebGL texture (and through createImageBitmap) read with readPixels; a WebGL clear red vs blue;
+       * and the gizmo's own path, this renderer's render target cleared red vs blue and read back as `changed` is.
+       * Each value is `true` when the pair differs, or `{ error }`.
+       */
+      const readback = async () => {
+        const canvas2d = (paint) => {
+          const c = Object.assign(document.createElement("canvas"), { width: 64, height: 32 });
+          paint(c.getContext("2d"));
+          return c;
+        };
+        const fill = (color) => canvas2d((x) => ((x.fillStyle = color), x.fillRect(0, 0, 64, 32)));
+        const text = (t) =>
+          canvas2d((x) => {
+            x.fillStyle = "#fff";
+            x.fillRect(0, 0, 64, 32);
+            x.fillStyle = "#000";
+            x.font = "24px serif";
+            x.fillText(t, 2, 26);
+          });
+        const pairs = { fill: [fill("#000"), fill("#fff")], text: [text("AAAA"), text("WWWW")] };
+        const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+        const gl = (() => {
+          const c = Object.assign(document.createElement("canvas"), { width: 64, height: 32 });
+          return c.getContext("webgl2") ?? c.getContext("webgl");
+        })();
+        const viaTexture = (source) => {
+          const tex = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, tex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+          const fb = gl.createFramebuffer();
+          gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+          const out = new Uint8Array(64 * 32 * 4);
+          gl.readPixels(0, 0, 64, 32, gl.RGBA, gl.UNSIGNED_BYTE, out);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.deleteFramebuffer(fb);
+          gl.deleteTexture(tex);
+          return [...out];
+        };
+        const channels = {};
+        for (const [name, [a, b]] of Object.entries(pairs)) {
+          const blob = (c) => new Promise((r) => c.toBlob((x) => r(x?.size ?? null)));
+          const [sa, sb] = await Promise.all([blob(a), blob(b)]).catch((e) => [{ error: String(e) }, null]);
+          let bitmap;
+          try {
+            const [ba, bb] = await Promise.all([createImageBitmap(a), createImageBitmap(b)]);
+            bitmap = safe(() => !same(viaTexture(ba), viaTexture(bb)));
+          } catch (error) {
+            bitmap = { error: `${error?.name}: ${error?.message}` };
+          }
+          channels[name] = {
+            toDataURL: safe(() => a.toDataURL() !== b.toDataURL()),
+            getImageData: safe(() => !same([...a.getContext("2d").getImageData(0, 0, 64, 32).data], [...b.getContext("2d").getImageData(0, 0, 64, 32).data])),
+            toBlobSize: sa?.error ? sa : { differs: sa !== sb, sizes: [sa, sb] },
+            webglTexture: safe(() => !same(viaTexture(a), viaTexture(b))),
+            imageBitmapTexture: bitmap,
+          };
+        }
+        channels.webglClear = safe(() => {
+          const read = (r, g, b) => {
+            gl.clearColor(r, g, b, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            const out = new Uint8Array(4);
+            gl.readPixels(8, 8, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
+            return [...out];
+          };
+          const red = read(1, 0, 0);
+          const blue = read(0, 0, 1);
+          return { differs: !same(red, blue), red, blue };
+        });
+        // The gizmo checks' own path: this renderer, a render target, the async readback `changed` uses.
+        try {
+          const THREEGL = backend === "webgl" ? await import("three") : THREE;
+          const target = backend === "webgl" ? new THREEGL.WebGLRenderTarget(8, 8) : new THREE.RenderTarget(8, 8);
+          const read = async (color) => {
+            renderer.setRenderTarget(target);
+            renderer.setClearColor(color, 1);
+            renderer.clear();
+            renderer.setRenderTarget(null);
+            if (backend !== "webgl") return [...(await renderer.readRenderTargetPixelsAsync(target, 0, 0, 8, 8))];
+            const buffer = new Uint8Array(8 * 8 * 4);
+            await renderer.readRenderTargetPixelsAsync(target, 0, 0, 8, 8, buffer);
+            return [...buffer];
+          };
+          const red = await read(0xff0000);
+          const blue = await read(0x0000ff);
+          renderer.setClearColor(0x000000, 0);
+          target.dispose();
+          channels.renderTarget = { differs: !same(red, blue), red: red.slice(0, 4), blue: blue.slice(0, 4) };
+        } catch (error) {
+          channels.renderTarget = { error: `${error?.name}: ${error?.message}` };
+        }
+        return channels;
+      };
+
+      window.T = { memory, sharp, lateFont, cssFont, seams, readback };
       window.READY = true;
     </script>
   </body>

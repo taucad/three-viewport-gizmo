@@ -115,31 +115,70 @@ describe("canvasLabels", () => {
     }
   });
 
-  /** A `document.fonts` stand-in: `load()` starts a round as the engines do (`loading`, a fresh `ready`), `done()` ends it. */
-  const fontSet = (status: "loaded" | "loading" = "loaded") => {
+  /** A face whose load the test settles: `status` and `loaded` as a `FontFace` has them. */
+  type Face = { status: FontFaceLoadStatus; loaded: Promise<unknown>; settle(): void };
+  const face = (): Face => {
+    let settle!: () => void;
+    const f: Face = {
+      status: "loading",
+      loaded: new Promise<void>((r) => (settle = r)),
+      settle: () => {
+        f.status = "loaded";
+        settle();
+      },
+    };
+    return f;
+  };
+
+  /**
+   * A `document.fonts` stand-in. `load()` adds a loading face and starts a round as the engines do: `loading`, with a
+   * fresh `ready`, or with `ready` left already settled (`stale`, which some engine might do).
+   * `event: false` fires `loading` with no `fontfaces`, as Chromium does.
+   */
+  const fontSet = ({ status = "loaded", stale = false }: { status?: FontFaceSetLoadStatus; stale?: boolean } = {}) => {
+    const faces: Face[] = [];
     let finish = () => {};
     const fonts = Object.assign(new EventTarget(), {
       status,
       ready: Promise.resolve() as Promise<unknown>,
-      load() {
+      forEach: (fn: (f: Face) => void) => faces.forEach(fn),
+      load({ event = true } = {}) {
+        const f = face();
+        faces.push(f);
         // `ready` stays one promise while the set is loading.
-        if (fonts.status !== "loading") fonts.ready = new Promise<void>((r) => (finish = r));
+        if (fonts.status !== "loading" && !stale) fonts.ready = new Promise<void>((r) => (finish = r));
         fonts.status = "loading";
-        fonts.dispatchEvent(new Event("loading"));
+        fonts.dispatchEvent(Object.assign(new Event("loading"), { fontfaces: event ? [f] : [] }));
+        return f;
       },
+      /** Settles every face, then the set. */
       async done() {
+        for (const f of faces) f.settle();
         fonts.status = "loaded";
         finish();
-        await Promise.resolve();
-        await Promise.resolve();
+        await flush();
       },
     });
     if (status === "loading") fonts.ready = new Promise<void>((r) => (finish = r));
     vi.stubGlobal("document", Object.assign(document, { fonts }));
     return fonts;
   };
+  const flush = async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  };
 
-  it("redraws once when a round of font loading ends, with no set() and no loadingdone, and asks for a frame", async () => {
+  /** Animation frames the test runs by hand. */
+  const frames = () => {
+    const queue: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => queue.push(cb));
+    return async () => {
+      for (const cb of queue.splice(0)) cb(0);
+      await flush();
+    };
+  };
+
+  it("redraws once when a round of font loading ends, after a frame, with no set() and no loadingdone", async () => {
+    const frame = frames();
     const fonts = fontSet();
     const { labels } = request(resolve({ type: "cube" }));
     const texture = labels.texture("x", "idle");
@@ -149,22 +188,94 @@ describe("canvasLabels", () => {
     fonts.load(); // a second face joins the same round
     expect(labels.onRedraw).not.toHaveBeenCalled();
     await fonts.done();
+    expect(labels.onRedraw).not.toHaveBeenCalled(); // the canvas sees the face at the next rendering update
+    await frame();
     expect(texture.version).toBeGreaterThan(version);
     expect(labels.onRedraw).toHaveBeenCalledOnce();
     fonts.load();
     await fonts.done();
+    await frame();
     expect(labels.onRedraw).toHaveBeenCalledTimes(2);
   });
 
-  it("counts a round already under way at construction", async () => {
-    const fonts = fontSet("loading");
+  it("waits for the faces when `ready` is already settled at `loading` (Safari)", async () => {
+    const frame = frames();
+    const fonts = fontSet({ stale: true });
     const { labels } = request(resolve({ type: "cube" }));
     labels.onRedraw = vi.fn();
-    await fonts.done();
+    const f = fonts.load();
+    await flush();
+    await frame();
+    expect(labels.onRedraw).not.toHaveBeenCalled();
+    f.settle();
+    await flush();
+    await frame();
     expect(labels.onRedraw).toHaveBeenCalledOnce();
   });
 
-  it("never redraws after dispose, even for a round pending at dispose", async () => {
+  it("finds loading faces in the set when the event names none (Chromium), and waits for one that joins", async () => {
+    const frame = frames();
+    const fonts = fontSet({ stale: true });
+    const { labels } = request(resolve({ type: "cube" }));
+    labels.onRedraw = vi.fn();
+    const first = fonts.load({ event: false });
+    const second = fonts.load({ event: false }); // joins the round under way: no second round
+    first.settle();
+    await flush();
+    await frame();
+    expect(labels.onRedraw).not.toHaveBeenCalled();
+    second.settle();
+    await flush();
+    await frame();
+    expect(labels.onRedraw).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the round open for a face that starts loading during its frame wait", async () => {
+    const frame = frames();
+    const fonts = fontSet({ stale: true });
+    const { labels } = request(resolve({ type: "cube" }));
+    labels.onRedraw = vi.fn();
+    const first = fonts.load();
+    first.settle();
+    await flush(); // the round now waits for its frame
+    const late = fonts.load(); // its `loading` arrives while the round is waiting
+    await frame();
+    expect(labels.onRedraw).not.toHaveBeenCalled();
+    late.settle();
+    await flush();
+    await frame();
+    expect(labels.onRedraw).toHaveBeenCalledOnce();
+  });
+
+  it("falls back to the set's `ready` when no face is loading", async () => {
+    const frame = frames();
+    const fonts = fontSet();
+    const { labels } = request(resolve({ type: "cube" }));
+    labels.onRedraw = vi.fn();
+    let finish!: () => void;
+    fonts.ready = new Promise<void>((r) => (finish = r));
+    fonts.dispatchEvent(new Event("loading"));
+    await flush();
+    await frame();
+    expect(labels.onRedraw).not.toHaveBeenCalled();
+    finish();
+    await flush();
+    await frame();
+    expect(labels.onRedraw).toHaveBeenCalledOnce();
+  });
+
+  it("counts a round already under way at construction", async () => {
+    const frame = frames();
+    const fonts = fontSet({ status: "loading" });
+    const { labels } = request(resolve({ type: "cube" }));
+    labels.onRedraw = vi.fn();
+    await fonts.done();
+    await frame();
+    expect(labels.onRedraw).toHaveBeenCalledOnce();
+  });
+
+  it("never redraws after dispose, even for a round pending at dispose or its frame", async () => {
+    const frame = frames();
     const fonts = fontSet();
     const { labels } = request(resolve({ type: "cube" }));
     labels.texture("x", "idle");
@@ -172,8 +283,18 @@ describe("canvasLabels", () => {
     fonts.load();
     labels.dispose();
     await fonts.done();
+    await frame();
     fonts.load();
     await fonts.done();
+    await frame();
+    const late = fontSet();
+    const other = canvasLabels(resolve({ type: "cube" }));
+    other.onRedraw = vi.fn();
+    late.load();
+    await late.done(); // the round is waiting for its frame
+    other.dispose();
+    await frame();
     expect(labels.onRedraw).not.toHaveBeenCalled();
+    expect(other.onRedraw).not.toHaveBeenCalled();
   });
 });

@@ -15,6 +15,15 @@ workflow whose jobs are not required: a red job here is evidence to triage, not 
 Each job writes a summary (`summary.mjs`): pass and fail counts per project, the adapter, axe violations by rule, the
 Safari checks and the VoiceOver transcript. The raw files are in the job's artifact.
 
+## Safari canvas readback
+
+Safari under safaridriver neutralizes 2D canvas readback (toDataURL identical for different content,
+getImageData/createImageBitmap throw; even a 2D canvas uploaded to WebGL reads back identical), so label-pixel checks
+are blocked there; WebGL readback of cleared targets works. `safari.mjs` runs readback controls first (`T.readback()`:
+black vs white, "AAAA" vs "WWWW", red vs blue, through each channel) and blocks a font check whose channel cannot tell
+them apart. Late-font redraw is verified in Chromium, Firefox and WebKit; in Safari the trace shows the redraw runs
+after the face loads and measurement uses the face.
+
 ## What is left out, and why
 
 - **WebGPU off Chromium.** Playwright's Linux Firefox and WebKit have no WebGPU, and the WebGPU fixture launches

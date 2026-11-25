@@ -230,11 +230,38 @@ const navigation = async (backend) => {
   check(`${backend} navigation: hover reveals the buttons; each side and Home lands`, failures.length === 0, failures);
 };
 
-/** The late web font case (labels.spec.ts R25), plus when Safari fires `loadingdone` for an added and loaded FontFace. */
+/**
+ * The late web font cases (labels.spec.ts R25): a FontFace the page adds and loads, and a CSS `@font-face` family the
+ * labels start loading (the usual app path); plus when Safari fires `loadingdone` for an added and loaded FontFace.
+ */
+const NEUTRALIZED = "canvas readback neutralized in Safari automation";
 const fonts = async (backend) => {
+  // Controls first (T.readback()): the font checks read "no change" through toDataURL (the 2D text pair) and the
+  // renderer's target readback (`changed`). Where a channel cannot tell plainly different images apart, a check that
+  // reads through it is inconclusive: blocked, not failed.
+  await open(`/lib/__tests__/browser/labels.html?backend=${backend}`);
+  const controls = await exec("return T.readback()");
+  results.readback = { ...results.readback, [backend]: controls };
+  console.log(`readback controls (${backend}): ${JSON.stringify(controls)}`);
+  const dataUrlReads = controls.text?.toDataURL === true && controls.fill?.toDataURL === true;
+  const targetReads = controls.renderTarget?.differs === true;
+  const controlsName = `${backend} readback: controls tell black from white, AAAA from WWWW, and red from blue`;
+  if (dataUrlReads && targetReads) check(controlsName, true);
+  else block(controlsName, `${NEUTRALIZED}: ${JSON.stringify(controls)}`);
+
   await open(`/lib/__tests__/browser/labels.html?backend=${backend}`);
   const late = await exec("return T.lateFont()");
-  check(`${backend} labels: a font loaded after construction appears with no set()`, late.changed === true && late.frames === 1, late);
+  const lateName = `${backend} labels: a font loaded after construction appears with no set()`;
+  const lateOk = late.changed === true && late.frames === 1;
+  if (!lateOk && !(dataUrlReads && targetReads)) block(lateName, `${NEUTRALIZED}; result ${JSON.stringify(late)}`);
+  else check(lateName, lateOk, late);
+  await open(`/lib/__tests__/browser/labels.html?backend=${backend}`);
+  const css = await exec("return T.cssFont()");
+  const cssName = `${backend} labels: a CSS @font-face family the labels start loading appears with no set()`;
+  const cssOk = css.loaded === true && css.redrawn === true && css.frames === 1;
+  if (!cssOk && !dataUrlReads) block(cssName, `${NEUTRALIZED}; result ${JSON.stringify(css)}`);
+  else check(cssName, cssOk, css);
+  console.log(`css font trace: ${JSON.stringify(css.trace)}`);
   const events = await exec(`
     const events = [], t0 = performance.now();
     for (const type of ["loading", "loadingdone", "loadingerror"]) document.fonts.addEventListener(type, () => events.push({ type, at: Math.round(performance.now() - t0) }));
