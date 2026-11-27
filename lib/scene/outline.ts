@@ -1,4 +1,4 @@
-import { Matrix4, Vector3 } from "three";
+import { BackSide, DoubleSide, Matrix4, Mesh, Vector3, type Material, type Object3D } from "three";
 import { fieldOfViewDistance, UNIT_FACE_OUTLINE, type FaceOnOutline } from "../render/internalCamera";
 import type { SceneOptions, SceneTarget } from "./build";
 import { styleOf } from "./update";
@@ -13,55 +13,94 @@ export const triadShown = (o: Pick<SceneOptions, "type" | "triad">): boolean => 
 const SPHERE_HALF_HEIGHT = 1.8;
 
 const _v = /*@__PURE__*/ new Vector3();
+const _a = /*@__PURE__*/ new Vector3();
+const _b = /*@__PURE__*/ new Vector3();
+const _n = /*@__PURE__*/ new Vector3();
 const _m = /*@__PURE__*/ new Matrix4();
+const outlines = /*@__PURE__*/ new WeakMap<readonly SceneTarget[], { key: string; outline: FaceOnOutline }>();
+
+/** The scene parts the body is drawn with: the targets and the background. */
+export type OutlineParts = Readonly<{ targets: readonly SceneTarget[]; background?: Object3D }>;
 
 /**
- * The cube's face-on outline as the gizmo draws it, in the scene's units at its current scale (`TRIAD_SCENE_SCALE`
- * while the triad shows). Face-on, the drawn half-size at distance `d` is the largest `x / (d − z)` over its points, so
- * {@link fieldOfViewDistance} holds it exactly.
+ * The gizmo body's face-on outline as the gizmo draws it at rest, in the scene's units at its current scale
+ * (`TRIAD_SCENE_SCALE` while the triad shows), for {@link fieldOfViewDistance}. Face-on, the drawn half-size at
+ * distance `d` is the largest `x / (d − z)` over the points drawn at `d`, so the distance holds it exactly. Read from
+ * the geometry and place of each shown target, with the targets scaled as at rest (never as hovered), and of the
+ * background; not the axis lines or the triad, which run outside the body. The sphere (orthographic) and a body with nothing drawn get the unit front edge.
  *
- * - `rounded-cube`: the (depth, half-width) points of every shown target, reduced to those no other point is both
- *   nearer and wider than. Its pieces close one convex body whose outline runs round the bevel, so the point that
- *   bounds it moves toward the camera as the camera comes closer: a single depth (`1 − radius`) holds it only to 7 %
- *   at 90°. Read from each target's geometry and place, with the targets shown and scaled as at rest (never as hovered).
- * - `cube`: 2.3.0's model, the unit front edge, scaled with the scene. Its pieces are one-sided plates (side faces
- *   that face away, corner plates that turn away from a close camera, the background seen from inside), so what bounds
- *   its drawn width changes with the field of view and no single outline holds it (recorded, P13).
+ * Each triangle counts as its material culls it. A flat plate facing the camera's axis is drawn only beyond the
+ * distance where its plane crosses the axis (a corner plate turns away from a close camera), one facing across it
+ * always or never (the classic cube's background, seen from inside, bounds its width), one facing away never. So the
+ * classic cube's one-sided plates are held as exactly as the rounded cube's closed body, whose bevel moves the point
+ * that bounds it toward a closer camera.
  *
  * The body is symmetric about its centre and under axis swaps, so its +Z face stands for every face.
  *
- * @param targets - The scene's targets
- * @param o - Resolved options; reads `type`, `triad` and the targets' scales
- * @returns Flat `[z0, x0, z1, x1, …]`, nearest first; the unit front edge for the sphere
+ * @param parts - The scene's targets and background
+ * @param o - Resolved options; reads `type`, `triad`, `background` and the targets' styles
+ * @returns Flat `[z0, x0, from0, …]`, nearest first, reduced to the points no other point is nearer, wider and drawn
+ * from as far; kept for the scene until what it reads changes
  */
-export function faceOnOutline(targets: readonly SceneTarget[], o: SceneOptions): FaceOnOutline {
+export function faceOnOutline({ targets, background }: OutlineParts, o: SceneOptions): FaceOnOutline {
+  if (o.type === "sphere") return UNIT_FACE_OUTLINE;
   const scale = triadShown(o) ? TRIAD_SCENE_SCALE : 1;
-  if (o.type !== "rounded-cube") return scale === 1 ? UNIT_FACE_OUTLINE : UNIT_FACE_OUTLINE.map((v) => v * scale);
-  const points: Array<[number, number]> = [];
+  const shown = background && o.background.enabled && o.background.opacity > 0;
+  // What the outline reads, so the camera, the lines and the triad share one reading per change.
+  let key = `${scale}|${shown}`;
   for (const target of targets) {
-    const { object } = target;
+    const { enabled, opacity, scale } = styleOf(o, target);
+    key += `|${enabled && opacity > 0 ? scale : 0}:${target.idle.side}`;
+  }
+  const cached = outlines.get(targets);
+  if (cached?.key === key) return cached.outline;
+  const points: Array<[number, number, number]> = [];
+  const add = (object: Object3D, size: number, material: Material) => {
+    if (!(object instanceof Mesh)) return;
+    const { geometry } = object;
+    const position = geometry.attributes.position;
+    const index = geometry.index!;
+    const { side } = material;
+    _m.compose(object.position, object.quaternion, _v.setScalar(size));
+    for (let i = 0; i < index.count; i += 3) {
+      _a.fromBufferAttribute(position, index.getX(i)).applyMatrix4(_m);
+      _b.fromBufferAttribute(position, index.getX(i + 1)).applyMatrix4(_m).sub(_a);
+      _n.fromBufferAttribute(position, index.getX(i + 2)).applyMatrix4(_m).sub(_a);
+      // The front's normal (counter-clockwise winding): a camera at (0, 0, d) sees it when `(camera − a) · n > 0`.
+      _n.crossVectors(_b, _n);
+      if (side === BackSide) _n.negate();
+      const across = _n.z * _n.z <= 1e-12 * _n.lengthSq();
+      let from = -Infinity;
+      if (side !== DoubleSide) {
+        if (across ? _a.dot(_n) >= 0 : _n.z < 0) continue;
+        if (!across) from = _a.dot(_n) / _n.z;
+      }
+      for (let k = 0; k < 3; k++) {
+        _v.fromBufferAttribute(position, index.getX(i + k)).applyMatrix4(_m);
+        if (_v.x > 0) points.push([_v.z, _v.x, from]);
+      }
+    }
+  };
+  for (const target of targets) {
     // At rest, as `restyleTargets` draws it unhovered: a hover shows a target hidden at opacity 0, and must not move
     // the camera at the next `set()`.
     const { enabled, opacity, scale } = styleOf(o, target);
-    if (!enabled || opacity <= 0 || !("geometry" in object)) continue;
-    const position = object.geometry.attributes.position;
-    _m.compose(object.position, object.quaternion, _v.setScalar(scale));
-    for (let i = 0; i < position.count; i++) {
-      _v.fromBufferAttribute(position, i).applyMatrix4(_m);
-      if (_v.x > 0) points.push([_v.z, _v.x]);
-    }
+    if (enabled && opacity > 0) add(target.object, scale, target.idle);
   }
-  if (points.length === 0) return UNIT_FACE_OUTLINE;
-  // Nearest first; a point counts only if it is wider than every nearer one.
+  if (shown) add(background, 1, (background as Mesh).material as Material);
+  // Nearest first; a point counts only if every nearer point drawn from as far is narrower.
   points.sort((a, b) => b[0] - a[0] || b[1] - a[1]);
   const outline: number[] = [];
-  let widest = -Infinity;
-  for (const [z, x] of points) {
-    if (x <= widest) continue;
-    widest = x;
-    outline.push(z * scale, x * scale);
+  for (const [z, x, from] of points) {
+    let covered = false;
+    for (let i = 0; i < outline.length && !covered; i += 3)
+      covered = outline[i + 1]! >= x * scale && outline[i + 2]! <= from * scale;
+    if (!covered) outline.push(z * scale, x * scale, from * scale);
   }
-  return outline;
+  // Nothing drawn: 2.3.0's front edges, so the camera still has a place.
+  const result = outline.length ? outline : UNIT_FACE_OUTLINE;
+  outlines.set(targets, { key, outline: result });
+  return result;
 }
 
 /**

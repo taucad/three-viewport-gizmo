@@ -106,7 +106,7 @@ function drawLetter(canvas: HTMLCanvasElement, axis: (typeof GIZMO_MAIN_AXES)[nu
  * two ribbons sit at the same depth (Tau's home view) their order, and the pixels where they cross, followed the
  * previous frame's pose.
  */
-export const triad: PartBuilder = (_, { targets }, owned) => {
+export const triad: PartBuilder = (_, scene, owned) => {
   const object = new Group();
   object.position.setScalar(ORIGIN);
   let lines: Mesh<PlaneGeometry, MeshBasicMaterial>[] | null = null;
@@ -129,7 +129,7 @@ export const triad: PartBuilder = (_, { targets }, owned) => {
       return line;
     });
 
-    const texels = Math.ceil(LABEL_SIZE * TRIAD_SCENE_SCALE * pixelsPerUnit(o, faceOnOutline(targets, o)) * dpr * 2);
+    const texels = Math.ceil(LABEL_SIZE * TRIAD_SCENE_SCALE * pixelsPerUnit(o, faceOnOutline(scene, o)) * dpr * 2);
     const quad = meshAttributes(new PlaneGeometry());
     owned.add(quad);
     letters = GIZMO_MAIN_AXES.map((_axis, i) => {
@@ -165,7 +165,7 @@ export const triad: PartBuilder = (_, { targets }, owned) => {
       if (!lines) create(o);
 
       // Each ribbon is LINE_WIDTH CSS pixels and its feather across inside the scaled scene.
-      const across = (LINE_WIDTH + (2 * FEATHER) / dpr) / (pixelsPerUnit(o, faceOnOutline(targets, o)) * TRIAD_SCENE_SCALE);
+      const across = (LINE_WIDTH + (2 * FEATHER) / dpr) / (pixelsPerUnit(o, faceOnOutline(scene, o)) * TRIAD_SCENE_SCALE);
       GIZMO_MAIN_AXES.forEach((axis, i) => {
         lines![i].scale.set(across, LENGTH, 1);
         lines![i].material.color.set(o.triad.colors[axis]);

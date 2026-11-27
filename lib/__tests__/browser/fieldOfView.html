@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Field of view face-on width</title>
+    <style>
+      body { margin: 0; }
+      #wrap { position: relative; width: 400px; height: 400px; }
+    </style>
+  </head>
+  <body>
+    <div id="wrap"></div>
+    <script type="module">
+      // Browser cases for the gizmo's `fieldOfView` (P13): `?backend=webgpu|webgl`. The gizmo fills a 400 px canvas and
+      // draws into an sRGB render target over black, face-on (the host looks down −Z); the page reads the pixels back
+      // and measures the drawn body's width.
+      const q = new URLSearchParams(location.search);
+      const backend = q.get("backend") ?? "webgpu";
+      const THREE = backend === "webgpu" ? await import("three/webgpu") : await import("three");
+      const { ViewportGizmo } = await import("/lib/index.ts");
+      const SIZE = 400;
+
+      const wrap = document.getElementById("wrap");
+      const renderer = backend === "webgpu" ? new THREE.WebGPURenderer() : new THREE.WebGLRenderer();
+      if (renderer.init) await renderer.init();
+      renderer.setPixelRatio(1);
+      renderer.setSize(SIZE, SIZE);
+      wrap.appendChild(renderer.domElement);
+      const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+      camera.position.set(0, 0, 6);
+      camera.lookAt(0, 0, 0);
+      const target = backend === "webgpu" ? new THREE.RenderTarget(SIZE, SIZE) : new THREE.WebGLRenderTarget(SIZE, SIZE);
+      target.texture.colorSpace = THREE.SRGBColorSpace;
+      const gizmo = new ViewportGizmo(camera, renderer, {
+        container: wrap,
+        size: SIZE,
+        placement: "top-left",
+        offset: { top: 0, left: 0, bottom: 0, right: 0 },
+        animated: false,
+      });
+
+      const read = async () => {
+        if (backend === "webgpu") return renderer.readRenderTargetPixelsAsync(target, 0, 0, SIZE, SIZE);
+        const buffer = new Uint8Array(SIZE * SIZE * 4);
+        await renderer.readRenderTargetPixelsAsync(target, 0, 0, SIZE, SIZE, buffer);
+        return buffer;
+      };
+
+      /**
+       * Where a row's value first reaches half its plateau, from `start` stepping by `step`, to a tenth of a pixel: the
+       * edge of a coverage-antialiased silhouette.
+       */
+      const edge = (value, start, step) => {
+        for (let i = start; i >= 0 && i < SIZE; i += step) {
+          if (value(i) < 24) continue;
+          let plateau = 0;
+          for (let k = 0; k < 4; k++) plateau = Math.max(plateau, value(i + k * step));
+          let j = i;
+          while (value(j) < plateau / 2) j += step;
+          const before = value(j - step);
+          return j - step + ((plateau / 2 - before) / (value(j) - before)) * step;
+        }
+        return NaN;
+      };
+
+      /**
+       * The face-on width in pixels of the body drawn for `options` at `degrees`: the widest row of its pixels. The cubes'
+       * body is light and grey (its smallest channel), which leaves out the triad's dark coloured lines and letters; the
+       * sphere's sprites are coloured (their largest channel) and it has no triad.
+       */
+      const width = async (options, degrees) => {
+        gizmo.set({ ...options, fieldOfView: THREE.MathUtils.degToRad(degrees) });
+        gizmo.update();
+        renderer.setRenderTarget(target);
+        renderer.setClearColor(0x000000, 1);
+        renderer.clear();
+        gizmo.render();
+        renderer.setRenderTarget(null);
+        const pixels = await read();
+        const sphere = options.type === "sphere";
+        let widest = 0;
+        for (let y = 0; y < SIZE; y++) {
+          const value = (x) => {
+            const p = (y * SIZE + x) * 4;
+            // The triad's colours and letters have a channel of at most 56: under 64, they read as 0.
+            return sphere
+              ? Math.max(pixels[p], pixels[p + 1], pixels[p + 2])
+              : Math.max(0, Math.min(pixels[p], pixels[p + 1], pixels[p + 2]) - 64);
+          };
+          const left = edge(value, 0, 1);
+          const right = edge(value, SIZE - 1, -1);
+          if (right - left > widest) widest = right - left;
+        }
+        return widest;
+      };
+
+      window.T = { width, backend: () => backend };
+      window.READY = true;
+    </script>
+  </body>
+</html>

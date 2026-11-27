@@ -230,7 +230,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._scene = buildScene(o);
     this._label = this._scene.frame;
     this._up.copy(this._label.up);
-    this._camera = createInternalCamera(o.type === "sphere", o.fieldOfView, faceOnOutline(this._scene.targets, o));
+    this._camera = createInternalCamera(o.type === "sphere", o.fieldOfView, this._outline(o));
     this._three.add(this.root);
     // Before the render list is built, so the frame depends on the pose and the options only (no previous frame).
     this._three.onBeforeRender = (_renderer, _scene, camera) => faceScene(this._scene, camera);
@@ -1005,7 +1005,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
       disposeScene(this._scene);
       this._scene = buildScene(next);
       this._adoptReset();
-      this._camera = createInternalCamera(next.type === "sphere", next.fieldOfView, faceOnOutline(this._scene.targets, next));
+      this._camera = createInternalCamera(next.type === "sphere", next.fieldOfView, this._outline(next));
       const label = this._scene.frame;
       if (!label.up.equals(this._label.up) || !label.front.equals(this._label.front)) this._up.copy(label.up);
       this._label = label;
@@ -1013,7 +1013,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     } else {
       updateScene(this._scene, next);
       // A triad toggle or a hidden target changes the outline the distance keeps (cheap path).
-      setFieldOfView(this._camera, next.fieldOfView, faceOnOutline(this._scene.targets, next));
+      setFieldOfView(this._camera, next.fieldOfView, this._outline(next));
     }
     this._adoptScene();
     this._faded.set(NaN, NaN, NaN, NaN);
@@ -1036,6 +1036,11 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     this._writeState();
     this._invalidate();
     return true;
+  }
+
+  /** The current scene's face-on outline for `o`, which places the camera. */
+  private _outline(o: GizmoResolvedOptions) {
+    return faceOnOutline({ targets: this._scene.targets, background: this._scene.parts.background.object }, o);
   }
 
   /** Creates the depth reset for the current scene, freed with it, and puts it beside `root` (F1). */
