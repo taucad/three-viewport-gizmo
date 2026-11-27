@@ -27,6 +27,17 @@ const touch = (cdp: CDPSession, type: "touchStart" | "touchMove" | "touchEnd" | 
 
 const settle = (page: Page) => page.waitForTimeout(100);
 
+/** Resolves after `count` animation frames in the page, so a frame the page has already requested has run. */
+const animationFrames = (page: Page, count: number) =>
+  page.evaluate(
+    (n) => new Promise<void>((resolve) => {
+      let seen = 0;
+      const tick = () => (++seen >= n ? resolve() : requestAnimationFrame(tick));
+      requestAnimationFrame(tick);
+    }),
+    count
+  );
+
 test.describe("mouse", () => {
   test("a drag on the gizmo orbits the camera and balances start and end", async ({ open }) => {
     const { page, centre, pose, events } = await setup(open);
@@ -140,11 +151,14 @@ test.describe("render on demand (K5, P11)", () => {
     // `end` fires in the frame whose render() writes the last pose, after the host drew its scene, so the host owes
     // exactly one more frame to show it; then nothing asks for a frame. Reading the count as soon as `end` is seen
     // raced that trailing frame (6 vs 5 on SwiftShader, K7).
+    // Counted after animation frames, not wall time: the trailing draw is itself a requestAnimationFrame callback, so
+    // three frames later it has run, and so would any frame asked for after it. A fixed 100 ms wait raced it where a
+    // WebGPU frame takes 54-117 ms (macOS Metal VM, E1).
     const endFrame = await P<number>("demandEndFrame()");
     expect(endFrame).toBeGreaterThan(2);
-    await settle(page);
+    await animationFrames(page, 3);
     expect(await P<number>("demandFrames()")).toBe(endFrame + 1);
-    await settle(page);
+    await animationFrames(page, 3);
     expect(await P<number>("demandFrames()")).toBe(endFrame + 1);
   });
 });
