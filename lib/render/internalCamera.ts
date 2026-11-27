@@ -43,10 +43,17 @@ export const fieldOfViewDistance = (fieldOfView: number, outline: FaceOnOutline 
   const base = Math.tan(DEFAULT_FIELD_OF_VIEW / 2);
   let half = 0;
   let distance = -Infinity;
+  let nearestDrawn = Infinity;
   for (let i = 0; i < outline.length; i += 3) {
     if (outline[i + 2]! <= BASE_DISTANCE) half = Math.max(half, outline[i + 1]! / ((BASE_DISTANCE - outline[i]!) * base));
     distance = Math.max(distance, outline[i]!);
+    nearestDrawn = Math.min(nearestDrawn, outline[i + 2]!);
   }
+  // A body of one-sided plates only (no faces and no background: corners or edges alone) draws nothing until the
+  // camera is past the nearest plate's `from`, so start just past it: the camera never stops where nothing is drawn.
+  // Such a body holds its size wherever its plates face the camera; only at the widest angles does its exact distance
+  // fall inside that, and it then draws a little smaller (the classic cube's corners alone: 0.83 at 90°).
+  if (nearestDrawn > distance && Number.isFinite(nearestDrawn)) distance = nearestDrawn * (1 + 1e-6);
   const t = half * Math.tan(fieldOfView / 2);
   for (let previous = NaN; distance !== previous; ) {
     previous = distance;

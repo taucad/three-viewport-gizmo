@@ -316,7 +316,7 @@ export type GizmoOptions = {
    * Vertical field of view of the gizmo's own camera, in radians, in (0, 100°]. Default 26°. Wider angles exaggerate
    * the cube's depth and narrower ones approach orthographic, while the cube and rounded cube keep their face-on size:
    * their width looking straight at a face stays within a pixel of their width at 26°, with or without the triad
-   * (R11). The sphere is drawn orthographic and ignores it.
+   * (R11). A classic cube drawn with its corners alone (no faces or background) draws a little smaller above about 80°, where its corner plates no longer face the camera. The sphere is drawn orthographic and ignores it.
    */
   fieldOfView?: number;
 

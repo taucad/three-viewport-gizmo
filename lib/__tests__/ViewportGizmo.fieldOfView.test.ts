@@ -22,6 +22,25 @@ describe("fieldOfView keeps the body's face-on width (its drawn size), triad on 
     ["rounded-cube r 0.3 with the triad", { type: "rounded-cube", radius: 0.3, triad: { enabled: true } }],
     ["rounded-cube r 0.6 with the triad", { type: "rounded-cube", radius: 0.6, triad: { enabled: true } }],
   ];
+  const off = { enabled: false };
+  const noFaces = { background: off, x: off, y: off, z: off, nx: off, ny: off, nz: off };
+  // One-sided plates only: nothing is always drawn, so the camera must start where the nearest plate first draws.
+  it.each<[string, GizmoOptions, number[]]>([
+    ["cube, corners only", { type: "cube", ...noFaces, corners: { opacity: 1 } }, [0.1, 10, 30, 45, 60]],
+    ["cube, edges only", { type: "cube", ...noFaces, edges: { opacity: 1 } }, [0.1, 10, 30, 45, 60, 90]],
+    ["cube, corners and edges only", { type: "cube", ...noFaces, corners: { opacity: 1 }, edges: { opacity: 1 } }, [0.1, 10, 30, 45, 60, 90]],
+    ["rounded-cube, corners only", { type: "rounded-cube", ...noFaces, corners: { opacity: 1 } }, [0.1, 10, 30, 45, 60, 90]],
+  ])("%s: drawn and within 1e-9 of its 26° width", (_, options, degrees) => {
+    const ratios = widthRatios(options, degrees);
+    for (const ratio of Object.values(ratios)) expect(Math.abs(ratio - 1), JSON.stringify(ratios)).toBeLessThanOrEqual(1e-9);
+  });
+
+  it("cube, corners only, at 90°: still drawn, a little smaller, since its corner plates face the camera only from 2.55", () => {
+    const { 90: ratio } = widthRatios({ type: "cube", ...noFaces, corners: { opacity: 1 } }, [90]);
+    expect(ratio).toBeGreaterThan(0.8);
+    expect(ratio).toBeLessThan(1);
+  });
+
   // Exact by construction: the distance is solved from the outline the gizmo draws, so only rounding is left.
   it.each(cases)("%s: within 1e-9 of its 26° width from 0.1° to 100°", (_, options) => {
     const ratios = widthRatios(options, [0.1, 1, 10, 30, 45, 60, 90, 100]);
