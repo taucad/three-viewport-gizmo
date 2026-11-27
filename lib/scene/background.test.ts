@@ -4,6 +4,8 @@ import { resolveOptions } from "../options/resolve";
 import { createInternalCamera } from "../render/internalCamera";
 import { BACKGROUND_RADIUS } from "./background";
 import { buildScene, faceScene } from "./build";
+import { faceOnOutline } from "./outline";
+import { updateScene } from "./update";
 
 const sphere = () => buildScene(resolveOptions({ type: "sphere" }, { up: new Vector3(0, 1, 0) }));
 
@@ -45,9 +47,11 @@ describe("sphere background", () => {
   });
 
   it.each([0.1, 26, 60, 90])("fills the element's circle through the gizmo's perspective camera at %s°", (degrees) => {
-    const scene = sphere();
+    const fieldOfView = MathUtils.degToRad(degrees);
+    const scene = buildScene(resolveOptions({ type: "sphere", fieldOfView }, { up: new Vector3(0, 1, 0) }));
     const world = new Scene().add(scene.group);
-    const camera = createInternalCamera(true, MathUtils.degToRad(degrees));
+    // Placed as the gizmo places it, for the sphere's outline.
+    const camera = createInternalCamera(true, fieldOfView, faceOnOutline({ targets: scene.targets }, scene.options));
     world.updateMatrixWorld();
     camera.updateMatrixWorld();
     faceScene(scene, camera);
@@ -55,7 +59,15 @@ describe("sphere background", () => {
     // The disc's rim, as drawn: the edge of the view in every direction, as 2.3.0's orthographic disc was.
     const rim = new Vector3(BACKGROUND_RADIUS, 0, 0).applyMatrix4(disc.matrixWorld).project(camera);
     expect(Math.hypot(rim.x, rim.y)).toBeCloseTo(1, 9);
-    faceScene(scene, camera);
-    expect(new Vector3(BACKGROUND_RADIUS, 0, 0).applyMatrix4(disc.matrixWorld).project(camera).x).toBeCloseTo(rim.x, 12);
+  });
+
+  it("follows a cheap fieldOfView change, set with the options rather than each frame", () => {
+    const scene = sphere();
+    const disc = scene.parts.background.object as Mesh;
+    const at26 = disc.scale.x;
+    updateScene(scene, resolveOptions({ type: "sphere", fieldOfView: Math.PI / 2 }, { up: new Vector3(0, 1, 0) }));
+    expect(disc.scale.x).not.toBeCloseTo(at26, 3);
+    faceScene(scene, createInternalCamera(true, Math.PI / 2));
+    expect(disc.scale.x).toBe(disc.scale.y);
   });
 });

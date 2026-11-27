@@ -1,6 +1,5 @@
 import {
   CircleGeometry,
-  MathUtils,
   Matrix4,
   Mesh,
   Quaternion,
@@ -8,9 +7,10 @@ import {
   type BufferGeometry,
   type Camera,
   type Object3D,
-  type PerspectiveCamera,
 } from "three";
+import { fieldOfViewDistance } from "../render/internalCamera";
 import { mergeGeometries } from "./merge";
+import { faceOnOutline } from "./outline";
 import type { PartBuilder } from "./build";
 import { meshAttributes, targetMaterial, whiteTexture } from "./materials";
 
@@ -35,18 +35,11 @@ export function turnToCamera(object: Object3D, camera: Camera): void {
 
 /**
  * Turns the disc to face `camera` and moves it to the back of the 2.3.0 sphere, so the axis lines behind the origin
- * still draw in front of it as they did, sized to fill the camera's view there: the element's circle at every field
- * of view, as 2.3.0's orthographic disc was.
+ * still draw in front of it as they did.
  */
 function faceCamera(disc: Mesh, camera: Camera): void {
   turnToCamera(disc, camera);
   disc.position.set(0, 0, -BACKGROUND_RADIUS).applyQuaternion(disc.quaternion);
-  const { fov, position } = camera as PerspectiveCamera;
-  // Written only on change: a double stored anew is boxed (perf budget `alloc`).
-  const scale = fov
-    ? ((position.z + BACKGROUND_RADIUS) * Math.tan(fov * MathUtils.DEG2RAD * 0.5)) / BACKGROUND_RADIUS
-    : 1;
-  if (disc.scale.x !== scale) disc.scale.setScalar(scale);
   disc.updateMatrixWorld();
 }
 
@@ -81,6 +74,13 @@ export const background: PartBuilder = (o, { targets }, owned) => {
     object,
     face: sphere ? (camera) => faceCamera(object, camera) : undefined,
     update(o, over) {
+      if (sphere) {
+        // The disc fills the gizmo camera's view at its depth: the element's circle at every field of view, as 2.3.0's
+        // orthographic disc was. Set with the options, so a frame computes nothing.
+        const t = Math.tan(o.fieldOfView / 2);
+        const distance = fieldOfViewDistance(o.fieldOfView, faceOnOutline({ targets }, o), true);
+        object.scale.setScalar(((distance + BACKGROUND_RADIUS) * t) / BACKGROUND_RADIUS);
+      }
       const { enabled, color, opacity, hover } = o.background;
       object.visible = enabled;
       material.color.set(over ? hover.color : color);
