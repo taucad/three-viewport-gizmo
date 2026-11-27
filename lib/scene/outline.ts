@@ -1,4 +1,4 @@
-import { BackSide, DoubleSide, Matrix4, Mesh, Vector3, type Material, type Object3D } from "three";
+import { BackSide, DoubleSide, Matrix4, Mesh, Sprite, Vector3, type Material, type Object3D } from "three";
 import { fieldOfViewDistance, UNIT_FACE_OUTLINE, type FaceOnOutline } from "../render/internalCamera";
 import type { SceneOptions, SceneTarget } from "./build";
 import { styleOf } from "./update";
@@ -8,9 +8,6 @@ export const TRIAD_SCENE_SCALE = 0.7;
 
 /** Whether the triad shows for these options: on, and a cube type. */
 export const triadShown = (o: Pick<SceneOptions, "type" | "triad">): boolean => o.type !== "sphere" && o.triad.enabled;
-
-/** Half the sphere's orthographic frustum height, as in `createInternalCamera`. */
-const SPHERE_HALF_HEIGHT = 1.8;
 
 const _v = /*@__PURE__*/ new Vector3();
 const _a = /*@__PURE__*/ new Vector3();
@@ -24,28 +21,32 @@ export type OutlineParts = Readonly<{ targets: readonly SceneTarget[]; backgroun
 
 /**
  * The gizmo body's face-on outline as the gizmo draws it at rest, in the scene's units at its current scale
- * (`TRIAD_SCENE_SCALE` while the triad shows), for {@link fieldOfViewDistance}. Face-on, the drawn half-size at
- * distance `d` is the largest `x / (d − z)` over the points drawn at `d`, so the distance holds it exactly. Read from
- * the geometry and place of each shown target, with the targets scaled as at rest (never as hovered), and of the
- * background; not the axis lines or the triad, which run outside the body. The sphere (orthographic) and a body with nothing drawn get the unit front edge.
+ * (`TRIAD_SCENE_SCALE` while the triad shows), for {@link fieldOfViewDistance}. Face-on, the drawn width at distance
+ * `d` is the largest `x / (d − z)` right of the centre plus the largest `−x / (d − z)` left of it, over the points drawn
+ * at `d`, so the distance holds it exactly. Read from the geometry and place of each shown target, with the targets
+ * scaled as at rest (never as hovered), and of the background; not the axis lines or the triad, which run outside the
+ * body. A body with nothing drawn gets the unit front edges.
  *
- * Each triangle counts as its material culls it. A flat plate facing the camera's axis is drawn only beyond the
- * distance where its plane crosses the axis (a corner plate turns away from a close camera), one facing across it
- * always or never (the classic cube's background, seen from inside, bounds its width), one facing away never. So the
- * classic cube's one-sided plates are held as exactly as the rounded cube's closed body, whose bevel moves the point
- * that bounds it toward a closer camera.
+ * - Cube types: each triangle as its material culls it. A flat plate facing the camera's axis is drawn only beyond the
+ *   distance where its plane crosses the axis (a corner plate turns away from a close camera), one facing across it
+ *   always or never (the classic cube's background, seen from inside, bounds its width), one facing away never. So the
+ *   classic cube's one-sided plates are held as exactly as the rounded cube's closed body, whose bevel moves the point
+ *   that bounds it toward a closer camera.
+ * - `sphere`: each shown sprite, a camera-facing square of side `scale` about its place, always drawn. Its background
+ *   disc fills the element at every field of view (`background.ts`) and is not part of the body.
  *
- * The body is symmetric about its centre and under axis swaps, so its +Z face stands for every face.
+ * Each side counts on its own, so a lopsided body (the sphere's smaller negative ends) keeps its width. The cube types
+ * are symmetric under axis swaps, and the sphere's widest sprites sit at depth 0 in every face-on view, so the +Z face
+ * stands for every face.
  *
  * @param parts - The scene's targets and background
  * @param o - Resolved options; reads `type`, `triad`, `background` and the targets' styles
- * @returns Flat `[z0, x0, from0, …]`, nearest first, reduced to the points no other point is nearer, wider and drawn
- * from as far; kept for the scene until what it reads changes
+ * @returns Flat `[z0, x0, from0, …]`: the centre, then nearest first the points no other point on their side is
+ * nearer, wider and drawn from as far; kept for the scene until what it reads changes
  */
 export function faceOnOutline({ targets, background }: OutlineParts, o: SceneOptions): FaceOnOutline {
-  if (o.type === "sphere") return UNIT_FACE_OUTLINE;
   const scale = triadShown(o) ? TRIAD_SCENE_SCALE : 1;
-  const shown = background && o.background.enabled && o.background.opacity > 0;
+  const shown = background && o.type !== "sphere" && o.background.enabled && o.background.opacity > 0;
   // What the outline reads, so the camera, the lines and the triad share one reading per change.
   let key = `${scale}|${shown}`;
   for (const target of targets) {
@@ -56,6 +57,11 @@ export function faceOnOutline({ targets, background }: OutlineParts, o: SceneOpt
   if (cached?.key === key) return cached.outline;
   const points: Array<[number, number, number]> = [];
   const add = (object: Object3D, size: number, material: Material) => {
+    if (object instanceof Sprite) {
+      const { x, z } = object.position;
+      points.push([z, x + size / 2, -Infinity], [z, x - size / 2, -Infinity]);
+      return;
+    }
     if (!(object instanceof Mesh)) return;
     const { geometry } = object;
     const position = geometry.attributes.position;
@@ -77,7 +83,7 @@ export function faceOnOutline({ targets, background }: OutlineParts, o: SceneOpt
       }
       for (let k = 0; k < 3; k++) {
         _v.fromBufferAttribute(position, index.getX(i + k)).applyMatrix4(_m);
-        if (_v.x > 0) points.push([_v.z, _v.x, from]);
+        points.push([_v.z, _v.x, from]);
       }
     }
   };
@@ -88,24 +94,25 @@ export function faceOnOutline({ targets, background }: OutlineParts, o: SceneOpt
     if (enabled && opacity > 0) add(target.object, scale, target.idle);
   }
   if (shown) add(background, 1, (background as Mesh).material as Material);
-  // Nearest first; a point counts only if every nearer point drawn from as far is narrower.
-  points.sort((a, b) => b[0] - a[0] || b[1] - a[1]);
-  const outline: number[] = [];
+  // Nearest first; a point counts only if every nearer point on its side drawn from as far is narrower.
+  points.sort((a, b) => b[0] - a[0] || Math.abs(b[1]) - Math.abs(a[1]));
+  // The centre, always drawn, so a side with nothing on it adds 0 (`fieldOfViewDistance`).
+  const outline: number[] = [0, 0, -Infinity];
   for (const [z, x, from] of points) {
-    let covered = false;
+    let covered = x === 0;
     for (let i = 0; i < outline.length && !covered; i += 3)
-      covered = outline[i + 1]! >= x * scale && outline[i + 2]! <= from * scale;
+      covered = outline[i + 1]! / (x * scale) >= 1 && outline[i + 2]! <= from * scale;
     if (!covered) outline.push(z * scale, x * scale, from * scale);
   }
   // Nothing drawn: 2.3.0's front edges, so the camera still has a place.
-  const result = outline.length ? outline : UNIT_FACE_OUTLINE;
+  const result = outline.length > 3 ? outline : UNIT_FACE_OUTLINE;
   outlines.set(targets, { key, outline: result });
   return result;
 }
 
 /**
- * Screen pixels per world unit at the gizmo's origin, for the gizmo's own camera drawn `size` pixels tall: the
- * sphere's orthographic frustum, or the cube's perspective camera at its field-of-view distance for `outline`.
+ * Screen pixels per world unit at the gizmo's origin, for the gizmo's own camera drawn `size` pixels tall at its
+ * field-of-view distance for `outline`.
  *
  * @param options - Resolved options; reads `type`, `size` and `fieldOfView`
  * @param outline - From {@link faceOnOutline}, as the camera is placed with
@@ -114,8 +121,4 @@ export function faceOnOutline({ targets, background }: OutlineParts, o: SceneOpt
 export const pixelsPerUnit = (
   { type, size, fieldOfView }: Pick<SceneOptions, "type" | "size" | "fieldOfView">,
   outline: FaceOnOutline = UNIT_FACE_OUTLINE
-): number =>
-  size /
-  (type === "sphere"
-    ? 2 * SPHERE_HALF_HEIGHT
-    : 2 * fieldOfViewDistance(fieldOfView, outline) * Math.tan(fieldOfView / 2));
+): number => size / (2 * fieldOfViewDistance(fieldOfView, outline, type === "sphere") * Math.tan(fieldOfView / 2));

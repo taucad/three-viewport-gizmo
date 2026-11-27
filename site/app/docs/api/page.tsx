@@ -83,7 +83,7 @@ const options: Entry[] = [
   ["drag", "boolean", "Whether a drag on the gizmo turns the view. Default true."],
   ["limits", "{ minPolarAngle?, maxPolarAngle?, minAzimuthAngle?, maxAzimuthAngle? }", "Radians in the orbit frame, narrowed by attached controls' limits."],
   ["controlled", "boolean", <>Report the pose in <code>change</code> and write no camera. Default false. See <Link href="/docs/controlled-mode/">Controlled mode</Link>.</>],
-  ["fieldOfView", "number", "Vertical field of view of the gizmo's own camera, in radians, in (0, 100°]; wider angles exaggerate the cube's depth, narrower ones approach orthographic, and the cube and rounded cube keep their face-on size (within a pixel of 26°, with or without the triad). No effect on the sphere, which is drawn orthographic. Default 26°."],
+  ["fieldOfView", "number", "Vertical field of view of the gizmo's own camera, in radians, in (0, 100°]; for every type: wider angles exaggerate depth, narrower ones approach orthographic, and the gizmo keeps its face-on size (within a pixel of 26°, with or without the triad). Default 26°, where the sphere keeps its 2.3.0 orthographic width."],
   ["navigation", "GizmoNavigationOptions", <>Built-in navigation buttons. Off by default. See <Link href="/docs/navigation/">Navigation buttons</Link>.</>],
   ["triad", "{ enabled?, colors?: { x?, y?, z? } }", <>The axis triad for the cube types. Default off. See <Link href="/docs/rounded-cube/">Rounded cube and triad</Link>.</>],
   ["onMaterial", "(material, use: GizmoMaterialUse) => GizmoMaterial", "Replaces each target material the gizmo builds, on every build."],

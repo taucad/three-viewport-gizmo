@@ -34,18 +34,20 @@ describe("faceOnOutline", () => {
   it("takes in the classic cube's background: its side plates, seen from inside, are drawn from any distance", () => {
     const scene = buildScene(resolve({ type: "cube" }));
     const points = pointsOf(outlineOf(scene));
-    // The background is the faces at 0.9 facing in: its side plates reach half-width 1 at depth 0.9.
-    expect(points.some(([z, x, from]) => Math.abs(z - 0.9) < 1e-6 && Math.abs(x - 1) < 1e-6 && from === -Infinity)).toBe(true);
+    // The background is the faces at 0.9 facing in: its side plates reach half-width 1 at depth 0.9, either side.
+    for (const side of [1, -1]) {
+      expect(points.some(([z, x, from]) => Math.abs(z - 0.9) < 1e-6 && Math.abs(x - side) < 1e-6 && from === -Infinity)).toBe(true);
+    }
     const without = buildScene(resolve({ type: "cube", background: { enabled: false } }));
-    expect(Math.max(...pointsOf(outlineOf(without)).map(([, x]) => x))).toBeLessThan(1.02);
-    expect(pointsOf(outlineOf(without)).some(([, x]) => x === 1)).toBe(false);
+    expect(Math.max(...pointsOf(outlineOf(without)).map(([, x]) => Math.abs(x)))).toBeLessThan(1.02);
+    expect(pointsOf(outlineOf(without)).some(([, x]) => Math.abs(x) === 1)).toBe(false);
   });
 
   it("draws the classic cube's front corner plates only from a camera beyond where their plane crosses the axis", () => {
     const scene = buildScene(resolve({ type: "cube", background: { enabled: false } }));
     const points = pointsOf(outlineOf(scene));
     // A corner plate at 0.85 (1, 1, 1) facing (1, 1, 1): its plane crosses the axis at 3 × 0.85.
-    const corner = points.filter(([, x]) => x > 1);
+    const corner = points.filter(([, x]) => Math.abs(x) > 1);
     expect(corner.length).toBeGreaterThan(0);
     for (const [, , from] of corner) expect(from).toBeCloseTo(2.55, 9);
     // The front face plate (depth 1) shows from beyond its own plane; the back plates never do.
@@ -71,8 +73,24 @@ describe("faceOnOutline", () => {
     expect(outlineOf(scene)).not.toBe(first);
   });
 
-  it("gives the sphere, drawn orthographic, the unit front edge, and keeps 2.3.0's distance for it", () => {
-    const scene = buildScene(resolve({ type: "sphere" }));
+  it("reads the sphere's sprites as squares about their places, each side apart, and not its background disc", () => {
+    const scene = buildScene(resolve({ type: "sphere", background: { opacity: 1 } }));
+    const points = pointsOf(outlineOf(scene));
+    // The centre; +Z's square, 1.3 nearer the camera; +X at 1.3 with scale 0.7, −X at 1.3 with its smaller 0.45.
+    expect(points).toEqual([
+      [0, 0, -Infinity],
+      [expect.closeTo(1.3, 9), expect.closeTo(0.35, 9), -Infinity],
+      [expect.closeTo(1.3, 9), expect.closeTo(-0.35, 9), -Infinity],
+      [expect.closeTo(0, 9), expect.closeTo(1.65, 9), -Infinity],
+      [expect.closeTo(0, 9), expect.closeTo(-1.525, 9), -Infinity],
+    ]);
+  });
+
+  it("gives a body with nothing drawn the unit front edges", () => {
+    const off = { enabled: false };
+    const scene = buildScene(
+      resolve({ type: "cube", background: off, corners: off, x: off, y: off, z: off, nx: off, ny: off, nz: off })
+    );
     expect(outlineOf(scene)).toBe(UNIT_FACE_OUTLINE);
     expect(fieldOfViewDistance(Math.PI / 2, UNIT_FACE_OUTLINE)).toBeCloseTo(1 + 6 * Math.tan((13 * Math.PI) / 180), 12);
   });

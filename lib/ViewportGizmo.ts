@@ -156,7 +156,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
   private _targets: readonly GizmoTarget[] = [];
   private _byEntry = new Map<TargetEntry, SceneTarget>();
   private _hit!: HitScene;
-  private _camera: PerspectiveCamera | OrthographicCamera;
+  private _camera: PerspectiveCamera;
   private readonly _three = new Scene();
   /** F1's depth-reset quad: a sibling of `root` in the gizmo's scene, owned by the gizmo scene. */
   private _reset!: DepthReset;
@@ -936,7 +936,13 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
         lookFrom: (view) => this._lookFrom("navigation", view),
         turn: (turn) => this._turn("navigation", turn),
         // The measured height once rendered (CSS may resize the element), else the size option.
-        anchor: () => navigationAnchor(this._camera, this._scene.group.scale.x, this._viewport.height || this._options.size),
+        anchor: () =>
+          navigationAnchor(
+            this._camera,
+            this._scene.group.scale.x,
+            this._viewport.height || this._options.size,
+            this._options.type === "sphere"
+          ),
       });
     } else if (!on && this._nav) {
       this._nav.detach();
@@ -1013,7 +1019,7 @@ export class ViewportGizmo extends EventDispatcher<ViewportGizmoEventMap> {
     } else {
       updateScene(this._scene, next);
       // A triad toggle or a hidden target changes the outline the distance keeps (cheap path).
-      setFieldOfView(this._camera, next.fieldOfView, this._outline(next));
+      setFieldOfView(this._camera, next.fieldOfView, this._outline(next), next.type === "sphere");
     }
     this._adoptScene();
     this._faded.set(NaN, NaN, NaN, NaN);

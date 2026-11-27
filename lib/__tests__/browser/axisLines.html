@@ -15,6 +15,7 @@
       import { buildScene, disposeScene, faceScene } from "/lib/scene/build.ts";
       import { updateScene } from "/lib/scene/update.ts";
       import { createInternalCamera } from "/lib/render/internalCamera.ts";
+      import { faceOnOutline } from "/lib/scene/outline.ts";
 
       const q = new URLSearchParams(location.search);
       const backend = q.get("backend") ?? "webgpu";
@@ -56,7 +57,9 @@
         linesOnly(scene);
         world.add(scene.group);
         world.onBeforeRender = (_renderer, _world, c) => faceScene(scene, c);
-        const camera = createInternalCamera(type === "sphere");
+        // Placed for the body's outline, as the gizmo places it.
+        const outline = faceOnOutline({ targets: scene.targets, background: scene.parts.background.object }, scene.options);
+        const camera = createInternalCamera(type === "sphere", scene.options.fieldOfView, outline);
         renderer.setRenderTarget(target);
         renderer.setClearColor(0x000000, 0);
         renderer.clear();

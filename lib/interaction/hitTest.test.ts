@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { Matrix4, Quaternion, Vector3 } from "three";
+import { Matrix4, OrthographicCamera, Quaternion, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 import { resolveOptions } from "../options/resolve";
 import { labelFrame } from "../orbit/labelFrame";
@@ -39,6 +39,14 @@ const upVector = (up: Up) => new Vector3().setComponent("xyz".indexOf(up), 1);
 
 const CUBE: HitBox = { type: "box", radius: 0, flat: 0.7, corner: 0.65 };
 
+/** 2.3.0's sphere camera. */
+const SPHERE_V230 = (() => {
+  const camera = new OrthographicCamera(-1.8, 1.8, 1.8, -1.8, 5, 10);
+  camera.position.set(0, 0, 7);
+  camera.updateMatrixWorld();
+  return camera;
+})();
+
 /** The hit scene K5 would build for a fixture variant from 2.3.0's default options. */
 function sceneFor(variant: string, up: Up, orientation: Quaternion): HitScene {
   const frame = labelFrame(upVector(up));
@@ -56,7 +64,8 @@ function sceneFor(variant: string, up: Up, orientation: Quaternion): HitScene {
       : roundedCubeBox(options.corners.radius);
   return {
     orientation,
-    camera: createInternalCamera(isSphere),
+    // 2.3.0 drew the sphere through an orthographic camera, which the fixture records; the hit test takes either.
+    camera: isSphere ? SPHERE_V230 : createInternalCamera(false),
     shape,
     targets,
     // The default sphere draws only its faces.
@@ -132,9 +141,10 @@ describe("hitTest", () => {
     expect(camera.matrixWorld.equals(new Matrix4())).toBe(true);
     expect(hitTest(0, 0, { orientation: front, camera, shape: CUBE, targets })?.name).toBe("front");
 
-    const ortho = createInternalCamera(true);
+    const sphere = createInternalCamera(true);
     const shape = sphereDiscs(targets, () => 0.35);
-    expect(hitTest(0, 0, { orientation: front, camera: ortho, shape, targets })?.name).toBe("front");
+    expect(hitTest(0, 0, { orientation: front, camera: sphere, shape, targets })?.name).toBe("front");
+    expect(hitTest(0, 0, { orientation: front, camera: SPHERE_V230, shape, targets })?.name).toBe("front");
   });
 
   it("should follow the gizmo's orientation", () => {
