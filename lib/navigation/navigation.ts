@@ -1,4 +1,4 @@
-import { Color, type ColorRepresentation, type PerspectiveCamera } from "three";
+import { Color, PerspectiveCamera, type ColorRepresentation, type OrthographicCamera } from "three";
 import { labelFrame } from "../orbit/labelFrame";
 import type {
   GizmoAtTarget,
@@ -80,23 +80,20 @@ const isSide = (button: NavigationButton): button is GizmoSide =>
 /**
  * The buttons' distance from the gizmo's centre in CSS pixels, from its projected silhouette. On the cube (perspective)
  * one grid serves both: side triangles clear the face square at a face view, and the corner chips clear the cube's
- * bounding sphere, so no chip covers the cube at any of the 26 views and any roll. The sphere is round and fills the
- * element at every field of view, so the corner chips sit on the diagonal at the sides' distance, inside the element's
- * corners within reach.
+ * bounding sphere, so no chip covers the cube at any of the 26 views and any roll. The sphere (orthographic) is round,
+ * so the corner chips sit on the diagonal at the sides' distance, inside the element's corners within reach.
  *
  * @param camera - The gizmo's own camera, looking down -z at the origin
  * @param scale - The cube's scale in the gizmo's scene (0.7 with the triad)
  * @param size - The gizmo's height in CSS pixels: as measured once rendered, else its `size` option
- * @param round - Whether the gizmo is the sphere
  */
 export function navigationAnchor(
-  camera: PerspectiveCamera,
+  camera: PerspectiveCamera | OrthographicCamera,
   scale: number,
   size: number,
-  round = false,
 ): NavigationAnchor {
   const half = size / 2;
-  if (round) {
+  if (!(camera instanceof PerspectiveCamera)) {
     const side = half * scale + CLEARANCE;
     return { side, corner: side / Math.SQRT2 };
   }

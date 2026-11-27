@@ -18,9 +18,8 @@ type Look = Readonly<{
 }>;
 
 /**
- * Gizmo CSS pixels per world unit, at the 2.3.0 sizes `fieldOfView` keeps to within each body's perspective: the
- * sphere's at its centre, ±1.8 across its view as 2.3.0's orthographic camera drew it; the cube's front face,
- * `(7 - 1) * tan(13°)` above the centre. A sprite nearer a wide-angle camera than the centre draws larger, softer.
+ * Gizmo CSS pixels per world unit. The sphere's camera is orthographic over ±1.8; the cube's front face at its 2.3.0
+ * projected size, `(7 - 1) * tan(13°)` above the centre, which `fieldOfView` keeps to within its body's perspective.
  */
 const UNITS_PER_SIZE = { sphere: 3.6, cube: 2 * 6 * Math.tan(DEFAULT_FIELD_OF_VIEW / 2) } as const;
 

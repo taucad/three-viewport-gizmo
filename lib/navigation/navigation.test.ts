@@ -1,7 +1,7 @@
 // I4: the built-in navigation buttons (OD2). Off by default adds no node; each switch hides only its button; `canRoll`
 // false hides the rolls; reveal on hover and focus within; every press is a `navigation` turn; colours from the cube.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PerspectiveCamera, Vector3 } from "three";
+import { OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
 import type { GizmoCause, GizmoNavigationOptions, GizmoOptions } from "../index.js";
 import type { ViewportGizmo } from "../ViewportGizmo.js";
 import { createGizmo } from "../__tests__/test-utils.js";
@@ -250,7 +250,7 @@ describe("navigationAnchor", () => {
   });
 
   it("puts the sphere's corner chips on the diagonal at the sides' distance, inside the element", () => {
-    const { side, corner } = navigationAnchor(createInternalCamera(true), 1, 128, true);
+    const { side, corner } = navigationAnchor(new OrthographicCamera(-1, 1, 1, -1), 1, 128);
     expect(side).toBe(64 + 19);
     expect(corner * Math.SQRT2).toBeCloseTo(side);
     // The chip's 24 px hit area overlaps the 128 px element's corner, so the pointer reaches Home without a gap.

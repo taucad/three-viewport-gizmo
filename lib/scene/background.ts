@@ -1,6 +1,5 @@
 import {
   CircleGeometry,
-  MathUtils,
   Matrix4,
   Mesh,
   Quaternion,
@@ -8,13 +7,12 @@ import {
   type BufferGeometry,
   type Camera,
   type Object3D,
-  type PerspectiveCamera,
 } from "three";
 import { mergeGeometries } from "./merge";
 import type { PartBuilder } from "./build";
 import { meshAttributes, targetMaterial, whiteTexture } from "./materials";
 
-/** The 2.3.0 sphere background's radius, which filled its orthographic camera's ±1.8 frustum. */
+/** The 2.3.0 sphere background's radius, which fills the sphere camera's ±1.8 frustum. */
 export const BACKGROUND_RADIUS = 1.8;
 
 /** Segments of the sphere's disc: one triangle each, and a silhouette within 0.001 units of a circle (P10). */
@@ -35,25 +33,18 @@ export function turnToCamera(object: Object3D, camera: Camera): void {
 
 /**
  * Turns the disc to face `camera` and moves it to the back of the 2.3.0 sphere, so the axis lines behind the origin
- * still draw in front of it as they did, sized to fill the camera's view there: the element's circle at every field
- * of view, as 2.3.0's orthographic disc was.
+ * still draw in front of it as they did.
  */
 function faceCamera(disc: Mesh, camera: Camera): void {
   turnToCamera(disc, camera);
   disc.position.set(0, 0, -BACKGROUND_RADIUS).applyQuaternion(disc.quaternion);
-  const { fov, position } = camera as PerspectiveCamera;
-  // Written only on change: a double stored anew is boxed (perf budget `alloc`).
-  const scale = fov
-    ? ((position.z + BACKGROUND_RADIUS) * Math.tan(fov * MathUtils.DEG2RAD * 0.5)) / BACKGROUND_RADIUS
-    : 1;
-  if (disc.scale.x !== scale) disc.scale.setScalar(scale);
   disc.updateMatrixWorld();
 }
 
 /**
  * The gizmo's background (P10). On the sphere a camera-facing disc of {@link BACKGROUND_SEGMENTS} triangles draws
- * what 2.3.0's 8,064-triangle back-facing sphere drew: its orthographic silhouette, the element's circle. On the cubes
- * the faces are merged at 0.9 scale, as in 2.3.0. Its colour and opacity follow the pointer being over the gizmo.
+ * what 2.3.0's 8,064-triangle back-facing sphere drew: its orthographic silhouette. On the cubes the faces are merged
+ * at 0.9 scale, as in 2.3.0. Its colour and opacity follow the pointer being over the gizmo.
  *
  * It draws with the targets' program (`targetMaterial`), so it draws its front side: the cubes' far faces, which
  * 2.3.0 drew with `BackSide`, are mirrored across each face's local X, which reverses their winding and leaves the

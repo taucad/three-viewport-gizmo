@@ -313,10 +313,10 @@ export type GizmoOptions = {
   controlled?: boolean;
 
   /**
-   * Vertical field of view of the gizmo's own camera, in radians, in (0, 100°], for every type. Default 26°. Wider
-   * angles exaggerate depth and narrower ones approach orthographic, while the gizmo keeps its face-on size: its width
-   * looking straight at a face stays within a pixel of its width at 26°, with or without the triad (R11). At 26° the
-   * cube types are drawn as in 2.3.0, and the sphere at the width of its 2.3.0 orthographic camera.
+   * Vertical field of view of the gizmo's own camera, in radians, in (0, 100°]. Default 26°. Wider angles exaggerate
+   * the cube's depth and narrower ones approach orthographic, while the cube and rounded cube keep their face-on size:
+   * their width looking straight at a face stays within a pixel of their width at 26°, with or without the triad
+   * (R11). The sphere is drawn orthographic and ignores it.
    */
   fieldOfView?: number;
 

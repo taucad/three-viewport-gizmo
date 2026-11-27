@@ -6,7 +6,7 @@ import { classifyChange } from "../options/changes";
 import { resolveOptions } from "../options/resolve";
 import { createInternalCamera } from "../render/internalCamera";
 import type { GizmoOptions } from "../types";
-import { faceOnOutline, pixelsPerUnit } from "./outline";
+import { pixelsPerUnit } from "./outline";
 import { buildScene } from "./build";
 import { updateScene } from "./update";
 
@@ -48,8 +48,7 @@ describe("axisLines", () => {
       // The x line is the first sixth; its cross-section spans z in [-radius, radius].
       const { array, count } = mesh.geometry.attributes.position;
       const z = Array.from(array.slice(0, (count / 6) * 3)).filter((_, i) => i % 3 === 2);
-      const outline = faceOnOutline({ targets: scene.targets, background: scene.parts.background.object }, scene.options);
-      expect((Math.max(...z) - Math.min(...z)) * pixelsPerUnit(scene.options, outline)).toBeCloseTo(lineWidth, 6);
+      expect((Math.max(...z) - Math.min(...z)) * pixelsPerUnit(scene.options)).toBeCloseTo(lineWidth, 6);
     }
   });
 

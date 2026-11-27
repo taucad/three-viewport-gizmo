@@ -1,7 +1,6 @@
-import { Euler, MathUtils, Mesh, Object3D, OrthographicCamera, PerspectiveCamera, Quaternion, Scene, Vector3 } from "three";
+import { Euler, Mesh, Object3D, OrthographicCamera, Quaternion, Scene, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 import { resolveOptions } from "../options/resolve";
-import { createInternalCamera } from "../render/internalCamera";
 import { BACKGROUND_RADIUS } from "./background";
 import { buildScene, faceScene } from "./build";
 
@@ -42,20 +41,5 @@ describe("sphere background", () => {
     expect(normal.distanceTo(toCamera)).toBeLessThan(1e-6);
     // Behind the origin, where 2.3.0's back-facing sphere drew.
     expect(new Vector3().setFromMatrixPosition(disc.matrixWorld).distanceTo(new Vector3(0, 0, -BACKGROUND_RADIUS))).toBeLessThan(1e-6);
-  });
-
-  it.each([0.1, 26, 60, 90])("fills the element's circle through the gizmo's perspective camera at %s°", (degrees) => {
-    const scene = sphere();
-    const world = new Scene().add(scene.group);
-    const camera = createInternalCamera(true, MathUtils.degToRad(degrees));
-    world.updateMatrixWorld();
-    camera.updateMatrixWorld();
-    faceScene(scene, camera);
-    const disc = scene.parts.background.object as Mesh;
-    // The disc's rim, as drawn: the edge of the view in every direction, as 2.3.0's orthographic disc was.
-    const rim = new Vector3(BACKGROUND_RADIUS, 0, 0).applyMatrix4(disc.matrixWorld).project(camera);
-    expect(Math.hypot(rim.x, rim.y)).toBeCloseTo(1, 9);
-    faceScene(scene, camera);
-    expect(new Vector3(BACKGROUND_RADIUS, 0, 0).applyMatrix4(disc.matrixWorld).project(camera).x).toBeCloseTo(rim.x, 12);
   });
 });
