@@ -6,6 +6,8 @@
 // - Sections render as Breaking Changes (`bump: major`), then Features (`minor`), then Fixes (`patch`).
 // - Within a section, a plan whose message starts with `<!-- order: N -->` renders by ascending N; plans without one
 //   follow in Nx's order. The marker is stripped from the output.
+// - Every version's title is a level-2 heading, a major one included (Nx's default makes a major `#`): `# Changelog`
+//   is the document's title, and `scripts/ci-release.mjs` finds an entry by its `## <version>` line.
 //
 // Anything not Version Plan based renders exactly as Nx's default renderer.
 
@@ -41,6 +43,10 @@ class OrderedChangelogRenderer extends DefaultChangelogRenderer {
       lines.push('', `### ${changelog.title}`, '', ...groups[type].map((change) => this.formatChange(change)));
     }
     return lines;
+  }
+
+  renderVersionTitle() {
+    return super.renderVersionTitle().replace(/^#\s/u, '## ');
   }
 
   async render() {

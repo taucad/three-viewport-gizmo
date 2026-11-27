@@ -43,7 +43,7 @@ for (const project of ['three-viewport-gizmo', null]) {
     assert.equal(
       entry,
       [
-        '# 3.0.0',
+        '## 3.0.0',
         '',
         '### ⚠️  Breaking Changes',
         '',
