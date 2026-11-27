@@ -156,9 +156,11 @@ describe("DEFAULT_FIELD_OF_VIEW", () => {
 });
 
 describe("fieldOfViewDistance", () => {
+  /** The drawn half-size of `outline` at `distance`: the points drawn from there. */
   const halfSize = (outline: readonly number[], distance: number, degrees: number) => {
     let half = 0;
-    for (let i = 0; i < outline.length; i += 2) half = Math.max(half, outline[i + 1]! / (distance - outline[i]!));
+    for (let i = 0; i < outline.length; i += 3)
+      if (outline[i + 2]! <= distance) half = Math.max(half, outline[i + 1]! / (distance - outline[i]!));
     return half / Math.tan((degrees * MathUtils.DEG2RAD) / 2);
   };
 
@@ -168,13 +170,38 @@ describe("fieldOfViewDistance", () => {
         1 + (6 * Math.tan(DEFAULT_FIELD_OF_VIEW / 2)) / Math.tan((degrees * MathUtils.DEG2RAD) / 2),
         12
       );
-    expect(fieldOfViewDistance(DEFAULT_FIELD_OF_VIEW, [0.7, 1, 0.9, 0.6])).toBe(7);
+    expect(fieldOfViewDistance(DEFAULT_FIELD_OF_VIEW, [0.7, 1, -Infinity, 0.9, 0.6, -Infinity])).toBe(7);
   });
 
   it("holds a many-point outline's face-on half-size exactly, whichever point bounds it", () => {
-    const arc = [0.9, 0.7, 0.85, 0.8, 0.79, 0.86, 0.7, 0.9]; // nearer points narrower, as round a bevel
+    // Nearer points narrower, as round a bevel.
+    const arc = [0.9, 0.7, -Infinity, 0.85, 0.8, -Infinity, 0.79, 0.86, -Infinity, 0.7, 0.9, -Infinity];
     const at26 = halfSize(arc, 7, 26);
     for (const degrees of [0.1, 30, 60, 90, 150])
       expect(halfSize(arc, fieldOfViewDistance(degrees * MathUtils.DEG2RAD, arc), degrees)).toBeCloseTo(at26, 12);
+  });
+
+  it("counts a plate only from the distance that draws it, and holds the size across its turn", () => {
+    // The classic cube's background side (1 at 0.9, always) and a large corner plate (1.2 at 0.7) drawn beyond 2.55:
+    // the corner bounds the size until the camera comes too near for it to face, then the background does.
+    const plates = [0.9, 1, -Infinity, 0.7, 1.2, 2.55];
+    const at26 = halfSize(plates, 7, 26);
+    for (const degrees of [0.1, 5, 20, 45, 90]) {
+      const distance = fieldOfViewDistance(degrees * MathUtils.DEG2RAD, plates);
+      expect(halfSize(plates, distance, degrees)).toBeCloseTo(at26, 12);
+    }
+    expect(fieldOfViewDistance(Math.PI / 2, plates)).toBeLessThan(2.55);
+    // Counting the corner plate at 90° though it faces away would put the camera farther.
+    const always = [0.9, 1, -Infinity, 0.7, 1.2, -Infinity];
+    expect(fieldOfViewDistance(Math.PI / 2, always)).toBeGreaterThan(fieldOfViewDistance(Math.PI / 2, plates));
+  });
+
+  it("finds a plate that turns toward the camera on the way out, and the least distance that holds the size", () => {
+    // Only a far plate is drawn at first; the near point, drawn from 3, then bounds the size.
+    const outline = [0.95, 0.5, 3, -0.5, 0.9, -Infinity];
+    for (const degrees of [10, 45, 90]) {
+      const distance = fieldOfViewDistance(degrees * MathUtils.DEG2RAD, outline);
+      expect(halfSize(outline, distance, degrees)).toBeCloseTo(halfSize(outline, 7, 26), 12);
+    }
   });
 });

@@ -24,7 +24,8 @@ const _scale = /*@__PURE__*/ new Vector3();
  * are 96 of its triangles, not 192). A cheap change rewrites positions, colours and that range in place without
  * compiling.
  */
-export const axisLines: PartBuilder = (_, { frame, targets }, owned) => {
+export const axisLines: PartBuilder = (_, scene, owned) => {
+  const { frame } = scene;
   const unit = new CylinderGeometry(1, 1, 1, RADIAL_SEGMENTS).translate(0, 0.5, 0);
   unit.deleteAttribute("uv");
   const base = unit.attributes.position.array;
@@ -50,7 +51,7 @@ export const axisLines: PartBuilder = (_, { frame, targets }, owned) => {
   return {
     object,
     update(o) {
-      const radius = o.lineWidth / 2 / pixelsPerUnit(o, faceOnOutline(targets, o));
+      const radius = o.lineWidth / 2 / pixelsPerUnit(o, faceOnOutline(scene, o));
       const positions = geometry.attributes.position as BufferAttribute;
       const index = geometry.index!;
       let shown = 0;

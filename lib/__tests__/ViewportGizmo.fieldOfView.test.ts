@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MathUtils, Mesh, PerspectiveCamera, Vector3, type Camera, type Object3D } from "three";
+import { MathUtils, PerspectiveCamera, type Camera } from "three";
 import { ViewportGizmo } from "../ViewportGizmo.js";
 import type { GizmoOptions } from "../types.js";
+import { widthRatios } from "./faceOnWidth.js";
 import { createStubRenderer, layOut } from "./test-utils.js";
 
 afterEach(() => {
@@ -9,56 +10,42 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-const _v = new Vector3();
-
-/**
- * The face-on width, in gizmo pixels, of the rounded cube's body (its 26 targets close one convex shape), projected
- * through the camera `render()` draws with. Face-on: the host looks down −Z, so the gizmo's +Z face is toward its
- * camera.
- */
-function outlineWidth(options: GizmoOptions, degrees: number): number {
-  const renderer = createStubRenderer();
-  const container = document.body.appendChild(document.createElement("div"));
-  const host = new PerspectiveCamera(50, 1, 0.1, 100);
-  host.position.set(0, 0, 7);
-  host.lookAt(0, 0, 0);
-  const size = 320;
-  const gizmo = layOut(new ViewportGizmo(host, renderer, { ...options, size, container, fieldOfView: MathUtils.degToRad(degrees) }));
-  const draw = vi.spyOn(renderer, "render");
-  gizmo.render();
-  const camera = draw.mock.calls[0]![1] as Camera;
-  // The scene group holds the background, the axis lines, the 26 targets and the triad, in that order.
-  const group = gizmo.root.children[0]!;
-  gizmo.root.updateMatrixWorld(true);
-  camera.updateMatrixWorld();
-  let min = Infinity;
-  let max = -Infinity;
-  const meshes = group.children.slice(2, 28) as Object3D[];
-  for (const target of meshes) {
-    if (!(target instanceof Mesh) || !target.visible) continue;
-    const position = target.geometry.attributes.position;
-    for (let i = 0; i < position.count; i++) {
-      const x = _v.fromBufferAttribute(position, i).applyMatrix4(target.matrixWorld).project(camera).x;
-      min = Math.min(min, x);
-      max = Math.max(max, x);
-    }
-  }
-  gizmo.dispose();
-  return ((max - min) * size) / 2;
-}
-
-describe("fieldOfView keeps the rounded cube's face-on outline (its drawn size), triad on and off", () => {
+describe("fieldOfView keeps the body's face-on width (its drawn size), triad on and off", () => {
   const cases: Array<[string, GizmoOptions]> = [
+    ["cube", { type: "cube" }],
+    ["cube with the triad", { type: "cube", triad: { enabled: true } }],
+    ["cube r 0.5, large corners", { type: "cube", radius: 0.5, corners: { scale: 0.35 } }],
+    ["cube with its edges shown", { type: "cube", edges: { opacity: 1 } }],
+    ["cube without its background", { type: "cube", background: { enabled: false } }],
     ["rounded-cube r 0.05", { type: "rounded-cube", radius: 0.05 }],
     ["rounded-cube r 0.3", { type: "rounded-cube", radius: 0.3 }],
     ["rounded-cube r 0.3 with the triad", { type: "rounded-cube", radius: 0.3, triad: { enabled: true } }],
     ["rounded-cube r 0.6 with the triad", { type: "rounded-cube", radius: 0.6, triad: { enabled: true } }],
   ];
-  it.each(cases)("%s: within 1 % of its 26° width at 0.1°, 30°, 45° and 90°", (_, options) => {
-    const base = outlineWidth(options, 26);
-    const ratios = Object.fromEntries([0.1, 30, 45, 90].map((d) => [d, outlineWidth(options, d) / base]));
+  const off = { enabled: false };
+  const noFaces = { background: off, x: off, y: off, z: off, nx: off, ny: off, nz: off };
+  // One-sided plates only: nothing is always drawn, so the camera must start where the nearest plate first draws.
+  it.each<[string, GizmoOptions, number[]]>([
+    ["cube, corners only", { type: "cube", ...noFaces, corners: { opacity: 1 } }, [0.1, 10, 30, 45, 60]],
+    ["cube, edges only", { type: "cube", ...noFaces, edges: { opacity: 1 } }, [0.1, 10, 30, 45, 60, 90]],
+    ["cube, corners and edges only", { type: "cube", ...noFaces, corners: { opacity: 1 }, edges: { opacity: 1 } }, [0.1, 10, 30, 45, 60, 90]],
+    ["rounded-cube, corners only", { type: "rounded-cube", ...noFaces, corners: { opacity: 1 } }, [0.1, 10, 30, 45, 60, 90]],
+  ])("%s: drawn and within 1e-9 of its 26° width", (_, options, degrees) => {
+    const ratios = widthRatios(options, degrees);
+    for (const ratio of Object.values(ratios)) expect(Math.abs(ratio - 1), JSON.stringify(ratios)).toBeLessThanOrEqual(1e-9);
+  });
+
+  it("cube, corners only, at 90°: still drawn, a little smaller, since its corner plates face the camera only from 2.55", () => {
+    const { 90: ratio } = widthRatios({ type: "cube", ...noFaces, corners: { opacity: 1 } }, [90]);
+    expect(ratio).toBeGreaterThan(0.8);
+    expect(ratio).toBeLessThan(1);
+  });
+
+  // Exact by construction: the distance is solved from the outline the gizmo draws, so only rounding is left.
+  it.each(cases)("%s: within 1e-9 of its 26° width from 0.1° to 100°", (_, options) => {
+    const ratios = widthRatios(options, [0.1, 1, 10, 30, 45, 60, 90, 100]);
     const worst = Math.max(...Object.values(ratios).map((r) => Math.abs(r - 1)));
-    expect(worst, JSON.stringify(ratios)).toBeLessThanOrEqual(0.01);
+    expect(worst, JSON.stringify(ratios)).toBeLessThanOrEqual(1e-9);
   });
 
   it("re-places the camera when set() toggles the triad (a cheap change) at a wide field of view", () => {
@@ -86,22 +73,6 @@ describe("fieldOfView keeps the rounded cube's face-on outline (its drawn size),
       const draw = vi.spyOn(renderer, "render");
       gizmo.render();
       expect((draw.mock.calls.at(-1)![1] as Camera).position.z).toBeCloseTo(7, 12);
-      gizmo.dispose();
-    }
-  });
-});
-
-describe("fieldOfView on the classic cube (2.3.0's front-edge model, scaled with the scene)", () => {
-  it("places the camera for the unit front edge, at the triad's scale while it shows", () => {
-    const renderer = createStubRenderer();
-    const container = document.body.appendChild(document.createElement("div"));
-    const fieldOfView = MathUtils.degToRad(45);
-    const t = Math.tan(fieldOfView / 2) / Math.tan(MathUtils.degToRad(13));
-    for (const [triad, focus] of [[false, 1], [true, 0.7]] as const) {
-      const gizmo = layOut(new ViewportGizmo(new PerspectiveCamera(), renderer, { type: "cube", container, fieldOfView, triad: { enabled: triad } }));
-      const draw = vi.spyOn(renderer, "render");
-      gizmo.render();
-      expect((draw.mock.calls.at(-1)![1] as Camera).position.z).toBeCloseTo(focus + (7 - focus) / t, 12);
       gizmo.dispose();
     }
   });

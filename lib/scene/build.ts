@@ -49,7 +49,11 @@ export type ScenePart = Readonly<{
 }>;
 
 /** Builds one part from the options and the placed targets; registers whatever it creates in `owned`. */
-export type PartBuilder = (o: SceneOptions, scene: Readonly<{ frame: LabelFrame; targets: readonly SceneTarget[] }>, owned: Owned) => ScenePart;
+export type PartBuilder = (
+  o: SceneOptions,
+  scene: Readonly<{ frame: LabelFrame; targets: readonly SceneTarget[]; background?: Object3D }>,
+  owned: Owned
+) => ScenePart;
 
 /** A target's geometry and where it sits. The geometry is registered in `owned` by the provider. */
 export type PlacedGeometry = Readonly<{ geometry: BufferGeometry }> & Placement;
@@ -146,8 +150,10 @@ export function buildScene(options: GizmoResolvedOptions, builders: Partial<Scen
     return { ...part, object, idle, hover };
   });
 
-  const context = { frame, targets };
-  const parts = { background: background(o, context, owned), lines: lines(o, context, owned), triad: triad(o, context, owned) };
+  // The lines and the triad size themselves from the body's outline, which takes in the background.
+  const base = background(o, { frame, targets }, owned);
+  const context = { frame, targets, background: base.object };
+  const parts = { background: base, lines: lines(o, context, owned), triad: triad(o, context, owned) };
   const group = new Group();
   group.add(parts.background.object, parts.lines.object, ...targets.map((t) => t.object), parts.triad.object);
 
